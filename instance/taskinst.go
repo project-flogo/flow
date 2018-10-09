@@ -2,7 +2,7 @@ package instance
 
 import (
 	"fmt"
-	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/data"
 	"runtime/debug"
 
 	"github.com/project-flogo/core/activity"
@@ -34,32 +34,13 @@ type TaskInst struct {
 	taskID string //needed for serialization
 }
 
-func (ti *TaskInst) GetInputObject(object interface{}, converter activity.InputConverter) error {
-
-	if converter != nil {
-		err := converter(ti.inputs, object)
-		if err != nil {
-			return err
-		}
-	} else {
-		metadata.MapToStruct(ti.inputs, object, false)
-	}
-
-	return nil
+func (ti *TaskInst) GetInputObject(input data.FromMap) error {
+	err := input.FromMap(ti.inputs)
+	return err
 }
 
-func (ti *TaskInst) SetOutputObject(object interface{}, converter activity.OutputConverter) error {
-
-	if converter != nil {
-		var err error
-		ti.outputs, err = converter(object)
-		if err != nil {
-			return err
-		}
-	} else {
-		ti.outputs = metadata.StructToMap(object)
-	}
-
+func (ti *TaskInst) SetOutputObject(output data.ToMap) error {
+	ti.outputs = output.ToMap()
 	return nil
 }
 
