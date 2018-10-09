@@ -4,7 +4,7 @@ import (
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/data/resolver"
+	"github.com/project-flogo/core/data/resolve"
 )
 
 //todo needs to move to lib
