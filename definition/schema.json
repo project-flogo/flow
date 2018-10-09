@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+
+  "definitions": {
+    "attribute": {
+      "title": "attribute",
+      "type": "object",
+      "properties": {
+        "name" : { "type": "string" },
+        "type" : { "enum": [ "string", "integer", "number", "boolean", "object", "array", "params", "any" ] },
+        "value": { "type": [ "string", "integer", "number", "boolean", "object", "array", "null" ] }
+      },
+      "required": ["name", "type", "value"]
+    },
+    "mapping": {
+      "title": "mapping",
+      "type": "object",
+      "properties": {
+        "type" : { "type": "integer" },
+        "value": { "type": "string" },
+        "mapTo":  { "type": "string" }
+      },
+      "required": ["type", "value", "mapTo"]
+    },
+    "link": {
+      "title": "link",
+      "type": "object",
+      "properties": {
+        "name" : { "name": "string"},
+        "id"   : { "type": "integer" },
+        "from" : { "type": "integer" },
+        "to"   : { "type": "integer" },
+        "type" : { "type": "integer" },
+        "value": { "type": "string" }
+      },
+      "required": ["id", "from", "to"]
+    },
+    "task": {
+      "title": "task",
+      "type": "object",
+      "properties": {
+        "id"           : { "type": "integer" },
+        "type"         : { "type": "integer" },
+        "name"         : { "type": "string" },
+        "activityType" : { "type": "string" },
+        "attributes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/attribute" }
+        },
+        "inputMappings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/mapping" }
+        },
+        "outputMappings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/mapping" }
+        },
+        "tasks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/task" }
+        },
+        "links": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/link" }
+        }
+      },
+      "required": ["id", "type"]
+    }
+  },
+
+  "title": "flow",
+  "type": "object",
+  "properties": {
+    "id"      : { "type": "string" },
+    "model"   : { "type": "string" },
+    "type"    : { "type": "integer" },
+    "attributes": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/attribute" }
+    },
+    "inputMappings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/mapping" }
+    },
+    "rootTask": {  "title": "rootTask", "$ref": "#/definitions/task" },
+    "errorHandlerTask": {  "title": "errorHandlerTask", "$ref": "#/definitions/task" }
+  },
+  "required": ["model", "type", "rootTask"]
+}
