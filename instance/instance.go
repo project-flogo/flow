@@ -6,7 +6,6 @@ import (
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/support/logger"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
@@ -35,10 +34,6 @@ type Instance struct {
 	activityAttrs map[string]map[string]data.TypedValue
 
 	resultHandler action.ResultHandler
-}
-
-func (inst *Instance) GetDetails() data.StringsMap {
-	panic("implement me")
 }
 
 func (inst *Instance) FlowURI() string {
@@ -129,12 +124,8 @@ func (inst *Instance) Return(returnData map[string]interface{}, err error) {
 	inst.returnError = err
 }
 
-func (inst *Instance) WorkingData() data.Scope {
+func (inst *Instance) Scope() data.Scope {
 	return inst
-}
-
-func (inst *Instance) GetResolver() resolve.CompositeResolver {
-	return definition.GetDataResolver()
 }
 
 func (inst *Instance) GetError() error {

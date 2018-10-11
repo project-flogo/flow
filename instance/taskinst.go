@@ -58,13 +58,15 @@ func (ti *TaskInst) GetInput(name string) interface{} {
 }
 
 // SetOutput implements activity.Context.SetOutput
-func (ti *TaskInst) SetOutput(name string, value interface{}) {
+func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 
 	if logger.DebugEnabled() {
 		logger.Debugf("Task[%s] - Set Output: %s = %v\n", ti.Name(), name, value)
 	}
 
 	ti.outputs[name] = value
+
+	return nil
 }
 
 // GetInputObject implements activity.Context.GetInputObject
@@ -80,7 +82,6 @@ func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
 }
 
 func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
-
 	//todo implement
 	return nil
 }
