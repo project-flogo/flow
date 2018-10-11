@@ -7,10 +7,8 @@ import (
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
-	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/logger"
 	flowutil "github.com/project-flogo/flow/util"
@@ -217,7 +215,7 @@ func createTask(def *Definition, rep *TaskRep) (*Task, error) {
 	if len(rep.Settings) > 0 {
 		task.settings = make(map[string]interface{}, len(rep.Settings))
 		for name, value := range rep.Settings {
-			task.settings[name], _ = resolveSettingValue(name, value, nil)
+			task.settings[name], _ = metadata.ResolveSettingValue(name, value, nil)
 		}
 	}
 
@@ -266,7 +264,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep) (*ActivityConfig, 
 		var err error
 		mdSettings := act.Metadata().Settings
 		for name, value := range rep.Settings {
-			activityCfg.settings[name], err = resolveSettingValue(name, value, mdSettings)
+			activityCfg.settings[name], err = metadata.ResolveSettingValue(name, value, mdSettings)
 			if err != nil {
 				return nil, err
 			}
@@ -336,36 +334,4 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error)
 	link.fromTask.toLinks = append(link.fromTask.toLinks, link)
 
 	return link, nil
-}
-
-//////
-
-func resolveSettingValue(setting string, value interface{}, settingsMd map[string]data.TypedValue) (interface{}, error) {
-
-	strVal, ok := value.(string)
-
-	toType := data.TypeUnknown
-
-	if settingsMd != nil {
-		tv := settingsMd[setting]
-		if tv != nil {
-			toType = tv.Type()
-		}
-	}
-
-	if ok && len(strVal) > 0 && strVal[0] == '$' {
-		v, err := resolve.GetBasicResolver().Resolve(strVal, nil)
-		if err == nil {
-
-			v, err = coerce.ToType(v, toType)
-			if err != nil {
-				return nil, err
-			}
-
-			logger.Debugf("Resolved setting [%s: %s] to : %v", setting, value, v)
-			return v, nil
-		}
-	}
-
-	return coerce.ToType(value, toType)
 }
