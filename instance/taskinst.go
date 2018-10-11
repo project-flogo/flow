@@ -2,10 +2,10 @@ package instance
 
 import (
 	"fmt"
-	"github.com/project-flogo/core/data"
 	"runtime/debug"
 
 	"github.com/project-flogo/core/activity"
+	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/support/logger"
 	"github.com/project-flogo/flow/definition"
@@ -34,18 +34,8 @@ type TaskInst struct {
 	taskID string //needed for serialization
 }
 
-func (ti *TaskInst) GetInputObject(input data.FromMap) error {
-	err := input.FromMap(ti.inputs)
-	return err
-}
-
-func (ti *TaskInst) SetOutputObject(output data.ToMap) error {
-	ti.outputs = output.ToMap()
-	return nil
-}
-
 /////////////////////////////////////////
-// TaskInst - activity.Context Implementation
+// activity.Context Implementation
 
 func (ti *TaskInst) ActivityHost() activity.Host {
 	return ti.flowInst
@@ -77,6 +67,18 @@ func (ti *TaskInst) SetOutput(name string, value interface{}) {
 	ti.outputs[name] = value
 }
 
+// GetInputObject implements activity.Context.GetInputObject
+func (ti *TaskInst) GetInputObject(input data.StructValue) error {
+	err := input.FromMap(ti.inputs)
+	return err
+}
+
+// SetOutputObject implements activity.Context.SetOutputObject
+func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
+	ti.outputs = output.ToMap()
+	return nil
+}
+
 func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
 
 	//todo implement
@@ -84,7 +86,7 @@ func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
 }
 
 /////////////////////////////////////////
-// TaskInst - TaskContext Implementation
+// model.TaskContext Implementation
 
 // Status implements flow.TaskContext.GetState
 func (ti *TaskInst) Status() model.TaskStatus {
@@ -131,6 +133,8 @@ func (ti *TaskInst) Task() *definition.Task {
 	return ti.task
 }
 
+/////////////////////////////////////////
+
 // GetFromLinkInstances implements model.TaskContext.GetFromLinkInstances
 func (ti *TaskInst) GetFromLinkInstances() []model.LinkInstance {
 
@@ -152,8 +156,6 @@ func (ti *TaskInst) GetFromLinkInstances() []model.LinkInstance {
 
 // GetToLinkInstances implements model.TaskContext.GetToLinkInstances,
 func (ti *TaskInst) GetToLinkInstances() []model.LinkInstance {
-
-	//logger.Debugf("GetToLinkInstances: task=%v\n", ti.Task)
 
 	links := ti.task.ToLinks()
 
@@ -177,8 +179,6 @@ func (ti *TaskInst) EvalLink(link *definition.Link) (result bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Warnf("Unhandled Error evaluating link '%s' : %v\n", link.ID(), r)
-
-			// todo: useful for debugging
 			logger.Debugf("StackTrace: %s", debug.Stack())
 
 			if err != nil {
@@ -195,13 +195,6 @@ func (ti *TaskInst) EvalLink(link *definition.Link) (result bool, err error) {
 
 		return coerce.ToBool(result)
 	}
-
-	//mgr := ti.flowInst.flowDef.GetLinkExprManager()
-	//
-	//if mgr != nil {
-	//	result, err = mgr.EvalLinkExpr(link, ti.flowInst)
-	//	return result, err
-	//}
 
 	return true, nil
 }
@@ -399,76 +392,5 @@ func (ti *TaskInst) appendErrorData(err error) {
 		ti.flowInst.SetValue("_E.code", "")
 	}
 
-	//switch e := err.(type) {
-	//case *definition.LinkExprError:
-	//	ti.flowInst.AddAttr("_E.type", data.TypeString, "link_expr")
-	//	ti.flowInst.AddAttr("_E.message", data.TypeString, err.Error())
-	//	ti.flowInst.AddAttr("_E.data", data.TypeObject, nil)
-	//	ti.flowInst.AddAttr("_E.code", data.TypeString, "")
-	//	ti.flowInst.AddAttr("_E.activity", data.TypeString, ti.taskID)
-	//case *activity.Error:
-	//	ti.flowInst.AddAttr("_E.type", data.TypeString, "activity")
-	//	ti.flowInst.AddAttr("_E.message", data.TypeString, err.Error())
-	//	ti.flowInst.AddAttr("_E.data", data.TypeObject, e.Data())
-	//	ti.flowInst.AddAttr("_E.code", data.TypeString, e.Code())
-	//
-	//	if e.ActivityName() != "" {
-	//		ti.flowInst.AddAttr("_E.activity", data.TypeString, e.ActivityName())
-	//	} else {
-	//		ti.flowInst.AddAttr("_E.activity", data.TypeString, ti.taskID)
-	//	}
-	//case *ActivityEvalError:
-	//	ti.flowInst.AddAttr("_E.activity", data.TypeString, e.TaskName())
-	//	ti.flowInst.AddAttr("_E.message", data.TypeString, err.Error())
-	//	ti.flowInst.AddAttr("_E.type", data.TypeString, e.Type())
-	//	ti.flowInst.AddAttr("_E.data", data.TypeObject, nil)
-	//	ti.flowInst.AddAttr("_E.code", data.TypeString, "")
-	//default:
-	//	ti.flowInst.AddAttr("_E.activity", data.TypeString, ti.taskID)
-	//	ti.flowInst.AddAttr("_E.message", data.TypeString, err.Error())
-	//	ti.flowInst.AddAttr("_E.type", data.TypeString, "unknown")
-	//	ti.flowInst.AddAttr("_E.data", data.TypeObject, nil)
-	//	ti.flowInst.AddAttr("_E.code", data.TypeString, "")
-	//}
-
 	//todo add case for *dataMapperError & *activity.Error
-}
-
-//////////////////////////////////
-// Deprecated
-
-// GetSetting implements activity.Context.GetSetting
-// Deprecated
-func (ti *TaskInst) GetSetting(setting string) (value interface{}, exists bool) {
-
-	val, found := ti.Task().ActivityConfig().GetSetting(setting)
-	if found {
-		return val.Value(), true
-	}
-
-	return nil, false
-}
-
-// GetInitValue implements activity.Context.GetInitValue
-// Deprecated
-func (ti *TaskInst) GetInitValue(key string) (value interface{}, exists bool) {
-	return nil, false
-}
-
-// GetOutput implements activity.Context.GetOutput
-// Deprecated
-func (ti *TaskInst) GetOutput(name string) interface{} {
-
-	val, found := ti.outputs[name]
-	if found {
-		return val
-	}
-
-	return nil
-}
-
-// TaskName implements activity.Context.TaskName method
-// Deprecated
-func (ti *TaskInst) TaskName() string {
-	return ti.task.Name()
 }

@@ -3,12 +3,14 @@ package definition
 import (
 	"encoding/json"
 	"errors"
-	"github.com/project-flogo/core/data/mapper"
 	"strconv"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/coerce"
+	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/logger"
 	flowutil "github.com/project-flogo/flow/util"
@@ -214,9 +216,8 @@ func createTask(def *Definition, rep *TaskRep) (*Task, error) {
 
 	if len(rep.Settings) > 0 {
 		task.settings = make(map[string]interface{}, len(rep.Settings))
-
 		for name, value := range rep.Settings {
-			task.settings[name] = resolveSettingValue(name, value)
+			task.settings[name], _ = resolveSettingValue(name, value, nil)
 		}
 	}
 
@@ -259,20 +260,18 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep) (*ActivityConfig, 
 	//todo need to fix this
 	task.activityCfg = activityCfg
 
-	//if len(rep.Settings) > 0 {
-	//	activityCfg.settings = make(map[string]*data.Attribute, len(rep.Settings))
-	//
-	//	for name, value := range rep.Settings {
-	//
-	//		attr := act.Metadata().Settings[name]
-	//
-	//		if attr != nil {
-	//			//var err error
-	//			//todo handle error
-	//			activityCfg.settings[name], _ = data.NewAttribute(name, attr.Type(), resolveSettingValue(name, value))
-	//		}
-	//	}
-	//}
+	if len(rep.Settings) > 0 {
+		activityCfg.settings = make(map[string]interface{}, len(rep.Settings))
+
+		var err error
+		mdSettings := act.Metadata().Settings
+		for name, value := range rep.Settings {
+			activityCfg.settings[name], err = resolveSettingValue(name, value, mdSettings)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 
 	mf := GetMapperFactory()
 
@@ -293,23 +292,6 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep) (*ActivityConfig, 
 	}
 
 	return activityCfg, nil
-}
-
-func resolveSettingValue(setting string, value interface{}) interface{} {
-
-	strVal, ok := value.(string)
-
-	if ok && len(strVal) > 0 && strVal[0] == '$' {
-		//v, err := data.GetBasicResolver().Resolve(strVal, nil)
-
-		//if err == nil {
-		//
-		//	logger.Debugf("Resolved setting [%s: %s] to : %v", setting, value, v)
-		//	return v
-		//}
-	}
-
-	return value
 }
 
 func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error) {
@@ -354,4 +336,36 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error)
 	link.fromTask.toLinks = append(link.fromTask.toLinks, link)
 
 	return link, nil
+}
+
+//////
+
+func resolveSettingValue(setting string, value interface{}, settingsMd map[string]data.TypedValue) (interface{}, error) {
+
+	strVal, ok := value.(string)
+
+	toType := data.TypeUnknown
+
+	if settingsMd != nil {
+		tv := settingsMd[setting]
+		if tv != nil {
+			toType = tv.Type()
+		}
+	}
+
+	if ok && len(strVal) > 0 && strVal[0] == '$' {
+		v, err := resolve.GetBasicResolver().Resolve(strVal, nil)
+		if err == nil {
+
+			v, err = coerce.ToType(v, toType)
+			if err != nil {
+				return nil, err
+			}
+
+			logger.Debugf("Resolved setting [%s: %s] to : %v", setting, value, v)
+			return v, nil
+		}
+	}
+
+	return coerce.ToType(value, toType)
 }

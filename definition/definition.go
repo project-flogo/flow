@@ -94,24 +94,12 @@ func (d *Definition) Links() []*Link {
 	return links
 }
 
-//// SetLinkExprManager sets the LinkOld Expr Manager for the definition
-//func (d *Definition) SetLinkExprManager(mgr LinkExprManager) {
-//	// todo revisit
-//	d.linkExprMgr = mgr
-//}
-//
-//// GetLinkExprManager gets the LinkOld Expr Manager for the definition
-//func (d *Definition) GetLinkExprManager() LinkExprManager {
-//	return d.linkExprMgr
-//}
 
 type ActivityConfig struct {
 	Activity activity.Activity
 	//Details     *activity.Details
 
-	settings map[string]*data.Attribute
-	//inputAttrs  map[string]*data.Attribute
-	//outputAttrs map[string]*data.Attribute
+	settings map[string]interface{}
 
 	inputMapper  mapper.Mapper
 	outputMapper mapper.Mapper
@@ -123,43 +111,17 @@ func (ac *ActivityConfig) Ref() string {
 }
 
 // GetSetting gets the specified setting
-func (ac *ActivityConfig) GetSetting(setting string) (attr *data.Attribute, exists bool) {
+func (ac *ActivityConfig) GetSetting(setting string) (val interface{}, exists bool) {
 
 	if ac.settings != nil {
-		attr, found := ac.settings[setting]
+		val, found := ac.settings[setting]
 		if found {
-			return attr, true
+			return val, true
 		}
 	}
 
 	return nil, false
 }
-
-//// GetAttr gets the specified input attribute
-//func (ac *ActivityConfig) GetInputAttr(attrName string) (attr *data.Attribute, exists bool) {
-//
-//	if ac.inputAttrs != nil {
-//		attr, found := ac.inputAttrs[attrName]
-//		if found {
-//			return attr, true
-//		}
-//	}
-//
-//	return nil, false
-//}
-//
-//// GetOutputAttr gets the specified output attribute
-//func (ac *ActivityConfig) GetOutputAttr(attrName string) (attr *data.Attribute, exists bool) {
-//
-//	if ac.outputAttrs != nil {
-//		attr, found := ac.outputAttrs[attrName]
-//		if found {
-//			return attr, true
-//		}
-//	}
-//
-//	return nil, false
-//}
 
 // InputMapper returns the InputMapper of the task
 func (ac *ActivityConfig) InputMapper() mapper.Mapper {
@@ -171,10 +133,6 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 	return ac.outputMapper
 }
 
-//func (ac *ActivityConfig) Ref() string {
-//	return ac.Activity.Metadata().ID
-//}
-
 // Task is the object that describes the definition of
 // a task.  It contains its data (attributes) and its
 // nested structure (child tasks & child links).
@@ -185,17 +143,8 @@ type Task struct {
 	name       string
 
 	activityCfg *ActivityConfig
-
 	isScope bool
-
 	settings map[string]interface{}
-
-	//inputs map[string]data.TypedValue
-	//inputAttrs  map[string]*data.Attribute
-	//outputAttrs map[string]*data.Attribute
-
-	//inputMapper  mapper.Mapper
-	//outputMapper mapper.Mapper
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -216,52 +165,12 @@ func (task *Task) TypeID() string {
 	return task.typeID
 }
 
-//// GetAttr gets the specified attribute
-//// DEPRECATED
-//func (task *Task) GetAttr(attrName string) (attr *data.Attribute, exists bool) {
-//
-//	if task.inputAttrs != nil {
-//		attr, found := task.inputAttrs[attrName]
-//		if found {
-//			return attr, true
-//		}
-//	}
-//
-//	return nil, false
-//}
-//
-//// GetAttr gets the specified input attribute
-//func (task *Task) GetInputAttr(attrName string) (attr *data.Attribute, exists bool) {
-//
-//	if task.inputAttrs != nil {
-//		attr, found := task.inputAttrs[attrName]
-//		if found {
-//			return attr, true
-//		}
-//	}
-//
-//	return nil, false
-//}
-//
-//// GetOutputAttr gets the specified output attribute
-//func (task *Task) GetOutputAttr(attrName string) (attr *data.Attribute, exists bool) {
-//
-//	if task.outputAttrs != nil {
-//		attr, found := task.outputAttrs[attrName]
-//		if found {
-//			return attr, true
-//		}
-//	}
-//
-//	return nil, false
-//}
-
 func (task *Task) ActivityConfig() *ActivityConfig {
 	return task.activityCfg
 }
 
-func (task *Task) GetSetting(attrName string) (value interface{}, exists bool) {
-	value, exists = task.settings[attrName]
+func (task *Task) GetSetting(name string) (value interface{}, exists bool) {
+	value, exists = task.settings[name]
 	return value, exists
 }
 
