@@ -7,8 +7,10 @@ import (
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/logger"
 	flowutil "github.com/project-flogo/flow/util"
@@ -118,6 +120,8 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 	defer support.HandlePanic("NewDefinition", &err)
 
+	ef := expression.NewFactory(resolve.GetBasicResolver())
+
 	def = &Definition{}
 	def.name = rep.Name
 	def.modelID = rep.ModelID
@@ -138,7 +142,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 		for _, taskRep := range rep.Tasks {
 
-			task, err := createTask(def, taskRep)
+			task, err := createTask(def, taskRep, ef)
 
 			if err != nil {
 				return nil, err
@@ -171,7 +175,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 			for _, taskRep := range rep.ErrorHandler.Tasks {
 
-				task, err := createTask(def, taskRep)
+				task, err := createTask(def, taskRep, ef)
 
 				if err != nil {
 					return nil, err
@@ -199,7 +203,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 	return def, nil
 }
 
-func createTask(def *Definition, rep *TaskRep) (*Task, error) {
+func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, error) {
 	task := &Task{}
 	task.id = rep.ID
 	task.name = rep.Name
@@ -215,13 +219,13 @@ func createTask(def *Definition, rep *TaskRep) (*Task, error) {
 	if len(rep.Settings) > 0 {
 		task.settings = make(map[string]interface{}, len(rep.Settings))
 		for name, value := range rep.Settings {
-			task.settings[name], _ = metadata.ResolveSettingValue(name, value, nil)
+			task.settings[name], _ = metadata.ResolveSettingValue(name, value, nil, ef)
 		}
 	}
 
 	if rep.ActivityCfgRep != nil {
 
-		actCfg, err := createActivityConfig(task, rep.ActivityCfgRep)
+		actCfg, err := createActivityConfig(task, rep.ActivityCfgRep, ef)
 
 		if err != nil {
 			return nil, err
@@ -237,7 +241,7 @@ func createTask(def *Definition, rep *TaskRep) (*Task, error) {
 	return task, nil
 }
 
-func createActivityConfig(task *Task, rep *ActivityConfigRep) (*ActivityConfig, error) {
+func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Factory) (*ActivityConfig, error) {
 
 	if rep.Ref == "" {
 		return nil, errors.New("Activity Not Specified for Task :" + task.ID())
@@ -264,7 +268,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep) (*ActivityConfig, 
 		var err error
 		mdSettings := act.Metadata().Settings
 		for name, value := range rep.Settings {
-			activityCfg.settings[name], err = metadata.ResolveSettingValue(name, value, mdSettings)
+			activityCfg.settings[name], err = metadata.ResolveSettingValue(name, value, mdSettings, ef)
 			if err != nil {
 				return nil, err
 			}
