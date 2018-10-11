@@ -94,7 +94,6 @@ func (d *Definition) Links() []*Link {
 	return links
 }
 
-
 type ActivityConfig struct {
 	Activity activity.Activity
 	//Details     *activity.Details
@@ -143,8 +142,8 @@ type Task struct {
 	name       string
 
 	activityCfg *ActivityConfig
-	isScope bool
-	settings map[string]interface{}
+	isScope     bool
+	settings    map[string]interface{}
 
 	toLinks   []*Link
 	fromLinks []*Link
