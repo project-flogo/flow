@@ -1,11 +1,16 @@
 {
   "name": "flow",
   "type": "flogo:action",
-  "ref": "github.com/TIBCOSoftware/flogo-contrib/action/flow",
   "version": "0.0.1",
   "title": "Simple Flow",
   "description": "Simple Flow Action",
-  "homepage": "https://github.com/TIBCOSoftware/flogo-contrib/tree/master/action/flow",
+  "homepage": "https://github.com/project-flogo/flow",
   "async": true,
-  "settings"
+  "settings":[
+    {
+      "name": "flowURI",
+      "type": "string",
+      "required": true
+    }
+  ]
 }
