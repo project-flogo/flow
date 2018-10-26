@@ -293,7 +293,7 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 
 		defer handler.Done()
 
-		if !inst.FlowDefinition().ExplicitReply() || retID {
+		if retID {
 
 			//idAttr, _ := data.NewAttribute("id", data.TypeString, inst.ID())
 			results := map[string]interface{}{

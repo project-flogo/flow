@@ -277,6 +277,16 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 
 	mf := GetMapperFactory()
 
+	f := activity.GetFactory(rep.Ref)
+	if f != nil {
+		ctx := &initCtxImpl{settings:activityCfg.settings, mapperFactory:mf}
+		var err error
+		activityCfg.Activity, err = f(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var err error
 	activityCfg.inputMapper, err = mf.NewMapper(rep.Input)
 	if err != nil {
@@ -338,4 +348,17 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error)
 	link.fromTask.toLinks = append(link.fromTask.toLinks, link)
 
 	return link, nil
+}
+
+type initCtxImpl struct {
+	settings map[string]interface{}
+	mapperFactory mapper.Factory
+}
+
+func (ctx *initCtxImpl) Settings() map[string]interface{} {
+	return ctx.settings
+}
+
+func (ctx *initCtxImpl) MapperFactory() mapper.Factory {
+	return mapperFactory
 }
