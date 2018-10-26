@@ -209,7 +209,7 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 		flowURI = fa.flowURI
 	}
 
-	logger.Infof("Running FlowAction for URI: '%s'", flowURI)
+	logger.Debugf("Running FlowAction for URI: '%s'", flowURI)
 
 	//todo: catch panic
 	//todo: consider switch to URI to dictate flow operation (ex. flow://blah/resume)
