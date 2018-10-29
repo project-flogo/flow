@@ -7,7 +7,7 @@ import (
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 )
@@ -18,6 +18,14 @@ func NewTaskInst(inst *Instance, task *definition.Task) *TaskInst {
 	taskInst.flowInst = inst
 	taskInst.task = task
 	taskInst.taskID = task.ID()
+
+	if log.CtxLoggingEnabled() {
+		taskInst.logger = log.ChildLoggerWith(task.ActivityConfig().Logger, log.String("flowId", inst.ID()))
+
+	} else {
+		taskInst.logger = task.ActivityConfig().Logger
+	}
+
 	return &taskInst
 }
 
@@ -31,7 +39,10 @@ type TaskInst struct {
 	inputs  map[string]interface{}
 	outputs map[string]interface{}
 
-	taskID string //needed for serialization
+	logger log.Logger
+
+	//needed for serialization
+	taskID string
 }
 
 /////////////////////////////////////////
@@ -60,8 +71,8 @@ func (ti *TaskInst) GetInput(name string) interface{} {
 // SetOutput implements activity.Context.SetOutput
 func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 
-	if logger.DebugEnabled() {
-		logger.Debugf("Task[%s] - Set Output: %s = %v\n", ti.Name(), name, value)
+	if ti.logger.DebugEnabled() {
+		ti.logger.Debugf("Task[%s] - Set Output: %s = %v\n", ti.Name(), name, value)
 	}
 
 	ti.outputs[name] = value
@@ -84,6 +95,10 @@ func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
 func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
 	//todo implement
 	return nil
+}
+
+func (ti *TaskInst) Logger() log.Logger {
+	return ti.logger
 }
 
 /////////////////////////////////////////
@@ -134,6 +149,10 @@ func (ti *TaskInst) Task() *definition.Task {
 	return ti.task
 }
 
+func (ti *TaskInst) FlowLogger() log.Logger {
+	return ti.flowInst.logger
+}
+
 /////////////////////////////////////////
 
 // GetFromLinkInstances implements model.TaskContext.GetFromLinkInstances
@@ -179,8 +198,8 @@ func (ti *TaskInst) EvalLink(link *definition.Link) (result bool, err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Warnf("Unhandled Error evaluating link '%s' : %v\n", link.ID(), r)
-			logger.Debugf("StackTrace: %s", debug.Stack())
+			ti.logger.Warnf("Unhandled Error evaluating link '%s' : %v\n", link.ID(), r)
+			ti.logger.Debugf("StackTrace: %s", debug.Stack())
 
 			if err != nil {
 				err = fmt.Errorf("%v", r)
@@ -212,10 +231,10 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		if r := recover(); r != nil {
 
 			ref := activity.GetRef(ti.task.ActivityConfig().Activity)
-			logger.Warnf("Unhandled Error executing activity '%s'[%s] : %v\n", ti.task.Name(), ref, r)
+			ti.logger.Warnf("Unhandled Error executing activity '%s'[%s] : %v\n", ti.task.Name(), ref, r)
 
-			if logger.DebugEnabled() {
-				logger.Debugf("StackTrace: %s", debug.Stack())
+			if ti.logger.DebugEnabled() {
+				ti.logger.Debugf("StackTrace: %s", debug.Stack())
 			}
 
 			if evalErr == nil {
@@ -224,7 +243,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 		if evalErr != nil {
-			logger.Errorf("Execution failed for Activity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
+			ti.logger.Errorf("Execution failed for LogActivity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
 		}
 	}()
 
@@ -275,7 +294,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 
 			if !appliedMapper && !ti.task.IsScope() {
 
-				logger.Debug("Mapper not applied")
+				ti.logger.Debug("Mapper not applied")
 			}
 		}
 	}
@@ -290,10 +309,10 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Warnf("Unhandled Error executing activity '%s'[%s] : %v\n", ti.task.Name(), activity.GetRef(act), r)
+			ti.logger.Warnf("Unhandled Error executing activity '%s'[%s] : %v\n", ti.task.Name(), activity.GetRef(act), r)
 
-			if logger.DebugEnabled() {
-				logger.Debugf("StackTrace: %s", debug.Stack())
+			if ti.logger.DebugEnabled() {
+				ti.logger.Debugf("StackTrace: %s", debug.Stack())
 			}
 
 			if evalErr == nil {
@@ -302,7 +321,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 			}
 		}
 		if evalErr != nil {
-			logger.Errorf("Execution failed for Activity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
+			ti.logger.Errorf("Execution failed for LogActivity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
 		}
 	}()
 
@@ -336,7 +355,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 
 			if !appliedMapper && !ti.task.IsScope() {
 
-				logger.Debug("Mapper not applied")
+				ti.logger.Debug("Mapper not applied")
 			}
 		}
 	}

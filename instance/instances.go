@@ -3,10 +3,9 @@ package instance
 import (
 	"errors"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/project-flogo/core/support"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	flowsupport "github.com/project-flogo/flow/support"
@@ -32,7 +31,7 @@ type IndependentInstance struct {
 }
 
 // New creates a new Flow Instance from the specified Flow
-func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition) *IndependentInstance {
+func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, logger log.Logger) *IndependentInstance {
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}
 	inst.master = inst
@@ -42,6 +41,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.flowDef = flow
 	inst.flowURI = flowURI
 	inst.flowModel = getFlowModel(flow)
+	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
 	inst.ChangeTracker = NewInstanceChangeTracker()
@@ -162,7 +162,8 @@ func (inst *IndependentInstance) DoStep() bool {
 		item, ok := inst.workItemQueue.Pop()
 
 		if ok {
-			logger.Debug("Retrieved item from Flow Instance work queue")
+			//dev logging
+			//logger.Debug("Retrieved item from Flow Instance work queue")
 
 			workItem := item.(*WorkItem)
 
@@ -179,7 +180,8 @@ func (inst *IndependentInstance) DoStep() bool {
 
 			hasNext = true
 		} else {
-			logger.Debug("Flow Instance work queue empty")
+			// dev logging
+			//logger.Debug("Flow Instance work queue empty")
 		}
 	}
 
@@ -191,7 +193,7 @@ func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 	inst.wiCounter++
 
 	workItem := NewWorkItem(inst.wiCounter, taskInst)
-	logger.Debugf("Scheduling task '%s'", taskInst.task.ID())
+	inst.logger.Debugf("Scheduling task '%s'", taskInst.task.ID())
 
 	inst.workItemQueue.Push(workItem)
 
@@ -205,11 +207,11 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	defer func() {
 		if r := recover(); r != nil {
 
-			err := fmt.Errorf("Unhandled Error executing task '%s' : %v", taskInst.task.Name(), r)
-			logger.Error(err)
+			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.Name(), r)
+			inst.logger.Error(err)
 
 			// todo: useful for debugging
-			logger.Debugf("StackTrace: %s", debug.Stack())
+			//logger.Debugf("StackTrace: %s", debug.Stack())
 
 			if !taskInst.flowInst.isHandlingError {
 

@@ -11,10 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	//"github.com/project-flogo/flow/linker"
-
 	"github.com/project-flogo/core/support"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 )
 
@@ -42,7 +40,8 @@ func NewFlowManager(flowProvider definition.Provider) *FlowManager {
 	if flowProvider != nil {
 		manager.flowProvider = flowProvider
 	} else {
-		manager.flowProvider = &BasicRemoteFlowProvider{}
+		//todo which logger should this use?
+		manager.flowProvider = &BasicRemoteFlowProvider{logger:log.RootLogger()}
 	}
 
 	//temp hack
@@ -81,9 +80,12 @@ func (fm *FlowManager) GetFlow(uri string) (*definition.Definition, error) {
 }
 
 type BasicRemoteFlowProvider struct {
+	logger log.Logger
 }
 
-func (*BasicRemoteFlowProvider) GetFlow(flowURI string) (*definition.DefinitionRep, error) {
+func (fp *BasicRemoteFlowProvider) GetFlow(flowURI string) (*definition.DefinitionRep, error) {
+
+	logger := fp.logger
 
 	var flowDefBytes []byte
 

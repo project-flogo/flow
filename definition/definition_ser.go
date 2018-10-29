@@ -12,7 +12,7 @@ import (
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/support"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	flowutil "github.com/project-flogo/flow/util"
 )
 
@@ -244,16 +244,17 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Factory) (*ActivityConfig, error) {
 
 	if rep.Ref == "" {
-		return nil, errors.New("Activity Not Specified for Task :" + task.ID())
+		return nil, errors.New("LogActivity Not Specified for Task :" + task.ID())
 	}
 
 	act := activity.Get(rep.Ref)
 	if act == nil {
-		return nil, errors.New("Unsupported Activity:" + rep.Ref)
+		return nil, errors.New("Unsupported LogActivity:" + rep.Ref)
 	}
 
 	activityCfg := &ActivityConfig{}
 	activityCfg.Activity = act
+	activityCfg.Logger = activity.GetLogger(rep.Ref)
 
 	if hasDetails, ok := act.(activity.HasDetails); ok {
 		activityCfg.Details = hasDetails.Details()
@@ -279,7 +280,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 
 	f := activity.GetFactory(rep.Ref)
 	if f != nil {
-		ctx := &initCtxImpl{settings:activityCfg.settings, mapperFactory:mf}
+		ctx := &initCtxImpl{settings:activityCfg.settings, mapperFactory:mf, logger: activity.GetLogger(rep.Ref)}
 		var err error
 		activityCfg.Activity, err = f(ctx)
 		if err != nil {
@@ -323,7 +324,8 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error)
 		case "error", "3":
 			link.linkType = LtError
 		default:
-			logger.Warnf("Unsupported link type '%s', using default link")
+			//todo get the flow logger
+			log.RootLogger().Warnf("Unsupported link type '%s', using default link")
 		}
 	}
 
@@ -353,6 +355,7 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error)
 type initCtxImpl struct {
 	settings map[string]interface{}
 	mapperFactory mapper.Factory
+	logger log.Logger
 }
 
 func (ctx *initCtxImpl) Settings() map[string]interface{} {
@@ -360,5 +363,9 @@ func (ctx *initCtxImpl) Settings() map[string]interface{} {
 }
 
 func (ctx *initCtxImpl) MapperFactory() mapper.Factory {
-	return mapperFactory
+	return ctx.mapperFactory
+}
+
+func (ctx *initCtxImpl) Logger() log.Logger {
+	return ctx.logger
 }

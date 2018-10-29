@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/project-flogo/core/support"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/service"
 )
 
@@ -26,6 +26,7 @@ type StateRecorder interface {
 type RemoteStateRecorder struct {
 	host    string
 	enabled bool
+	logger  log.Logger
 }
 
 // NewRemoteStateRecorder creates a new RemoteStateRecorder
@@ -33,6 +34,9 @@ func NewRemoteStateRecorder(config *support.ServiceConfig) *RemoteStateRecorder 
 
 	recorder := &RemoteStateRecorder{enabled: config.Enabled}
 	recorder.init(config.Settings)
+
+	//todo switch this logger
+	recorder.logger = log.RootLogger()
 
 	return recorder
 }
@@ -73,7 +77,7 @@ func (sr *RemoteStateRecorder) init(settings map[string]string) {
 		sr.host = host + ":" + port
 	}
 
-	logger.Debugf("RemoteStateRecorder: StateRecorder Server = %s", sr.host)
+	sr.logger.Debugf("RemoteStateRecorder: StateRecorder Server = %s", sr.host)
 }
 
 // RecordSnapshot implements instance.StateRecorder.RecordSnapshot
@@ -88,11 +92,11 @@ func (sr *RemoteStateRecorder) RecordSnapshot(instance *IndependentInstance) {
 
 	uri := sr.host + "/instances/snapshot"
 
-	logger.Debugf("POST Snapshot: %s\n", uri)
+	sr.logger.Debugf("POST Snapshot: %s\n", uri)
 
 	jsonReq, _ := json.Marshal(storeReq)
 
-	logger.Debug("JSON: ", string(jsonReq))
+	sr.logger.Debug("JSON: ", string(jsonReq))
 
 	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(jsonReq))
 	req.Header.Set("Content-Type", "application/json")
@@ -104,7 +108,7 @@ func (sr *RemoteStateRecorder) RecordSnapshot(instance *IndependentInstance) {
 	}
 	defer resp.Body.Close()
 
-	logger.Debug("response Status:", resp.Status)
+	sr.logger.Debug("response Status:", resp.Status)
 
 	if resp.StatusCode >= 300 {
 		//error
@@ -124,11 +128,11 @@ func (sr *RemoteStateRecorder) RecordStep(instance *IndependentInstance) {
 
 	uri := sr.host + "/instances/steps"
 
-	logger.Debugf("POST Step: %s\n", uri)
+	sr.logger.Debugf("POST Step: %s\n", uri)
 
 	jsonReq, _ := json.Marshal(storeReq)
 
-	logger.Debug("JSON: ", string(jsonReq))
+	sr.logger.Debug("JSON: ", string(jsonReq))
 
 	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(jsonReq))
 	req.Header.Set("Content-Type", "application/json")
@@ -140,7 +144,7 @@ func (sr *RemoteStateRecorder) RecordStep(instance *IndependentInstance) {
 	}
 	defer resp.Body.Close()
 
-	logger.Debug("response Status:", resp.Status)
+	sr.logger.Debug("response Status:", resp.Status)
 
 	if resp.StatusCode >= 300 {
 		//error

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 )
 
@@ -15,6 +16,9 @@ type FlowContext interface {
 
 	// Status gets the state of the Flow instance
 	Status() FlowStatus
+
+	// Logger the logger for the flow instance
+	Logger() log.Logger
 }
 
 // TaskContext is the execution context of the Task when executing
@@ -39,10 +43,10 @@ type TaskContext interface {
 	// EvalLink evaluates the specified link
 	EvalLink(link *definition.Link) (bool, error)
 
-	// EvalActivity evaluates the Activity associated with the Task
+	// EvalActivity evaluates the LogActivity associated with the Task
 	EvalActivity() (done bool, err error)
 
-	// PostActivity does post evaluation of the Activity associated with the Task
+	// PostActivity does post evaluation of the LogActivity associated with the Task
 	PostEvalActivity() (done bool, err error)
 
 	Resolve(toResolve string) (value interface{}, err error)
@@ -58,6 +62,8 @@ type TaskContext interface {
 	//UpdateWorkingData(key string, value interface{}) error
 
 	//GetWorkingData(key string) (*data.Attribute, bool)
+
+	FlowLogger() log.Logger
 }
 
 // LinkInstance is the instance of a link

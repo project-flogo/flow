@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/support/log"
 	"os"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/support"
-	"github.com/project-flogo/core/support/logger"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
@@ -46,6 +46,7 @@ var record bool
 var flowManager *flowsupport.FlowManager
 var maxStepCount = 1000000
 var actionMd = action.ToMetadata(&Settings{})
+var logger log.Logger
 
 func SetExtensionProvider(provider ExtensionProvider) {
 	ep = provider
@@ -58,6 +59,7 @@ type ActionFactory struct {
 func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 
 	f.resManager = ctx.ResourceManager()
+	logger = log.ChildLogger(log.RootLogger(), "flow")
 
 	if flowManager != nil {
 		return nil
@@ -236,7 +238,14 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 		instanceID := idGenerator.NextAsString()
 		logger.Debug("Creating Flow Instance: ", instanceID)
 
-		inst = instance.NewIndependentInstance(instanceID, flowURI, flowDef)
+
+		instLogger := logger
+
+		if log.CtxLoggingEnabled() {
+			instLogger = log.ChildLoggerWith(logger, log.String("name", flowDef.Name()), log.String("id", instanceID))
+		}
+
+		inst = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
 	case instance.OpResume:
 		if initialState != nil {
 			inst = initialState

@@ -3,11 +3,11 @@ package instance
 import (
 	"errors"
 
+	"github.com/TIBCOSoftware/flogo-lib/logger"
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/support/logger"
 	"github.com/project-flogo/flow/support"
 )
 
@@ -27,7 +27,7 @@ func applyInputMapper(taskInst *TaskInst) error {
 	}
 
 	if inputMapper != nil {
-		logger.Debug("Applying InputMapper")
+		taskInst.logger.Debug("Applying InputMapper")
 
 		var inputScope data.Scope
 		inputScope = taskInst.flowInst
@@ -58,7 +58,7 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 
 		if taskInterceptor != nil {
 
-			logger.Debug("Applying Interceptor - Input")
+			taskInst.logger.Debug("Applying Interceptor - Input")
 
 			if len(taskInterceptor.Inputs) > 0 {
 				// override input attributes
@@ -66,8 +66,8 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 				var err error
 				for _, attribute := range taskInterceptor.Inputs {
 
-					if logger.DebugEnabled() {
-						logger.Debugf("Overriding Input Attr: %s = %s", attribute.Name(), attribute.Value())
+					if taskInst.logger.DebugEnabled() {
+						taskInst.logger.Debugf("Overriding Input Attr: %s = %s", attribute.Name(), attribute.Value())
 					}
 
 					if mdAttr, ok := mdInputs[attribute.Name()]; ok {
@@ -107,8 +107,8 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 			// override output attributes
 			for _, attribute := range taskInterceptor.Outputs {
 
-				if logger.DebugEnabled() {
-					logger.Debugf("Overriding Output Attr: %s = %s", attribute.Name(), attribute.Value())
+				if taskInst.logger.DebugEnabled() {
+					taskInst.logger.Debugf("Overriding Output Attr: %s = %s", attribute.Name(), attribute.Value())
 				}
 
 				if mdAttr, ok := mdOutput[attribute.Name()]; ok {
@@ -144,7 +144,7 @@ func applyOutputMapper(taskInst *TaskInst) (bool, error) {
 	}
 
 	if outputMapper != nil {
-		logger.Debug("Applying OutputMapper")
+		taskInst.logger.Debug("Applying OutputMapper")
 
 		values, err := outputMapper.Apply(data.NewSimpleScope(taskInst.outputs, nil))
 

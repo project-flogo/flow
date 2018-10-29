@@ -5,19 +5,20 @@ import (
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/engine/runner"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
 )
 
 const (
-	FLOW_REF = "github.com/TIBCOSoftware/flogo-contrib/action/flow"
+	RefFlow = "github.com/project-flogo/flow"
 )
 
 // RequestProcessor processes request objects and invokes the corresponding
 // flow Manager methods
 type RequestProcessor struct {
 	runner action.Runner
+	logger log.Logger
 }
 
 // NewRequestProcessor creates a new RequestProcessor
@@ -25,6 +26,8 @@ func NewRequestProcessor() *RequestProcessor {
 
 	var rp RequestProcessor
 	rp.runner = runner.NewDirect()
+	//todo whoat logger should this use?
+	rp.logger = log.RootLogger()
 
 	return &rp
 }
@@ -33,9 +36,11 @@ func NewRequestProcessor() *RequestProcessor {
 // generate an ID for the new FlowInstance and queue a StartRequest.
 func (rp *RequestProcessor) StartFlow(startRequest *StartRequest) (results map[string]interface{}, err error) {
 
+	logger := rp.logger
+
 	logger.Debugf("Tester starting flow")
 
-	factory := action.GetFactory(FLOW_REF)
+	factory := action.GetFactory(RefFlow)
 	act, _ := factory.New(&action.Config{})
 
 	var inputs map[string]interface{}
@@ -78,9 +83,11 @@ func (rp *RequestProcessor) StartFlow(startRequest *StartRequest) (results map[s
 // generate an ID for the new FlowInstance and queue a RestartRequest.
 func (rp *RequestProcessor) RestartFlow(restartRequest *RestartRequest) (results map[string]interface{}, err error) {
 
+	logger := rp.logger
+
 	logger.Debugf("Tester restarting flow")
 
-	factory := action.GetFactory(FLOW_REF)
+	factory := action.GetFactory(RefFlow)
 	act, _ := factory.New(&action.Config{})
 
 	inputs := make(map[string]interface{}, len(restartRequest.Data)+1)
@@ -107,9 +114,11 @@ func (rp *RequestProcessor) RestartFlow(restartRequest *RestartRequest) (results
 // queue a RestartRequest.
 func (rp *RequestProcessor) ResumeFlow(resumeRequest *ResumeRequest) (results map[string]interface{}, err error) {
 
+	logger := rp.logger
+
 	logger.Debugf("Tester resuming flow")
 
-	factory := action.GetFactory(FLOW_REF)
+	factory := action.GetFactory(RefFlow)
 	act, _ := factory.New(&action.Config{})
 
 	inputs := make(map[string]interface{}, len(resumeRequest.Data)+1)

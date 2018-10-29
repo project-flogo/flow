@@ -2,6 +2,7 @@ package definition
 
 import (
 	"fmt"
+	"github.com/project-flogo/core/support/log"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
@@ -96,6 +97,7 @@ func (d *Definition) Links() []*Link {
 
 type ActivityConfig struct {
 	Activity activity.Activity
+	Logger   log.Logger
 	//Details     *activity.Details
 
 	settings map[string]interface{}

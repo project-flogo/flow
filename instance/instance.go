@@ -6,7 +6,7 @@ import (
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 )
@@ -34,6 +34,8 @@ type Instance struct {
 	activityAttrs map[string]map[string]data.TypedValue
 
 	resultHandler action.ResultHandler
+
+	logger log.Logger
 }
 
 func (inst *Instance) FlowURI() string {
@@ -183,6 +185,10 @@ func (inst *Instance) TaskInstances() []model.TaskInstance {
 	return taskInsts
 }
 
+func (inst *Instance) Logger() log.Logger {
+	return inst.logger
+}
+
 /////////////////////////////////////////
 // Instance - data.Scope Implementation
 
@@ -205,8 +211,8 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 		inst.attrs = make(map[string]interface{})
 	}
 
-	if logger.DebugEnabled() {
-		logger.Debugf("SetAttr - name: %s, value:%v\n", name, value)
+	if inst.logger.DebugEnabled() {
+		inst.logger.Debugf("SetAttr - name: %s, value:%v\n", name, value)
 	}
 
 	inst.SetValue(name, value)
@@ -322,7 +328,7 @@ func (inst *Instance) UpdateAttrs(attrs map[string]interface{}) {
 
 	if attrs != nil {
 
-		logger.Debugf("Updating flow attrs: %v", attrs)
+		inst.logger.Debugf("Updating flow attrs: %v", attrs)
 
 		if inst.attrs == nil {
 			inst.attrs = make(map[string]interface{}, len(attrs))

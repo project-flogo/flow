@@ -5,11 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
-
-	_ "github.com/project-flogo/flow/test"
+	_ "github.com/project-flogo/flow/support/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,12 +65,12 @@ func TestFullSerialization(t *testing.T) {
 	err := json.Unmarshal([]byte(defJSON), defRep)
 	assert.Nil(t, err)
 
-	logger.Infof("Def Rep: %v", defRep)
+	log.RootLogger().Infof("Def Rep: %v", defRep)
 
 	def, _ := definition.NewDefinition(defRep)
 	assert.NotNil(t, def)
 
-	instance := NewIndependentInstance("12345", "uri", def)
+	instance := NewIndependentInstance("12345", "uri", def, log.RootLogger())
 
 	instance.Start(nil)
 
@@ -81,7 +80,7 @@ func TestFullSerialization(t *testing.T) {
 		hasWork = instance.DoStep()
 
 		json, _ := json.Marshal(instance)
-		logger.Debugf("Snapshot: %s\n", string(json))
+		log.RootLogger().Debugf("Snapshot: %s\n", string(json))
 	}
 
 }
@@ -92,12 +91,12 @@ func TestChangeSerialization(t *testing.T) {
 	err := json.Unmarshal([]byte(defJSON), defRep)
 	assert.Nil(t, err)
 
-	logger.Infof("Def Rep: %v", defRep)
+	log.RootLogger().Infof("Def Rep: %v", defRep)
 
 	def, _ := definition.NewDefinition(defRep)
 	assert.NotNil(t, def)
 
-	instance := NewIndependentInstance("12345", "uri", def)
+	instance := NewIndependentInstance("12345", "uri", def, log.RootLogger())
 
 	instance.Start(nil)
 
@@ -107,7 +106,7 @@ func TestChangeSerialization(t *testing.T) {
 		hasWork = instance.DoStep()
 
 		json, _ := json.Marshal(instance.ChangeTracker)
-		logger.Debugf("Change: %s\n", string(json))
+		log.RootLogger().Debugf("Change: %s\n", string(json))
 	}
 }
 

@@ -16,12 +16,14 @@ type IteratorTaskBehavior struct {
 // Eval implements model.TaskBehavior.Eval
 func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 
+	logger := ctx.FlowLogger()
+
 	if ctx.Status() == model.TaskStatusSkipped {
 		return model.EVAL_DONE, nil //todo introduce EVAL_SKIP?
 	}
 
-	if log.DebugEnabled() {
-		log.Debugf("Eval Iterator Task '%s'", ctx.Task().ID())
+	if logger.DebugEnabled() {
+		logger.Debugf("Eval Iterator Task '%s'", ctx.Task().ID())
 	}
 
 	var itx Iterator
@@ -46,7 +48,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			count, err := coerce.ToInt(iterateOn)
 			if err != nil {
 				err = fmt.Errorf("Iterator '%s' not properly configured. '%s' is not a valid iterate value.", ctx.Task().Name(), iterateOn)
-				log.Error(err)
+				logger.Error(err)
 				return model.EVAL_FAIL, err
 			}
 			itx = NewIntIterator(count)
@@ -69,8 +71,8 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			if rt == reflect.Array || rt == reflect.Slice {
 				itx = NewReflectIterator(val)
 			} else {
-				err = fmt.Errorf("Iterator '%s' not properly configured. '%+v' is not a valid iterate value.", ctx.Task().Name(), iterateOn)
-				log.Error(err)
+				err = fmt.Errorf("iterator '%s' not properly configured. '%+v' is not a valid iterate value", ctx.Task().Name(), iterateOn)
+				logger.Error(err)
 				return model.EVAL_FAIL, err
 			}
 		}
@@ -90,8 +92,8 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 	repeat := itx.next()
 
 	if repeat {
-		if log.DebugEnabled() {
-			log.Debugf("Repeat:%s, Key:%s, Value:%v", repeat, itx.Key(), itx.Value())
+		if logger.DebugEnabled() {
+			logger.Debugf("Repeat:%s, Key:%s, Value:%v", repeat, itx.Key(), itx.Value())
 		}
 
 		iteration, _ := iterationAttr.(map[string]interface{})
@@ -102,7 +104,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 
 		if err != nil {
 			ref := ctx.Task().ActivityConfig().Ref()
-			log.Errorf("Error evaluating activity '%s'[%s] - %s", ref, err.Error())
+			logger.Errorf("Error evaluating activity '%s'[%s] - %s", ref, err.Error())
 			ctx.SetStatus(model.TaskStatusFailed)
 			return model.EVAL_FAIL, err
 		}
@@ -124,16 +126,14 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 // PostEval implements model.TaskBehavior.PostEval
 func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 
-	if log.DebugEnabled() {
-		log.Debugf("PostEval Iterator Task '%s'", ctx.Task().ID())
-	}
+	ctx.FlowLogger().Debugf("PostEval Iterator Task '%s'", ctx.Task().ID())
 
 	_, err = ctx.PostEvalActivity()
 
 	//what to do if eval isn't "done"?
 	if err != nil {
 		ref := ctx.Task().ActivityConfig().Ref()
-		log.Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().Name(), ref, err.Error())
+		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().Name(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EVAL_FAIL, err
 	}
@@ -159,7 +159,7 @@ func getIterateValue(ctx model.TaskContext) (value interface{}, set bool) {
 	if ok {
 		val, err := ctx.Resolve(strVal)
 		if err != nil {
-			log.Errorf("Get iterate value failed, due to %s", err.Error())
+			ctx.FlowLogger().Errorf("Get iterate value failed, due to %s", err.Error())
 			return nil, false
 		}
 		return val, true

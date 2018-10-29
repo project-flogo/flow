@@ -1,7 +1,6 @@
 package instance
 
 import (
-	"github.com/project-flogo/core/support/logger"
 	"github.com/project-flogo/flow/support"
 )
 
@@ -38,13 +37,13 @@ func ApplyExecOptions(instance *IndependentInstance, execOptions *ExecOptions) {
 	if execOptions != nil {
 
 		if execOptions.Patch != nil {
-			logger.Infof("Instance [%s] has patch", instance.ID())
+			instance.logger.Debugf("Instance [%s] has patch", instance.ID())
 			instance.patch = execOptions.Patch
 			instance.patch.Init()
 		}
 
 		if execOptions.Interceptor != nil {
-			logger.Infof("Instance [%s] has interceptor", instance.ID())
+			instance.logger.Debugf("Instance [%s] has interceptor", instance.ID())
 			instance.interceptor = execOptions.Interceptor
 			instance.interceptor.Init()
 		}

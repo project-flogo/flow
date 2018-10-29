@@ -6,7 +6,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/project-flogo/core/support"
-	"github.com/project-flogo/core/support/logger"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/service"
 )
@@ -16,6 +16,7 @@ type RestEngineTester struct {
 	reqProcessor *RequestProcessor
 	server       *Server
 	enabled      bool
+	logger       log.Logger
 }
 
 // NewRestEngineTester creates a new REST EngineTester
@@ -23,6 +24,9 @@ func NewRestEngineTester(config *support.ServiceConfig) *RestEngineTester {
 	et := &RestEngineTester{enabled: config.Enabled}
 	et.init(config.Settings)
 	et.reqProcessor = NewRequestProcessor()
+
+	//todo what logger should this use?
+	et.logger = log.RootLogger()
 
 	return et
 }
@@ -82,6 +86,8 @@ func handleOption(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 // $ curl -H "Content-Type: application/json" -X POST -d '{"flowUri":"base"}' http://localhost:8080/flow/start
 func (et *RestEngineTester) StartFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
+	logger := et.logger
+
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
 	req := &StartRequest{}
@@ -125,6 +131,8 @@ func (et *RestEngineTester) StartFlow(w http.ResponseWriter, r *http.Request, _ 
 // $ curl -H "Content-Type: application/json" -X POST -d '{...}' http://localhost:8080/flow/restart
 func (et *RestEngineTester) RestartFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
+	logger := et.logger
+
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
 	//defer func() {
@@ -167,6 +175,8 @@ func (et *RestEngineTester) RestartFlow(w http.ResponseWriter, r *http.Request, 
 // To post a resume flow, try this at a shell:
 // $ curl -H "Content-Type: application/json" -X POST -d '{...}' http://localhost:8080/flow/resume
 func (et *RestEngineTester) ResumeFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+
+	logger := et.logger
 
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
