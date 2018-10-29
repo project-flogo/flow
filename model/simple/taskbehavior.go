@@ -106,7 +106,6 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 // PostEval implements model.TaskBehavior.PostEval
 func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 
-
 	ctx.FlowLogger().Debugf("PostEval Task '%s'", ctx.Task().ID())
 
 	_, err = ctx.PostEvalActivity()
@@ -125,7 +124,7 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 // Done implements model.TaskBehavior.Done
 func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry, err error) {
 
-	logger:= ctx.FlowLogger()
+	logger := ctx.FlowLogger()
 
 	linkInsts := ctx.GetToLinkInstances()
 	numLinks := len(linkInsts)
@@ -201,7 +200,7 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 	ctx.SetStatus(model.TaskStatusSkipped)
 
-	logger:= ctx.FlowLogger()
+	logger := ctx.FlowLogger()
 
 	if logger.DebugEnabled() {
 		logger.Debugf("Task '%s' was skipped", ctx.Task().ID())
@@ -228,7 +227,6 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 	if logger.DebugEnabled() {
 		logger.Debugf("Notifying flow that end task '%s' is skipped", ctx.Task().ID())
 	}
-
 
 	return true, nil
 }

@@ -280,7 +280,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 
 	f := activity.GetFactory(rep.Ref)
 	if f != nil {
-		ctx := &initCtxImpl{settings:activityCfg.settings, mapperFactory:mf, logger: activity.GetLogger(rep.Ref)}
+		ctx := &initCtxImpl{settings: activityCfg.settings, mapperFactory: mf, logger: activity.GetLogger(rep.Ref)}
 		var err error
 		activityCfg.Activity, err = f(ctx)
 		if err != nil {
@@ -353,9 +353,9 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error)
 }
 
 type initCtxImpl struct {
-	settings map[string]interface{}
+	settings      map[string]interface{}
 	mapperFactory mapper.Factory
-	logger log.Logger
+	logger        log.Logger
 }
 
 func (ctx *initCtxImpl) Settings() map[string]interface{} {

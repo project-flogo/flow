@@ -41,7 +41,7 @@ func NewFlowManager(flowProvider definition.Provider) *FlowManager {
 		manager.flowProvider = flowProvider
 	} else {
 		//todo which logger should this use?
-		manager.flowProvider = &BasicRemoteFlowProvider{logger:log.RootLogger()}
+		manager.flowProvider = &BasicRemoteFlowProvider{logger: log.RootLogger()}
 	}
 
 	//temp hack
