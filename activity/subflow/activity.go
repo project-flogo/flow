@@ -32,7 +32,7 @@ func (a *SubFlowActivity) Metadata() *activity.Metadata {
 	return a.metadata
 }
 
-func (a *SubFlowActivity) IOMetadata(ctx activity.Context) (*metadata.IOMetadata, error) {
+func (a *SubFlowActivity) DynamicMd(ctx activity.Context) (*metadata.IOMetadata, error) {
 	//todo this can be moved to an "init" to optimize
 	setting, set := ctx.GetSetting(settingFlowURI)
 	if !set {
