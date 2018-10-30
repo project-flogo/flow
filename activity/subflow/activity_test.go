@@ -3,33 +3,14 @@ package subflow
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"testing"
 
-	"github.com/TIBCOSoftware/flogo-contrib/action/flow"
-	"github.com/TIBCOSoftware/flogo-lib/app/resource"
-	"github.com/TIBCOSoftware/flogo-lib/core/action"
-	"github.com/TIBCOSoftware/flogo-lib/core/activity"
-	"github.com/TIBCOSoftware/flogo-lib/core/data"
-	"github.com/TIBCOSoftware/flogo-lib/engine/runner"
+	"github.com/project-flogo/core/activity"
+	"github.com/project-flogo/core/app/resource"
+	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/flow"
 	"github.com/stretchr/testify/assert"
 )
-
-var activityMetadata *activity.Metadata
-
-func getActivityMetadata() *activity.Metadata {
-
-	if activityMetadata == nil {
-		jsonMetadataBytes, err := ioutil.ReadFile("activity.json")
-		if err != nil {
-			panic("No Json Metadata found for activity.json path")
-		}
-
-		activityMetadata = activity.NewMetadata(string(jsonMetadataBytes))
-	}
-
-	return activityMetadata
-}
 
 var jsonFlowRes1 = `{
 "id":"flow:flow1",
@@ -40,7 +21,7 @@ var jsonFlowRes1 = `{
     {
       "id": "runFlow",
       "activity": {
-        "ref": "github.com/TIBCOSoftware/flogo-contrib/activity/subflow",
+        "ref": "github.com/project-flogo/flow/activity/subflow",
         "settings": {
           "flowURI": "res://flow/flow2"
         },
@@ -105,7 +86,7 @@ var jsonFlow1 = `{
     {
       "id": "runFlow",
       "activity": {
-        "ref": "github.com/TIBCOSoftware/flogo-contrib/activity/subflow",
+        "ref": "github.com/project-flogo/flow/activity/subflow",
         "settings": {
           "flowURI": "res://flow:flow2"
         },

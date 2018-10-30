@@ -3,14 +3,11 @@ package subflow
 import (
 	"errors"
 
-	"github.com/TIBCOSoftware/flogo-contrib/action/flow/instance"
-	"github.com/TIBCOSoftware/flogo-lib/core/activity"
-	"github.com/TIBCOSoftware/flogo-lib/core/data"
-	"github.com/TIBCOSoftware/flogo-lib/logger"
+	"github.com/project-flogo/core/activity"
+	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/flow/instance"
 )
-
-// log is the default package logger
-var log = logger.GetLogger("activity-flogo-subFlow")
 
 const (
 	settingFlowURI = "flowURI"
@@ -35,7 +32,7 @@ func (a *SubFlowActivity) Metadata() *activity.Metadata {
 	return a.metadata
 }
 
-func (a *SubFlowActivity) IOMetadata(ctx activity.Context) (*data.IOMetadata, error) {
+func (a *SubFlowActivity) IOMetadata(ctx activity.Context) (*metadata.IOMetadata, error) {
 	//todo this can be moved to an "init" to optimize
 	setting, set := ctx.GetSetting(settingFlowURI)
 	if !set {
@@ -58,7 +55,7 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 	}
 
 	flowURI := setting.(string)
-	log.Debugf("Starting SubFlow: %s", flowURI)
+	ctx.Logger().Debugf("Starting SubFlow: %s", flowURI)
 
 	ioMd, err := instance.GetFlowIOMetadata(flowURI)
 	if err != nil {
@@ -71,10 +68,10 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 		for name, attr := range ioMd.Input {
 
 			value := ctx.GetInput(name)
-			newAttr, err := data.NewAttribute(attr.Name(), attr.Type(), value)
-			if err != nil {
-				return false, err
-			}
+			newAttr := data.NewAttribute(name, attr.Type(), value)
+			//if err != nil {
+			//	return false, err
+			//}
 
 			inputs[name] = newAttr
 		}

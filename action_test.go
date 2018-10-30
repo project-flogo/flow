@@ -1,16 +1,21 @@
 package flow
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/project-flogo/core/data/expression"
+	"testing"
+
+	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/engine/runner"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
 	"github.com/project-flogo/flow/tester"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const FLOW_REF = "github.com/project-flogo/flow"
@@ -18,11 +23,11 @@ const FLOW_REF = "github.com/project-flogo/flow"
 type testInitCtx struct {
 }
 
-func (testInitCtx) NewExprFactory(resolver resolver.CompositeResolver) expr.Factory {
+func (testInitCtx) NewExprFactory(resolver resolve.CompositeResolver) expression.Factory {
 	return nil
 }
 
-func (testInitCtx) NewMapperFactory(resolver resolver.CompositeResolver) mapper.MapperFactory {
+func (testInitCtx) NewMapperFactory(resolver resolve.CompositeResolver) mapper.Factory {
 	return nil
 }
 
@@ -81,14 +86,13 @@ func TestInitURIFlowFlavorError(t *testing.T) {
 
 var testFlowActionCfg = `{
  "id": "flow",
- "ref": "github.com/TIBCOSoftware/flogo-contrib/action/flow",
+ "ref": "github.com/project-flogo/flow",
  "metadata": {
    "input": [],
    "output": []
  },
  "data":{
  "flow": {
-   "model": "tibco-simple",
    "type": 1,
    "attributes": [],
    "rootTask": {
@@ -103,8 +107,8 @@ var testFlowActionCfg = `{
          "name": "Log Message",
          "description": "Simple Log Activity",
          "type": 1,
-         "activityType": "tibco-log",
-         "activityRef": "github.com/TIBCOSoftware/flogo-contrib/activity/log",
+         "activityType": "log",
+         "activityRef": "github.com/project-flogo/contrib/activity/log",
          "attributes": [
            {
              "name": "message",
@@ -131,8 +135,8 @@ var testFlowActionCfg = `{
          "name": "Log Message (2)",
          "description": "Simple Log Activity",
          "type": 1,
-         "activityType": "tibco-log",
-         "activityRef": "github.com/TIBCOSoftware/flogo-contrib/activity/log",
+         "activityType": "log",
+         "activityRef": "github.com/project-flogo/contrib/activity/log",
          "attributes": [
            {
              "name": "message",
@@ -282,7 +286,7 @@ type RestartRequest struct {
 
 var jsonFlow1 = `{
    "name": "HelloWorld",
-   "model": "tibco-simple",
+   "model": "simple",
    "type": 1,
    "attributes": [],
    "rootTask": {

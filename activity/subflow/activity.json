@@ -1,11 +1,11 @@
 {
   "name": "flogo-subflow",
   "type": "flogo:activity",
-  "ref": "github.com/TIBCOSoftware/flogo-contrib/activity/subflow",
+  "ref": "github.com/project-flogo/flow/activity/subflow",
   "version": "0.0.1",
   "title": "Start a SubFlow",
   "description": "Simple SubFlow Activity",
-  "homepage": "https://github.com/TIBCOSoftware/flogo-contrib/tree/master/activity/subflow",
+  "homepage": "https://github.com/project-flogo/flow/tree/master/activity/subflow",
   "dynamicIO": true,
   "settings": [
     {

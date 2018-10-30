@@ -3,7 +3,6 @@ package instance
 import (
 	"errors"
 
-	"github.com/TIBCOSoftware/flogo-lib/logger"
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
@@ -95,7 +94,7 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 
 	if master.interceptor != nil {
 
-		logger.Debug("Applying Interceptor - Output")
+		taskInst.logger.Debug("Applying Interceptor - Output")
 
 		// check if this task as an interceptor and overrides ouputs
 		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
@@ -199,7 +198,7 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 		return err
 	}
 
-	logger.Debugf("starting embedded subflow `%s`", flowInst.Name())
+	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
 
 	err = taskInst.flowInst.master.startEmbedded(flowInst, inputs)
 	if err != nil {
