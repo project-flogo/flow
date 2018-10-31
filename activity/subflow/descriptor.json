@@ -2,9 +2,9 @@
   "name": "flogo-subflow",
   "type": "flogo:activity",
   "ref": "github.com/project-flogo/flow/activity/subflow",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "title": "Start a SubFlow",
-  "description": "Simple SubFlow Activity",
+  "description": "Activity to start a sub-flow in an existing flow",
   "homepage": "https://github.com/project-flogo/flow/tree/master/activity/subflow",
   "settings": [
     {

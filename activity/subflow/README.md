@@ -14,7 +14,7 @@ This activity comes out of the box with the Flogo Web UI
 flogo install github.com/project-flogo/flow/activity/subflow
 ```
 
-## Schema
+## Metadata
 ```json
 {
   "settings":[
@@ -26,12 +26,12 @@ flogo install github.com/project-flogo/flow/activity/subflow
   ]
 }
 ```
-_The Input/Output schema is determined from the Input/Output metadata of the subflow that is being executed_
+_The Input/Output metadata is determined from the Input/Output metadata of the sub-flow that is being executed_
 
 ## Settings
 | Setting     | Required | Description |
 |:------------|:---------|:------------|
-| flowURI     | True     | The URI of the flow to execute |         
+| flowURI     | true     | The URI of the flow to execute |         
 
 
 ## Examples
@@ -44,11 +44,9 @@ The below example executes "mysubflow" and set its input values to literals "foo
     "settings" : {
       "flowURI" : "res://flow:mysubflow"
     },
-    "input": { 
-  	  "mappings":[
-        { "type": "literal", "value": "foo", "mapTo": "FlowIn1" },
-        { "type": "literal", "value": "bar", "mapTo": "FlowIn2" }
-      ]
+    "input": {
+      "flowIn1":"foo",
+      "flowIn2":"bar" 
     }
   }
 }

@@ -84,25 +84,6 @@ func (a *SubFlowActivity) Metadata() *activity.Metadata {
 	return a.activityMd
 }
 
-//func (a *SubFlowActivity) DynamicMd(ctx activity.Context) (*metadata.IOMetadata, error) {
-//
-//	// have to lazy init for now, because resources are not loaded based on dependency
-//	if atomic.LoadUint32(&a.mdUpdated) != 1 {
-//		a.mutex.Lock()
-//		defer a.mutex.Unlock()
-//		if a.mdUpdated == 0 {
-//			var err error
-//			a.dynamicMD, err = instance.GetFlowIOMetadata(a.flowURI)
-//			if err != nil {
-//				return nil, err
-//			}
-//			atomic.StoreUint32(&a.mdUpdated, 1)
-//		}
-//	}
-//
-//	return a.dynamicMD, nil
-//}
-
 // Eval implements api.Activity.Eval
 func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 
