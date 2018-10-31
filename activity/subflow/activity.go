@@ -1,17 +1,48 @@
 package subflow
 
 import (
-	"errors"
+	"github.com/project-flogo/core/support/log"
+	"net/url"
+	"sync"
+	"sync/atomic"
 
 	"github.com/project-flogo/core/activity"
-	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/flow/instance"
 )
 
-const (
-	settingFlowURI = "flowURI"
-)
+func init() {
+	activity.Register(&SubFlowActivity{}, New)
+}
+
+type Settings struct {
+	FlowURI string `md:"flowURI,required"`
+}
+
+var activityMd = activity.ToMetadata(&Settings{})
+
+func New(ctx activity.InitContext) (activity.Activity, error) {
+	s := &Settings{}
+	err := metadata.MapToStruct(ctx.Settings(), s, true)
+	if err != nil {
+		return nil, err
+	}
+
+	//todo make sure we are part of a flow, since this only works in a flow
+
+	//minimal uri check
+	_, err = url.ParseRequestURI(s.FlowURI)
+	if err != nil {
+		return nil, err
+	}
+
+	activityMd := activity.ToMetadata(&Settings{})
+	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd}
+
+	ctx.Logger().Debugf("flowURI: %+v", s.FlowURI)
+
+	return act, nil
+}
 
 // SubFlowActivity is an Activity that is used to start a sub-flow, can only be used within the
 // context of an flow
@@ -19,69 +50,75 @@ const (
 // input : {sub-flow's input}
 // output: {sub-flow's output}
 type SubFlowActivity struct {
-	metadata *activity.Metadata
-}
+	activityMd *activity.Metadata
+	flowURI   string
 
-// NewActivity creates a new SubFlowActivity
-func NewActivity(metadata *activity.Metadata) activity.Activity {
-	return &SubFlowActivity{metadata: metadata}
+	mutex     sync.Mutex
+	mdUpdated uint32
 }
 
 // Metadata returns the activity's metadata
 func (a *SubFlowActivity) Metadata() *activity.Metadata {
-	return a.metadata
-}
 
-func (a *SubFlowActivity) DynamicMd(ctx activity.Context) (*metadata.IOMetadata, error) {
-	//todo this can be moved to an "init" to optimize
-	setting, set := ctx.GetSetting(settingFlowURI)
-	if !set {
-		return nil, errors.New("flowURI not set")
+	if a.activityMd == nil {
+		//singleton version of activity
+		return activityMd
 	}
 
-	flowURI := setting.(string)
+	// have to lazy init for now, because resources are not loaded based on dependency
+	if atomic.LoadUint32(&a.mdUpdated) == 0 {
+		a.mutex.Lock()
+		defer a.mutex.Unlock()
+		if a.mdUpdated == 0 {
+			flowIOMd, err := instance.GetFlowIOMetadata(a.flowURI)
+			if err != nil {
+				log.RootLogger().Errorf("unable to load subflow metadata: %s", err.Error())
+				return a.activityMd
+			}
+			a.activityMd.IOMetadata = flowIOMd
 
-	return instance.GetFlowIOMetadata(flowURI)
-}
-
-// Eval implements api.Activity.Eval - Invokes a REST Operation
-func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
-
-	//todo move to init
-	setting, set := ctx.GetSetting(settingFlowURI)
-
-	if !set {
-		return false, errors.New("flowURI not set")
-	}
-
-	flowURI := setting.(string)
-	ctx.Logger().Debugf("Starting SubFlow: %s", flowURI)
-
-	ioMd, err := instance.GetFlowIOMetadata(flowURI)
-	if err != nil {
-		return false, err
-	}
-
-	inputs := make(map[string]*data.Attribute)
-
-	if ioMd != nil {
-		for name, attr := range ioMd.Input {
-
-			value := ctx.GetInput(name)
-			newAttr := data.NewAttribute(name, attr.Type(), value)
-			//if err != nil {
-			//	return false, err
-			//}
-
-			inputs[name] = newAttr
+			atomic.StoreUint32(&a.mdUpdated, 1)
 		}
 	}
 
-	err = instance.StartSubFlow(ctx, flowURI, inputs)
+	return a.activityMd
+}
 
-	if err != nil {
-		return false, err
+//func (a *SubFlowActivity) DynamicMd(ctx activity.Context) (*metadata.IOMetadata, error) {
+//
+//	// have to lazy init for now, because resources are not loaded based on dependency
+//	if atomic.LoadUint32(&a.mdUpdated) != 1 {
+//		a.mutex.Lock()
+//		defer a.mutex.Unlock()
+//		if a.mdUpdated == 0 {
+//			var err error
+//			a.dynamicMD, err = instance.GetFlowIOMetadata(a.flowURI)
+//			if err != nil {
+//				return nil, err
+//			}
+//			atomic.StoreUint32(&a.mdUpdated, 1)
+//		}
+//	}
+//
+//	return a.dynamicMD, nil
+//}
+
+// Eval implements api.Activity.Eval
+func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
+
+	ctx.Logger().Debugf("Starting SubFlow: %s", a.flowURI)
+
+	input := make(map[string]interface{})
+
+	md := a.Metadata()
+	if md.IOMetadata != nil {
+
+		for name := range md.Input {
+			input[name] = ctx.GetInput(name)
+		}
 	}
+
+	err = instance.StartSubFlow(ctx, a.flowURI, input)
 
 	return false, nil
 }

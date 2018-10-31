@@ -26,6 +26,7 @@ func applyInputMapper(taskInst *TaskInst) error {
 	}
 
 	if inputMapper != nil {
+
 		taskInst.logger.Debug("Applying InputMapper")
 
 		var inputScope data.Scope
@@ -158,15 +159,13 @@ func applyOutputMapper(taskInst *TaskInst) (bool, error) {
 }
 
 func GetFlowIOMetadata(flowURI string) (*metadata.IOMetadata, error) {
-	manager := support.GetFlowManager()
-	def, err := manager.GetFlow(flowURI)
 
+	def, _, err := support.GetDefinition(flowURI)
 	if err != nil {
 		return nil, err
 	}
-
 	if def == nil {
-		return nil, errors.New("unable to resolve flow: " + flowURI)
+		return nil, errors.New("unable to resolve subflow: " + flowURI)
 	}
 
 	return def.Metadata(), nil
@@ -180,23 +179,16 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 		return errors.New("unable to create subFlow using this context")
 	}
 
-	manager := support.GetFlowManager()
-	def, err := manager.GetFlow(flowURI)
-
+	def, _, err := support.GetDefinition(flowURI)
 	if err != nil {
 		return err
 	}
-
 	if def == nil {
 		return errors.New("unable to resolve subflow: " + flowURI)
 	}
 
 	//todo make sure that there is only one subFlow per taskinst
 	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def)
-
-	if err != nil {
-		return err
-	}
 
 	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
 

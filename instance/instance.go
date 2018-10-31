@@ -215,7 +215,7 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 		inst.logger.Debugf("SetAttr - name: %s, value:%v\n", name, value)
 	}
 
-	inst.SetValue(name, value)
+	inst.attrs[name] = value
 
 	if inst.master.trackingChanges {
 		inst.master.ChangeTracker.AttrChange(inst.subFlowId, CtUpd, data.NewAttribute(name, data.TypeAny, value))

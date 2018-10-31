@@ -65,6 +65,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.taskInsts = make(map[string]*TaskInst)
 	embeddedInst.linkInsts = make(map[int]*LinkInst)
 	embeddedInst.flowURI = flowURI
+	embeddedInst.logger = inst.logger
 
 	if inst.subFlows == nil {
 		inst.subFlows = make(map[int]*Instance)
@@ -207,7 +208,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	defer func() {
 		if r := recover(); r != nil {
 
-			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.Name(), r)
+			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
 			inst.logger.Error(err)
 
 			// todo: useful for debugging

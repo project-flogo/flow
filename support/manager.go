@@ -21,11 +21,6 @@ const (
 	uriSchemeHttp = "http://"
 )
 
-var defaultManager *FlowManager
-
-func GetFlowManager() *FlowManager {
-	return defaultManager
-}
 
 type FlowManager struct {
 	//todo switch to cache
@@ -43,9 +38,6 @@ func NewFlowManager(flowProvider definition.Provider) *FlowManager {
 		//todo which logger should this use?
 		manager.flowProvider = &BasicRemoteFlowProvider{logger: log.RootLogger()}
 	}
-
-	//temp hack
-	defaultManager = manager
 
 	return manager
 }

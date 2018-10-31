@@ -43,10 +43,10 @@ type TaskContext interface {
 	// EvalLink evaluates the specified link
 	EvalLink(link *definition.Link) (bool, error)
 
-	// EvalActivity evaluates the LogActivity associated with the Task
+	// EvalActivity evaluates the Activity associated with the Task
 	EvalActivity() (done bool, err error)
 
-	// PostActivity does post evaluation of the LogActivity associated with the Task
+	// PostActivity does post evaluation of the Activity associated with the Task
 	PostEvalActivity() (done bool, err error)
 
 	Resolve(toResolve string) (value interface{}, err error)

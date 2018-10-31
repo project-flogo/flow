@@ -244,12 +244,12 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Factory) (*ActivityConfig, error) {
 
 	if rep.Ref == "" {
-		return nil, errors.New("LogActivity Not Specified for Task :" + task.ID())
+		return nil, errors.New("Activity Not Specified for Task :" + task.ID())
 	}
 
 	act := activity.Get(rep.Ref)
 	if act == nil {
-		return nil, errors.New("Unsupported LogActivity:" + rep.Ref)
+		return nil, errors.New("Unsupported Activity:" + rep.Ref)
 	}
 
 	activityCfg := &ActivityConfig{}

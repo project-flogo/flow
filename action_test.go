@@ -3,14 +3,11 @@ package flow
 import (
 	"context"
 	"encoding/json"
-	"github.com/project-flogo/core/data/expression"
 	"testing"
 
-	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data"
-	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/engine/runner"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
@@ -21,14 +18,6 @@ import (
 const FLOW_REF = "github.com/project-flogo/flow"
 
 type testInitCtx struct {
-}
-
-func (testInitCtx) NewExprFactory(resolver resolve.CompositeResolver) expression.Factory {
-	return nil
-}
-
-func (testInitCtx) NewMapperFactory(resolver resolve.CompositeResolver) mapper.Factory {
-	return nil
 }
 
 func (testInitCtx) ResourceManager() *resource.Manager {

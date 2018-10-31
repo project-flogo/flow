@@ -6,7 +6,6 @@
   "title": "Start a SubFlow",
   "description": "Simple SubFlow Activity",
   "homepage": "https://github.com/project-flogo/flow/tree/master/activity/subflow",
-  "dynamicIO": true,
   "settings": [
     {
       "name": "flowURI",

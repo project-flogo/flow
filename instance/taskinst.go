@@ -72,7 +72,11 @@ func (ti *TaskInst) GetInput(name string) interface{} {
 func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 
 	if ti.logger.DebugEnabled() {
-		ti.logger.Debugf("Task[%s] - Set Output: %s = %v\n", ti.Name(), name, value)
+		ti.logger.Debugf("Task[%s] - Set Output: %s = %v", ti.taskID, name, value)
+	}
+
+	if ti.outputs == nil {
+		ti.outputs = make(map[string]interface{})
 	}
 
 	ti.outputs[name] = value
@@ -231,7 +235,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		if r := recover(); r != nil {
 
 			ref := activity.GetRef(ti.task.ActivityConfig().Activity)
-			ti.logger.Warnf("Unhandled Error executing activity '%s'[%s] : %v\n", ti.task.Name(), ref, r)
+			ti.logger.Warnf("Unhandled Error executing activity '%s'[%s] : %v\n", ti.task.ID(), ref, r)
 
 			if ti.logger.DebugEnabled() {
 				ti.logger.Debugf("StackTrace: %s", debug.Stack())
@@ -243,7 +247,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 		if evalErr != nil {
-			ti.logger.Errorf("Execution failed for LogActivity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
+			ti.logger.Errorf("Execution failed for Activity[%s] in Flow[%s] - %s", ti.task.ID(), ti.flowInst.flowDef.Name(), evalErr.Error())
 		}
 	}()
 
@@ -321,7 +325,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 			}
 		}
 		if evalErr != nil {
-			ti.logger.Errorf("Execution failed for LogActivity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
+			ti.logger.Errorf("Execution failed for Activity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
 		}
 	}()
 

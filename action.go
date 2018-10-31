@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/project-flogo/core/support/log"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/support"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
@@ -43,10 +43,11 @@ type ActionData struct {
 var ep ExtensionProvider
 var idGenerator *support.Generator
 var record bool
-var flowManager *flowsupport.FlowManager
 var maxStepCount = 1000000
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
+
+var flowManager *flowsupport.FlowManager
 
 func SetExtensionProvider(provider ExtensionProvider) {
 	ep = provider
@@ -93,6 +94,8 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 	flowManager = flowsupport.NewFlowManager(ep.GetFlowProvider())
 	resource.RegisterLoader(flowsupport.RESTYPE_FLOW, &flowsupport.FlowLoader{})
 
+	flowsupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
+
 	return nil
 }
 
@@ -132,30 +135,18 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 		flowAction.flowURI = settings.FlowURI
 	}
 
-	if strings.HasPrefix(flowAction.flowURI, resource.UriScheme) {
+	def, res, err := flowsupport.GetDefinition(flowAction.flowURI)
+	if err != nil {
+		return nil, err
+	}
+	if def == nil {
+		return nil, errors.New("unable to resolve flow: " + flowAction.flowURI)
+	}
 
-		res := f.resManager.GetResource(flowAction.flowURI)
+	flowAction.ioMetadata = def.Metadata()
 
-		if res != nil {
-			def, ok := res.Object().(*definition.Definition)
-			if !ok {
-				return nil, errors.New("unable to resolve flow: " + flowAction.flowURI)
-			}
-			flowAction.resFlow = def
-			flowAction.ioMetadata = def.Metadata()
-		}
-	} else {
-		def, err := flowManager.GetFlow(flowAction.flowURI)
-		if err != nil {
-			return nil, err
-		} else {
-			if def == nil {
-				return nil, errors.New("unable to resolve flow: " + flowAction.flowURI)
-			}
-		}
-
-		//todo clone metadata?
-		flowAction.ioMetadata = def.Metadata()
+	if res {
+		flowAction.resFlow = def
 	}
 
 	return flowAction, nil
