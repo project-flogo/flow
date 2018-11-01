@@ -21,7 +21,6 @@ const (
 	uriSchemeHttp = "http://"
 )
 
-
 type FlowManager struct {
 	//todo switch to cache
 	rfMu         sync.Mutex // protects the flow maps

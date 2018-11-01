@@ -153,8 +153,6 @@ func TestSettings(t *testing.T) {
 	assert.Equal(t, "res://flow:flow2", sfa.flowURI)
 }
 
-
-
 func TestDynamicIO(t *testing.T) {
 
 	f := action.GetFactory("github.com/project-flogo/flow")
@@ -187,7 +185,7 @@ func TestSubFlow(t *testing.T) {
 	err := initActionFactory(af)
 	assert.Nil(t, err)
 
-	flowAction, err := f.New(&action.Config{Settings: map[string]interface{}{"flowURI":"res://flow:flow1"}})
+	flowAction, err := f.New(&action.Config{Settings: map[string]interface{}{"flowURI": "res://flow:flow1"}})
 
 	assert.Nil(t, err)
 	assert.NotNil(t, flowAction)
@@ -197,70 +195,24 @@ func TestSubFlow(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Nil(t, results)
 }
-//
-////DUMMY TEST ACTIVITIES
-//
-//type LogActivity struct {
-//	metadata *activity.Metadata
-//}
-//
-//// NewActivity creates a new AppActivity
-//func NewLogActivity() activity.Activity {
-//	metadata := &activity.Metadata{ID: "log"}
-//	input := map[string]*data.Attribute{
-//		"message": data.NewZeroAttribute("message", data.TypeString),
-//	}
-//	metadata.Input = input
-//	return &LogActivity{metadata: metadata}
-//}
-//
-//// Metadata returns the activity's metadata
-//func (a *LogActivity) Metadata() *activity.Metadata {
-//	return a.metadata
-//}
-//
-//// Eval implements api.Activity.Eval - Logs the Message
-//func (a *LogActivity) Eval(context activity.Context) (done bool, err error) {
-//
-//	//mv := context.GetInput(ivMessage)
-//	message, _ := context.GetInput("message").(string)
-//
-//	fmt.Println("Message :", message)
-//	return true, nil
-//}
 
 func initActionFactory(af action.Factory) error {
-	resources := make(map[string]*resource.Resource)
-	resMgr := resource.NewManager(resources)
 
-	af.Initialize(newActionInitCtx(resMgr))
+	ctx := test.NewActionInitCtx()
+	af.Initialize(ctx)
 
-	loader := resource.GetLoader(support.RESTYPE_FLOW)
 	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
 	rConfig2 := &resource.Config{ID: "flow:flow2", Data: []byte(jsonFlow2)}
 
-	res, err := loader.LoadResource(rConfig1)
+	err := ctx.AddResource(support.RESTYPE_FLOW, rConfig1)
 	if err != nil {
 		return err
 	}
-	resources[rConfig1.ID] = res
-	res, err = loader.LoadResource(rConfig2)
+
+	err = ctx.AddResource(support.RESTYPE_FLOW, rConfig2)
 	if err != nil {
 		return err
 	}
-	resources[rConfig2.ID] = res
 
 	return err
-}
-
-func newActionInitCtx(manager *resource.Manager) action.InitContext {
-	return &testInitCtx{manager: manager}
-}
-
-type testInitCtx struct {
-	manager *resource.Manager
-}
-
-func (ctx *testInitCtx) ResourceManager() *resource.Manager {
-	return ctx.manager
 }

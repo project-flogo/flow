@@ -15,7 +15,6 @@ func InitDefaultDefLookup(fManager *FlowManager, rManager *resource.Manager) {
 	resManager = rManager
 }
 
-
 func GetDefinition(flowURI string) (*definition.Definition, bool, error) {
 
 	var def *definition.Definition
@@ -35,7 +34,7 @@ func GetDefinition(flowURI string) (*definition.Definition, bool, error) {
 		var err error
 		def, err = flowManager.GetFlow(flowURI)
 		if err != nil {
-			return  nil, false, err
+			return nil, false, err
 		}
 
 		return def, false, nil

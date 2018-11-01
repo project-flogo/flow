@@ -51,7 +51,7 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 // output: {sub-flow's output}
 type SubFlowActivity struct {
 	activityMd *activity.Metadata
-	flowURI   string
+	flowURI    string
 
 	mutex     sync.Mutex
 	mdUpdated uint32
