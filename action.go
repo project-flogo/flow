@@ -323,41 +323,11 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 		logger.Debugf("Done Executing flow instance [%s] - Status: %d", inst.ID(), inst.Status())
 
 		if inst.Status() == model.FlowStatusCompleted {
-			logger.Infof("Flow instance [%s] Completed Successfully", inst.ID())
+			logger.Infof("Instance [%s] Done", inst.ID())
 		} else if inst.Status() == model.FlowStatusFailed {
-			logger.Infof("Flow instance [%s] Failed", inst.ID())
+			logger.Infof("Instance [%s] Failed", inst.ID())
 		}
 	}()
 
 	return nil
 }
-
-//func logInputs(attrs map[string]*data.Attribute) {
-//	if len(attrs) > 0 {
-//		logger.Debug("Input Attributes:")
-//		for _, attr := range attrs {
-//
-//			if attr == nil {
-//				logger.Error("Nil Attribute passed as input")
-//			} else {
-//				logger.Debugf(" Attr:%s, Type:%s, Value:%v", attr.Name(), attr.Type().String(), attr.Value())
-//			}
-//		}
-//	}
-//}
-
-//func extractAttributes(inputs map[string]interface{}) []*data.Attribute {
-//
-//	size := len(inputs)
-//
-//	attrs := make([]*data.Attribute, 0, size)
-//
-//	//todo do special handling for complex_object metadata (merge or ref it)
-//	for _, value := range inputs {
-//
-//		attr, _ := value.(*data.Attribute)
-//		attrs = append(attrs, attr)
-//	}
-//
-//	return attrs
-//}

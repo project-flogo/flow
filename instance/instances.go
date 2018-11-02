@@ -252,6 +252,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	case model.EVAL_FAIL:
 		taskInst.SetStatus(model.TaskStatusFailed)
 	case model.EVAL_REPEAT:
+		taskInst.SetStatus(model.TaskStatusReady)
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
 	}
