@@ -3,6 +3,7 @@ package definition
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/project-flogo/core/activity"
@@ -50,6 +51,7 @@ type TaskRep struct {
 // ActivityConfigRep is a serializable representation of an activity configuration
 type ActivityConfigRep struct {
 	Ref      string                 `json:"ref"`
+	Type     string                 `json:"type"` //an alias to the ref, can be used if imported
 	Settings map[string]interface{} `json:"settings"`
 	Input    map[string]interface{} `json:"input,omitempty"`
 	Output   map[string]interface{} `json:"output,omitempty"`
@@ -59,6 +61,7 @@ type ActivityConfigRep struct {
 func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 	ser := &struct {
 		Ref      string                 `json:"ref"`
+		Type     string                 `json:"type"` //an alias to the ref, can be used if imported
 		Settings map[string]interface{} `json:"settings"`
 		Input    map[string]interface{} `json:"input,omitempty"`
 		Output   map[string]interface{} `json:"output,omitempty"`
@@ -72,6 +75,7 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 	}
 
 	ac.Ref = ser.Ref
+	ac.Type = ser.Type
 	ac.Settings = ser.Settings
 	ac.Input = ser.Input
 	ac.Output = ser.Output
@@ -242,6 +246,14 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 }
 
 func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Factory) (*ActivityConfig, error) {
+
+	if rep.Ref == "" {
+		var ok bool
+		rep.Ref, ok =support.GetAliasRef("activity", rep.Type)
+		if !ok {
+			return nil, fmt.Errorf("Activity type '%s' not registered", rep.Type)
+		}
+	}
 
 	if rep.Ref == "" {
 		return nil, errors.New("Activity Not Specified for Task :" + task.ID())
