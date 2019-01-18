@@ -27,7 +27,7 @@ func (testInitCtx) ResourceManager() *resource.Manager {
 //TestInitNoFlavorError
 func TestInitNoFlavorError(t *testing.T) {
 
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: []byte(`{}`)}
+	mockConfig := &action.ActionConfig{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: []byte(`{}`)}
 	f := &ActionFactory{}
 	f.Initialize(&testInitCtx{})
 	_, err := f.New(mockConfig)
@@ -39,7 +39,7 @@ func TestInitUnCompressedFlowFlavorError(t *testing.T) {
 
 	mockFlowData := []byte(`{"flow":{}}`)
 
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
+	mockConfig := &action.ActionConfig{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
 
 	f := &ActionFactory{}
 	f.Initialize(&testInitCtx{})
@@ -52,7 +52,7 @@ func TestInitCompressedFlowFlavorError(t *testing.T) {
 
 	mockFlowData := []byte(`{"flowCompressed":""}`)
 
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
+	mockConfig := &action.ActionConfig{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
 
 	f := &ActionFactory{}
 	f.Initialize(&testInitCtx{})
@@ -65,7 +65,7 @@ func TestInitURIFlowFlavorError(t *testing.T) {
 
 	mockFlowData := []byte(`{"flowURI":""}`)
 
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
+	mockConfig := &action.ActionConfig{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
 
 	f := &ActionFactory{}
 	f.Initialize(&testInitCtx{})
@@ -220,7 +220,7 @@ var testRestartInitialState = `{
 
 func TestFlowAction_Run_Restart(t *testing.T) {
 
-	cfg := &action.Config{}
+	cfg := &action.ActionConfig{}
 	err := json.Unmarshal([]byte(testFlowActionCfg), cfg)
 
 	if err != nil {
@@ -395,7 +395,7 @@ func TestRequestProcessor_RestartFlow(t *testing.T) {
 	af.Initialize(&testInitCtx{})
 
 	loader := resource.GetLoader("flow")
-	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
+	rConfig1 := &resource.ResourceConfig{ID: "flow:flow1", Data: []byte(jsonFlow1)}
 	_, err := loader.LoadResource(rConfig1)
 	assert.Nil(t, err)
 

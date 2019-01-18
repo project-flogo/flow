@@ -15,7 +15,7 @@ const (
 type FlowLoader struct {
 }
 
-func (*FlowLoader) LoadResource(config *resource.Config) (*resource.Resource, error) {
+func (*FlowLoader) LoadResource(config *resource.ResourceConfig) (*resource.Resource, error) {
 	var flowDefBytes []byte
 
 	flowDefBytes = config.Data
