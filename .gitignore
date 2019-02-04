@@ -43,6 +43,7 @@ _testmain.go
 
 
 tags
+.vscode/
 .vscode/symbols.json
 .build-cache
 submodules/flogo-cicd/.build-cache
