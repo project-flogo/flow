@@ -110,7 +110,7 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
 	flowAction := &FlowAction{}
 
-	if config.Data == nil {
+	if config.Data != nil {
 		//As in old repo . Hack to support dynamic process running by tester
 		return flowAction, nil
 	} 
