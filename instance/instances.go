@@ -236,6 +236,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	}
 
 	if err != nil {
+		//taskInst.returnError = err
 		inst.handleTaskError(behavior, taskInst, err)
 		return
 	}
