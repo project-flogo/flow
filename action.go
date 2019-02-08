@@ -2,9 +2,7 @@ package flow
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -113,27 +111,16 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 	flowAction := &FlowAction{}
 
 	if config.Data != nil {
+		//As in old repo . Hack to support dynamic process running by tester
 		return flowAction, nil
-
-		var actionData ActionData
-		err := json.Unmarshal(config.Data, &actionData)
-		if err != nil {
-			return nil, fmt.Errorf("faild to load flow action data '%s' error '%s'", config.Id, err.Error())
-		}
-
-		if len(actionData.FlowURI) > 0 {
-
-			flowAction.flowURI = actionData.FlowURI
-		}
-	} else {
-		settings := &Settings{}
-		err := metadata.MapToStruct(config.Settings, settings, true)
-		if err != nil {
-			return nil, err
-		}
-
-		flowAction.flowURI = settings.FlowURI
+	} 
+	settings := &Settings{}
+	err := metadata.MapToStruct(config.Settings, settings, true)
+	if err != nil {
+		return nil, err
 	}
+
+	flowAction.flowURI = settings.FlowURI
 
 	def, res, err := flowsupport.GetDefinition(flowAction.flowURI)
 	if err != nil {
