@@ -35,7 +35,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		itx = itxAttr.(Iterator)
 	} else {
 
-		iterateOn, ok := getIterateValue(ctx)
+		iterateOn, ok := ctx.GetSetting("iterate")
 
 		if !ok {
 			//todo if iterateOn is not defined, what should we do?
@@ -148,25 +148,25 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 	return model.EVAL_DONE, nil
 }
 
-func getIterateValue(ctx model.TaskContext) (value interface{}, set bool) {
-
-	value, set = ctx.Task().GetSetting("iterate")
-	if !set {
-		return nil, false
-	}
-
-	strVal, ok := value.(string)
-	if ok {
-		val, err := ctx.Resolve(strVal)
-		if err != nil {
-			ctx.FlowLogger().Errorf("Get iterate value failed, due to %s", err.Error())
-			return nil, false
-		}
-		return val, true
-	}
-
-	return value, true
-}
+//func getIterateValue(ctx model.TaskContext) (value interface{}, set bool) {
+//
+//	value, set = ctx.Task().GetSetting("iterate")
+//	if !set {
+//		return nil, false
+//	}
+//
+//	strVal, ok := value.(string)
+//	if ok {
+//		val, err := ctx.Resolve(strVal)
+//		if err != nil {
+//			ctx.FlowLogger().Errorf("Get iterate value failed, due to %s", err.Error())
+//			return nil, false
+//		}
+//		return val, true
+//	}
+//
+//	return value, true
+//}
 
 ///////////////////////////////////
 // Iterators

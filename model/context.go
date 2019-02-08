@@ -8,6 +8,7 @@ import (
 // FlowContext is the execution context of the Flow when executing
 // a Flow Behavior function
 type FlowContext interface {
+
 	// FlowDefinition returns the Flow definition associated with this context
 	FlowDefinition() *definition.Definition
 
@@ -49,13 +50,13 @@ type TaskContext interface {
 	// PostActivity does post evaluation of the Activity associated with the Task
 	PostEvalActivity() (done bool, err error)
 
-	Resolve(toResolve string) (value interface{}, err error)
+	GetSetting(name string) (value interface{}, exists bool)
 
 	SetWorkingData(key string, value interface{}) error
 
 	GetWorkingData(key string) (interface{}, bool)
 
-	//todo  move to a mutable scope
+	//Resolve(toResolve string) (value interface{}, err error)
 
 	//AddWorkingData(attr *data.Attribute)
 
