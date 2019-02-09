@@ -75,10 +75,40 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 	}
 
 	ac.Ref = ser.Ref
+
+	act := activity.Get(ac.Ref)
+
+	if act != nil {
+		ac.Output = make(map[string]interface{})
+		for k, v := range act.Metadata().Output {
+			if v != nil && v.Type() == data.TypeComplexObject {
+				v, err := data.NewTypedValueWithConversion(data.TypeComplexObject, ser.Output[k])
+				if err != nil {
+					return fmt.Errorf("convert to complex typed value failed %s", err.Error())
+				}
+				ac.Output[k] = v
+			} else {
+				ac.Output[k] = ser.Output[k]
+			}
+		}
+
+		ac.Input = make(map[string]interface{})
+		for k, v := range act.Metadata().Input {
+			if v != nil && v.Type() == data.TypeComplexObject {
+				v, err := data.NewTypedValueWithConversion(data.TypeComplexObject, ser.Input[k])
+				if err != nil {
+					return fmt.Errorf("convert to complex typed value failed %s", err.Error())
+				}
+				ac.Input[k] = v
+			} else {
+				ac.Input[k] = ser.Input[k]
+			}
+		}
+	}
+
 	ac.Type = ser.Type
 	ac.Settings = ser.Settings
-	ac.Input = ser.Input
-	ac.Output = ser.Output
+	//ac.Input = ser.Input
 
 	if ac.Settings == nil {
 		ac.Settings = make(map[string]interface{}, 0)
@@ -249,7 +279,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 
 	if rep.Ref == "" {
 		var ok bool
-		rep.Ref, ok =support.GetAliasRef("activity", rep.Type)
+		rep.Ref, ok = support.GetAliasRef("activity", rep.Type)
 		if !ok {
 			return nil, fmt.Errorf("Activity type '%s' not registered", rep.Type)
 		}
