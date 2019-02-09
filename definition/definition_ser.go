@@ -75,40 +75,38 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 	}
 
 	ac.Ref = ser.Ref
+	ac.Input = ser.Input
+	ac.Output = ser.Output
 
 	act := activity.Get(ac.Ref)
-
 	if act != nil {
-		ac.Output = make(map[string]interface{})
-		for k, v := range act.Metadata().Output {
-			if v != nil && v.Type() == data.TypeComplexObject {
-				v, err := data.NewTypedValueWithConversion(data.TypeComplexObject, ser.Output[k])
-				if err != nil {
-					return fmt.Errorf("convert to complex typed value failed %s", err.Error())
+		if ac.Output != nil {
+			for k, v := range act.Metadata().Output {
+				if v != nil && v.Type() == data.TypeComplexObject {
+					v, err := data.NewTypedValueWithConversion(data.TypeComplexObject, ac.Output[k])
+					if err != nil {
+						return fmt.Errorf("convert to complex typed value failed %s", err.Error())
+					}
+					ac.Output[k] = v
 				}
-				ac.Output[k] = v
-			} else {
-				ac.Output[k] = ser.Output[k]
 			}
 		}
 
-		ac.Input = make(map[string]interface{})
-		for k, v := range act.Metadata().Input {
-			if v != nil && v.Type() == data.TypeComplexObject {
-				v, err := data.NewTypedValueWithConversion(data.TypeComplexObject, ser.Input[k])
-				if err != nil {
-					return fmt.Errorf("convert to complex typed value failed %s", err.Error())
+		if ac.Input != nil {
+			for k, v := range act.Metadata().Input {
+				if v != nil && v.Type() == data.TypeComplexObject {
+					v, err := data.NewTypedValueWithConversion(data.TypeComplexObject, ac.Input[k])
+					if err != nil {
+						return fmt.Errorf("convert to complex typed value failed %s", err.Error())
+					}
+					ac.Input[k] = v
 				}
-				ac.Input[k] = v
-			} else {
-				ac.Input[k] = ser.Input[k]
 			}
 		}
 	}
 
 	ac.Type = ser.Type
 	ac.Settings = ser.Settings
-	//ac.Input = ser.Input
 
 	if ac.Settings == nil {
 		ac.Settings = make(map[string]interface{}, 0)
