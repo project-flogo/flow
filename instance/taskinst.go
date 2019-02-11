@@ -36,8 +36,9 @@ type TaskInst struct {
 
 	workingData map[string]interface{}
 
-	inputs  map[string]interface{}
-	outputs map[string]interface{}
+	inputs   map[string]interface{}
+	outputs  map[string]interface{}
+	settings map[string]interface{}
 
 	logger log.Logger
 
@@ -125,6 +126,7 @@ func (ti *TaskInst) HasWorkingData() bool {
 
 func (ti *TaskInst) Resolve(toResolve string) (value interface{}, err error) {
 	//Support expression mapping
+
 	//return exprmapper.GetMappingValue(toResolve, ti.flowInst, definition.GetDataResolver())
 	return nil, nil
 }
@@ -365,6 +367,16 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 	}
 
 	return done, nil
+}
+
+func (ti *TaskInst) GetSetting(name string) (value interface{}, exists bool) {
+
+	if ti.settings == nil {
+		return nil, false
+	}
+
+	value, exists = ti.settings[name]
+	return value, exists
 }
 
 // FlowReply is used to reply to the Flow Host with the results of the execution

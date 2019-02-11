@@ -144,7 +144,8 @@ type Task struct {
 
 	activityCfg *ActivityConfig
 	isScope     bool
-	settings    map[string]interface{}
+	//settings    map[string]interface{}
+	settingsMapper mapper.Mapper
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -169,10 +170,15 @@ func (task *Task) ActivityConfig() *ActivityConfig {
 	return task.activityCfg
 }
 
-func (task *Task) GetSetting(name string) (value interface{}, exists bool) {
-	value, exists = task.settings[name]
-	return value, exists
+// SettingsMapper returns the SettingsMapper of the task
+func (task *Task) SettingsMapper() mapper.Mapper {
+	return task.settingsMapper
 }
+
+//func (task *Task) GetSetting(name string) (value interface{}, exists bool) {
+//	value, exists = task.settings[name]
+//	return value, exists
+//}
 
 // ToLinks returns the predecessor links of the task
 func (task *Task) ToLinks() []*Link {

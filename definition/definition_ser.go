@@ -220,12 +220,20 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 		task.typeID = rep.Type
 	}
 
-	if len(rep.Settings) > 0 {
-		task.settings = make(map[string]interface{}, len(rep.Settings))
-		for name, value := range rep.Settings {
-			task.settings[name], _ = metadata.ResolveSettingValue(name, value, nil, ef)
-		}
+	mf := GetMapperFactory()
+
+	var err error
+	task.settingsMapper, err = mf.NewMapper(rep.Settings)
+	if err != nil {
+		return nil, err
 	}
+
+	//if len(rep.Settings) > 0 {
+	//	task.settings = make(map[string]interface{}, len(rep.Settings))
+	//	for name, value := range rep.Settings {
+	//		task.settings[name], _ = metadata.ResolveSettingValue(name, value, nil, ef)
+	//	}
+	//}
 
 	if rep.ActivityCfgRep != nil {
 
@@ -249,7 +257,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 
 	if rep.Ref == "" {
 		var ok bool
-		rep.Ref, ok =support.GetAliasRef("activity", rep.Type)
+		rep.Ref, ok = support.GetAliasRef("activity", rep.Type)
 		if !ok {
 			return nil, fmt.Errorf("Activity type '%s' not registered", rep.Type)
 		}
@@ -331,11 +339,11 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			link.linkType = LtDependency
 		case "expression", "1":
 			link.linkType = LtExpression
-			
-			if linkRep.Value == ""{
+
+			if linkRep.Value == "" {
 				return nil, errors.New("Expression value not set")
 			}
-			link.expr , err = ef.NewExpr(linkRep.Value)
+			link.expr, err = ef.NewExpr(linkRep.Value)
 			if err != nil {
 				return nil, err
 			}

@@ -451,6 +451,7 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 		enterResult := taskToEnterBehavior.Enter(enterTaskData)
 
 		if enterResult == model.ENTER_EVAL {
+			applySettingsMapper(enterTaskData)
 			inst.scheduleEval(enterTaskData)
 		} else if enterResult == model.ENTER_SKIP {
 			//todo optimize skip, just keep skipping and don't schedule eval
