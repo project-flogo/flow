@@ -187,7 +187,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 		for id, linkRep := range rep.Links {
 
-			link, err := createLink(def.tasks, linkRep, id)
+			link, err := createLink(def.tasks, linkRep, id, ef)
 			if err != nil {
 				return nil, err
 			}
@@ -222,7 +222,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 			for id, linkRep := range rep.ErrorHandler.Links {
 
-				link, err := createLink(errorHandler.tasks, linkRep, id+idOffset)
+				link, err := createLink(errorHandler.tasks, linkRep, id+idOffset, ef)
 				if err != nil {
 					return nil, err
 				}
@@ -347,18 +347,26 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 	return activityCfg, nil
 }
 
-func createLink(tasks map[string]*Task, linkRep *LinkRep, id int) (*Link, error) {
+func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.Factory) (*Link, error) {
 
 	link := &Link{}
 	link.id = id
 	link.linkType = LtDependency
-
+	var err error
 	if len(linkRep.Type) > 0 {
 		switch linkRep.Type {
 		case "default", "dependency", "0":
 			link.linkType = LtDependency
 		case "expression", "1":
 			link.linkType = LtExpression
+			
+			if linkRep.Value == ""{
+				return nil, errors.New("Expression value not set")
+			}
+			link.expr , err = ef.NewExpr(linkRep.Value)
+			if err != nil {
+				return nil, err
+			}
 		case "label", "2":
 			link.linkType = LtLabel
 		case "error", "3":
