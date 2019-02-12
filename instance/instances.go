@@ -243,10 +243,10 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	switch evalResult {
 	case model.EVAL_DONE:
-		taskInst.SetStatus(model.TaskStatusDone)
+		//taskInst.SetStatus(model.TaskStatusDone)
 		inst.handleTaskDone(behavior, taskInst)
 	case model.EVAL_SKIP:
-		taskInst.SetStatus(model.TaskStatusSkipped)
+		//taskInst.SetStatus(model.TaskStatusSkipped)
 		inst.handleTaskDone(behavior, taskInst)
 	case model.EVAL_WAIT:
 		taskInst.SetStatus(model.TaskStatusWaiting)

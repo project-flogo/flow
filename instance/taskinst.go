@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"runtime/debug"
 
+
+
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
+	
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
+	
 )
 
 func NewTaskInst(inst *Instance, task *definition.Task) *TaskInst {
@@ -39,7 +43,8 @@ type TaskInst struct {
 	inputs  map[string]interface{}
 	outputs map[string]interface{}
 
-	logger log.Logger
+	logger      log.Logger
+	returnError error
 
 	//needed for serialization
 	taskID string
@@ -117,6 +122,8 @@ func (ti *TaskInst) Status() model.TaskStatus {
 func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	ti.status = status
 	ti.flowInst.master.ChangeTracker.trackTaskData(ti.flowInst.subFlowId, &TaskInstChange{ChgType: CtUpd, ID: ti.task.ID(), TaskInst: ti})
+	//log.RootLogger().Info("Status.............", status, ti.task.ID())
+	postTaskEvent(ti)
 }
 
 func (ti *TaskInst) HasWorkingData() bool {
