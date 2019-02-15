@@ -143,11 +143,6 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 // Run implements action.Action.Run
 func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, handler action.ResultHandler) error {
 	
-	/*op := instance.OpStart
-	retID := false
-	var initialState *instance.IndependentInstance
-	var flowURI string*/
-
 	logger.Info("Running OnDemand Flow Action")
 
 	fpAttr, exists := inputs[ivFlowPackage]
@@ -220,18 +215,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if inst.Status() == model.FlowStatusCompleted {
 			returnData, err := inst.GetReturnData()
 
-			if len(flowPackage.Outputs) > 0 && len(returnData) > 0 {
-
-				//How do we test this? 
-				
-				flowOutputs, err := ApplyMappings(flowPackage.Outputs, returnData)
-
-				handler.HandleResult(flowOutputs, err)
+			handler.HandleResult(returnData, err)
 			
-			} else {
-
-				handler.HandleResult(returnData, err)
-			}
 
 		} else if inst.Status() == model.FlowStatusFailed {
 			handler.HandleResult(nil, inst.GetError())
