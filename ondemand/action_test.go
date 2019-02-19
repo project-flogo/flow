@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	_ "github.com/project-flogo/contrib/activity/log"
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
+	_ "github.com/project-flogo/core/support/test"
 
 	"github.com/project-flogo/core/engine/runner"
 	"github.com/stretchr/testify/assert"
@@ -37,10 +37,10 @@ const testEventJson = `
         },
         "tasks": [
           {
-            "id": "LogResult",
-            "name": "Log Results",
+            "id": "testlog",
+            "name": "testlog",
             "activity" : {
-              "ref":"github.com/project-flogo/contrib/activity/log",
+              "ref":"testlog",
               "input" : {
                 "message" : "=$flow.orderId"
               }

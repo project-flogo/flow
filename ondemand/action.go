@@ -23,9 +23,6 @@ import (
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support"
-	_ "github.com/project-flogo/contrib/activity/log"
-	
-	
 )
 
 const (
