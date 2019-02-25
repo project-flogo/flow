@@ -3,7 +3,7 @@ package instance
 import (
 	"time"
 
-	coreevent "github.com/project-flogo/core/support/event"
+	coreevent "github.com/project-flogo/core/engine/event"
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/support/event"
 )
@@ -97,7 +97,7 @@ func postFlowEvent(inst *Instance) {
 		if fe.status == event.FAILED {
 			fe.err = inst.returnError
 		}
-		coreevent.PostEvent(event.FLOW_EVENT_TYPE, fe)
+		coreevent.Post(event.FLOW_EVENT_TYPE, fe)
 	}
 }
 
