@@ -174,7 +174,11 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	instanceID := idGenerator.NextAsString()
 	logger.Debug("Creating Flow Instance: ", instanceID)
 
-	inst := instance.NewIndependentInstance(instanceID, "", flowDef,logger)
+	inst, err := instance.NewIndependentInstance(instanceID, "", flowDef,logger)
+
+	if err != nil{
+		return err
+	}
 
 	logger.Debugf("Executing Flow Instance: %s", inst.ID())
 

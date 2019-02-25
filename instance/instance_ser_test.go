@@ -18,9 +18,9 @@ func TestMain(m *testing.M) {
 
 const defJSON = `
 {
-    "type": 1,
+    "id": 1,
+    "model":"test",
     "name": "test",
-    "model": "test",
     "rootTask": {
       "id": 1,
       "type": 1,
@@ -29,9 +29,9 @@ const defJSON = `
       "tasks": [
         {
           "id": 2,
-          "activityRef": "test-log",
+          "ref": "test-log",
           "name": "a",
-          "attributes": [
+          "input": [
             {
               "name": "message",
               "value": "test message",
@@ -41,9 +41,9 @@ const defJSON = `
         },
         {
           "id": 3,
-          "activityRef": "test-counter",
+          "ref": "test-log",
           "name": "b",
-          "attributes": [
+          "input": [
             {
               "name": "counterName",
               "value": "test_counter",
@@ -53,7 +53,7 @@ const defJSON = `
         }
       ],
       "links": [
-        { "id": 1, "type": 1,  "name": "","from": 2, "to": 3 }
+        { "id": 1,  "name": "","from": 2, "to": 3 }
       ]
     }
   }
@@ -70,8 +70,8 @@ func TestFullSerialization(t *testing.T) {
 	def, _ := definition.NewDefinition(defRep)
 	assert.NotNil(t, def)
 
-	instance := NewIndependentInstance("12345", "uri", def, log.RootLogger())
-
+	instance, err := NewIndependentInstance("12345", "uri", def, log.RootLogger())
+	assert.Nil(t, err)
 	instance.Start(nil)
 
 	hasWork := true
@@ -85,6 +85,7 @@ func TestFullSerialization(t *testing.T) {
 
 }
 
+/*
 func TestChangeSerialization(t *testing.T) {
 
 	defRep := &definition.DefinitionRep{}
@@ -96,8 +97,8 @@ func TestChangeSerialization(t *testing.T) {
 	def, _ := definition.NewDefinition(defRep)
 	assert.NotNil(t, def)
 
-	instance := NewIndependentInstance("12345", "uri", def, log.RootLogger())
-
+	instance, err := NewIndependentInstance("12345", "uri", def, log.RootLogger())
+	assert.Nil(t, err)
 	instance.Start(nil)
 
 	hasWork := true
@@ -109,7 +110,7 @@ func TestChangeSerialization(t *testing.T) {
 		log.RootLogger().Debugf("Change: %s\n", string(json))
 	}
 }
-
+*/
 //func TestIncrementalSerialization(t *testing.T) {
 //
 //	defRep := &flowdef.DefinitionRep{}

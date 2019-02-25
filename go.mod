@@ -5,3 +5,5 @@ require (
 	github.com/project-flogo/core v0.9.0-alpha.4.0.20190213174534-066cf88d3782
 	github.com/stretchr/testify v1.3.0
 )
+
+replace github.com/project-flogo/core v0.9.0-alpha.4.0.20190213174534-066cf88d3782 => /Users/skothari-tibco/Documents/core

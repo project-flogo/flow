@@ -3,7 +3,7 @@ package instance
 import (
 	"time"
 
-	coreevent "github.com/project-flogo/core/support/event"
+	coreevent "github.com/project-flogo/core/engine/event"
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/support/event"
 )

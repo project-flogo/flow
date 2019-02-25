@@ -31,7 +31,8 @@ type IndependentInstance struct {
 }
 
 // New creates a new Flow Instance from the specified Flow
-func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, logger log.Logger) *IndependentInstance {
+func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, logger log.Logger) (*IndependentInstance, error) {
+	var err error
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}
 	inst.master = inst
@@ -40,7 +41,10 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.workItemQueue = support.NewSyncQueue()
 	inst.flowDef = flow
 	inst.flowURI = flowURI
-	inst.flowModel = getFlowModel(flow)
+	inst.flowModel, err = getFlowModel(flow)
+	if err != nil {
+		return nil, err
+	}
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
@@ -49,7 +53,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.taskInsts = make(map[string]*TaskInst)
 	inst.linkInsts = make(map[int]*LinkInst)
 
-	return inst
+	return inst, nil
 }
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
@@ -509,13 +513,13 @@ func (e *ActivityEvalError) Error() string {
 //////////////
 // todo fix the following
 
-func getFlowModel(flow *definition.Definition) *model.FlowModel {
+func getFlowModel(flow *definition.Definition) (*model.FlowModel, error) {
 	if flow.ModelID() == "" {
-		return model.Default()
-	} else {
-		return model.Get(flow.ModelID())
-		//todo if model not found, should throw error
+		return model.Default(), nil
 	}
+	return model.Get(flow.ModelID())
+	//todo if model not found, should throw error
+
 }
 
 //// Restart indicates that this FlowInstance was restarted
@@ -531,7 +535,10 @@ func (inst *IndependentInstance) Restart(id string, manager *flowsupport.FlowMan
 		return errors.New("unable to resolve flow: " + inst.flowURI)
 	}
 
-	inst.flowModel = getFlowModel(inst.flowDef)
+	inst.flowModel, err = getFlowModel(inst.flowDef)
+	if err != nil {
+		return err
+	}
 	inst.master = inst
 	inst.init(inst.Instance)
 
