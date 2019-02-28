@@ -167,7 +167,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 
 			}
 		}
-		coreevent.PostEvent(event.TASK_EVENT_TYPE, te)
+		coreevent.Post(event.TASK_EVENT_TYPE, te)
 	}
 
 }
