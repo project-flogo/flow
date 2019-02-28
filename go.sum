@@ -13,6 +13,8 @@ github.com/project-flogo/core v0.9.0-alpha.3/go.mod h1:BHeB55AxPhvlNGd+it50rE977
 github.com/project-flogo/core v0.9.0-alpha.4 h1:ny3yB8vMBRXxIXuk3V2DYxVDUN6HlqUQA70yWVWHCS0=
 github.com/project-flogo/core v0.9.0-alpha.4.0.20190213174534-066cf88d3782 h1:4ODKDIruYifAibvaxOxgDKyP1alTSo0HOuyUiG/mAJM=
 github.com/project-flogo/core v0.9.0-alpha.4.0.20190213174534-066cf88d3782/go.mod h1:Dof6t60n/nvN7aPpoUz97JL+VIKdsYMbhqwN++WCdz8=
+github.com/project-flogo/core v0.9.0-alpha.5 h1:o/Hs8TCncky1psnzR0zpLtc3KQbA62SwDaFYZNiACko=
+github.com/project-flogo/core v0.9.0-alpha.5/go.mod h1:Dof6t60n/nvN7aPpoUz97JL+VIKdsYMbhqwN++WCdz8=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=

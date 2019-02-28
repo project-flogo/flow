@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	FLOW_REF = "github.com/project-flogo/contrib/action/flow/ondemand"
+	FLOW_REF = "github.com/project-flogo/flow/ondemand"
 
 	ENV_FLOW_RECORD = "FLOGO_FLOW_RECORD"
 

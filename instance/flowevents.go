@@ -97,7 +97,7 @@ func postFlowEvent(inst *Instance) {
 		if fe.status == event.FAILED {
 			fe.err = inst.returnError
 		}
-		coreevent.PostEvent(event.FLOW_EVENT_TYPE, fe)
+		coreevent.Post(event.FLOW_EVENT_TYPE, fe)
 	}
 }
 
