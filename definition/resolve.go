@@ -11,6 +11,7 @@ var defResolver = resolve.NewCompositeResolver(map[string]resolve.Resolver{
 	".":        &resolve.ScopeResolver{},
 	"env":      &resolve.EnvResolver{},
 	"property": &resolve.PropertyResolver{},
+	"loop":     &resolve.LoopResolver{},
 	"activity": &ActivityResolver{},
 	"error":    &ErrorResolver{},
 	"flow":     &FlowResolver{}})
