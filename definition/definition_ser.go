@@ -84,7 +84,7 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 		ac.Settings = make(map[string]interface{}, 0)
 	}
 
-	input, output, err := mapper.ConvertLegacyMappings(ser.Mappings)
+	input, output, err := mapper.ConvertLegacyMappings(ser.Mappings, GetDataResolver())
 	if err != nil {
 		return err
 	}
