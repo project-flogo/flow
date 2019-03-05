@@ -118,7 +118,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 				if metadata.Input != nil && len(metadata.Input) > 0 && taskInstance.Task().IsScope() {
 
 					for name, attVal := range actConfig.Activity.Metadata().Input {
-						scopedValue, ok := taskInstance.GetSetting(name)
+						scopedValue, ok := taskInstance.inputs(name)
 						if !ok {
 
 							te.taskIn[name] = attVal.Value()
@@ -131,7 +131,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 
 				if te.status == event.COMPLETED && metadata.Output != nil && len(metadata.Output) > 0 && taskInstance.Task().IsScope() {
 					for name, attVal := range actConfig.Activity.Metadata().Output {
-						scopedValue, ok := taskInstance.GetSetting(name)
+						scopedValue, ok := taskInstance.outputs(name)
 						if !ok {
 							te.taskOut[name] = attVal.Value()
 						} else {
@@ -143,7 +143,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 				if metadata.IOMetadata != nil {
 					if metadata.IOMetadata.Input != nil {
 						for name, attVal := range actConfig.Activity.Metadata().Input {
-							scopedValue, ok := taskInstance.GetSetting(name)
+							scopedValue, ok := taskInstance.inputs(name)
 							if !ok {
 								te.taskOut[name] = attVal.Value()
 							} else {
@@ -154,7 +154,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 
 					if te.status == event.COMPLETED && metadata.IOMetadata.Output != nil {
 						for name, attVal := range actConfig.Activity.Metadata().Output {
-							scopedValue, ok := taskInstance.GetSetting(name)
+							scopedValue, ok := taskInstance.outputs(name)
 							if !ok {
 								te.taskOut[name] = attVal.Value()
 							} else {
