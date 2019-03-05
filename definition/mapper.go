@@ -13,6 +13,10 @@ func SetMapperFactory(factory mapper.Factory) {
 }
 
 func GetMapperFactory() mapper.Factory {
+
+	if mapperFactory == nil {
+		mapperFactory = mapper.NewFactory(GetDataResolver())
+	}
 	return mapperFactory
 }
 

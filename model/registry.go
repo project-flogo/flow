@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/project-flogo/flow/util"
@@ -47,8 +48,11 @@ func Registered() []*FlowModel {
 }
 
 // Get gets specified FlowModel
-func Get(id string) *FlowModel {
-	return models[id]
+func Get(id string) (*FlowModel, error) {
+	if _, ok := models[id]; !ok {
+		return nil, errors.New("Model not found")
+	}
+	return models[id], nil
 }
 
 // Register registers the specified flow model
