@@ -118,47 +118,51 @@ func postTaskEvent(taskInstance *TaskInst) {
 				if metadata.Input != nil && len(metadata.Input) > 0 && taskInstance.Task().IsScope() {
 
 					for name, attVal := range actConfig.Activity.Metadata().Input {
-						scopedValue, ok := taskInstance.Task().GetSetting(name)
-						if !ok {
-
-							te.taskIn[name] = attVal.Value()
-						} else {
-
-							te.taskIn[name] = scopedValue
+						te.taskIn[name] = attVal.Value()
+						if taskInstance.inputs != nil {
+							scopedValue, ok := taskInstance.inputs(name)
+							if ok {
+								te.taskIn[name] = scopedValue
+							}
 						}
+
 					}
 				}
 
 				if te.status == event.COMPLETED && metadata.Output != nil && len(metadata.Output) > 0 && taskInstance.Task().IsScope() {
 					for name, attVal := range actConfig.Activity.Metadata().Output {
-						scopedValue, ok := taskInstance.Task().GetSetting(name)
-						if !ok {
-							te.taskOut[name] = attVal.Value()
-						} else {
-							te.taskOut[name] = scopedValue
+						te.taskOut[name] = attVal.Value()
+						if taskInstance.outputs != nil {
+							scopedValue, ok := taskInstance.outputs(name)
+							if ok {
+								te.taskOut[name] = scopedValue
+							}
 						}
+
 					}
 				}
 
 				if metadata.IOMetadata != nil {
 					if metadata.IOMetadata.Input != nil {
 						for name, attVal := range actConfig.Activity.Metadata().Input {
-							scopedValue, ok := taskInstance.Task().GetSetting(name)
-							if !ok {
-								te.taskOut[name] = attVal.Value()
-							} else {
-								te.taskOut[name] = scopedValue
+							te.taskIn[name] = attVal.Value()
+							if taskInstance.inputs != nil {
+								scopedValue, ok := taskInstance.inputs(name)
+								if ok {
+									te.taskIn[name] = scopedValue
+								}
 							}
 						}
 					}
 
 					if te.status == event.COMPLETED && metadata.IOMetadata.Output != nil {
 						for name, attVal := range actConfig.Activity.Metadata().Output {
-							scopedValue, ok := taskInstance.Task().GetSetting(name)
-							if !ok {
-								te.taskOut[name] = attVal.Value()
-							} else {
-								te.taskOut[name] = scopedValue
+							te.taskOut[name] = attVal.Value()
+							if taskInstance.outputs != nil {
+								scopedValue, ok := taskInstance.outputs(name)
+								if ok {
+									te.taskOut[name] = scopedValue
+								}
 							}
 						}
 					}
