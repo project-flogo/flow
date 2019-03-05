@@ -10,6 +10,26 @@ import (
 	"github.com/project-flogo/flow/support"
 )
 
+func applySettingsMapper(taskInst *TaskInst) error {
+
+	// get the input mapper
+	settingsMapper := taskInst.task.SettingsMapper()
+
+	if settingsMapper != nil {
+
+		taskInst.logger.Debug("Applying SettingsMapper")
+
+		var err error
+		taskInst.settings, err = settingsMapper.Apply(taskInst.flowInst)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func applyInputMapper(taskInst *TaskInst) error {
 
 	// get the input mapper
@@ -150,7 +170,7 @@ func applyOutputMapper(taskInst *TaskInst) (bool, error) {
 		values, err := outputMapper.Apply(data.NewSimpleScope(taskInst.outputs, nil))
 
 		for name, value := range values {
-			taskInst.flowInst.attrs[name] = data.ToTypedValue(value)
+			taskInst.flowInst.attrs[name] = value //data.ToTypedValue(value)
 		}
 
 		return true, err
