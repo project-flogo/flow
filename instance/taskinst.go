@@ -34,7 +34,7 @@ type TaskInst struct {
 	task     *definition.Task
 	status   model.TaskStatus
 
-	workingData map[string]interface{}
+	workingData *WorkingDataScope
 
 	inputs   map[string]interface{}
 	outputs  map[string]interface{}
@@ -120,24 +120,22 @@ func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	ti.flowInst.master.ChangeTracker.trackTaskData(ti.flowInst.subFlowId, &TaskInstChange{ChgType: CtUpd, ID: ti.task.ID(), TaskInst: ti})
 }
 
-func (ti *TaskInst) HasWorkingData() bool {
-	return ti.workingData != nil
-}
+//func (ti *TaskInst) HasWorkingData() bool {
+//	return ti.workingData != nil
+//}
 
-func (ti *TaskInst) Resolve(toResolve string) (value interface{}, err error) {
-	//Support expression mapping
-
-	//return exprmapper.GetMappingValue(toResolve, ti.flowInst, definition.GetDataResolver())
-	return nil, nil
-}
+//func (ti *TaskInst) Resolve(toResolve string) (value interface{}, err error) {
+//	//Support expression mapping
+//
+//	//return exprmapper.GetMappingValue(toResolve, ti.flowInst, definition.GetDataResolver())
+//	return nil, nil
+//}
 
 func (ti *TaskInst) SetWorkingData(key string, value interface{}) error {
 	if ti.workingData == nil {
-		ti.workingData = make(map[string]interface{})
+		ti.workingData = NewWorkingDataScope(ti.flowInst)
 	}
-	ti.workingData[key] = value
-
-	return nil
+	return ti.workingData.SetWorkingValue(key, value)
 }
 
 func (ti *TaskInst) GetWorkingData(key string) (interface{}, bool) {
@@ -145,8 +143,7 @@ func (ti *TaskInst) GetWorkingData(key string) (interface{}, bool) {
 		return nil, false
 	}
 
-	v, ok := ti.workingData[key]
-	return v, ok
+	return ti.workingData.GetWorkingValue(key)
 }
 
 // Task implements model.TaskContext.Task, by returning the Task associated with this
@@ -379,20 +376,20 @@ func (ti *TaskInst) GetSetting(name string) (value interface{}, exists bool) {
 	return value, exists
 }
 
-// FlowReply is used to reply to the Flow Host with the results of the execution
-func (ti *TaskInst) FlowReply(replyData map[string]interface{}, err error) {
-	//ignore
-}
-
-// FlowReturn is used to indicate to the Flow Host that it should complete and return the results of the execution
-func (ti *TaskInst) FlowReturn(returnData map[string]interface{}, err error) {
-
-	if err != nil {
-		for name, value := range returnData {
-			ti.SetWorkingData(name, value)
-		}
-	}
-}
+//// FlowReply is used to reply to the Flow Host with the results of the execution
+//func (ti *TaskInst) FlowReply(replyData map[string]interface{}, err error) {
+//	//ignore
+//}
+//
+//// FlowReturn is used to indicate to the Flow Host that it should complete and return the results of the execution
+//func (ti *TaskInst) FlowReturn(returnData map[string]interface{}, err error) {
+//
+//	if err != nil {
+//		for name, value := range returnData {
+//			ti.SetWorkingData(name, value)
+//		}
+//	}
+//}
 
 func (ti *TaskInst) appendErrorData(err error) {
 

@@ -52,8 +52,8 @@ func applyInputMapper(taskInst *TaskInst) error {
 		var inputScope data.Scope
 		inputScope = taskInst.flowInst
 
-		if taskInst.workingData != nil { //and an iterator
-			inputScope = NewIteratorScope(taskInst.flowInst, taskInst.workingData)
+		if taskInst.workingData != nil {
+			inputScope = taskInst.workingData
 		}
 
 		var err error
