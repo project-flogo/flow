@@ -100,12 +100,12 @@ func postTaskEvent(taskInstance *TaskInst) {
 		te.taskOut = make(map[string]interface{})
 
 		// Add working data
-		wData := taskInstance.workingData
-		if wData != nil && len(wData) > 0 {
-			for name, attVal := range wData {
-				te.taskIn[name] = attVal
-			}
-		}
+		//wData := taskInstance.workingData
+		//if wData != nil && len(wData) > 0 {
+		//	for name, attVal := range wData {
+		//		te.taskIn[name] = attVal
+		//	}
+		//}
 
 		// Add activity input/output
 		// TODO optimize this computation for given instance
@@ -120,7 +120,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 					for name, attVal := range actConfig.Activity.Metadata().Input {
 						te.taskIn[name] = attVal.Value()
 						if taskInstance.inputs != nil {
-							scopedValue, ok := taskInstance.inputs(name)
+							scopedValue, ok := taskInstance.inputs[name]
 							if ok {
 								te.taskIn[name] = scopedValue
 							}
@@ -133,7 +133,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 					for name, attVal := range actConfig.Activity.Metadata().Output {
 						te.taskOut[name] = attVal.Value()
 						if taskInstance.outputs != nil {
-							scopedValue, ok := taskInstance.outputs(name)
+							scopedValue, ok := taskInstance.outputs[name]
 							if ok {
 								te.taskOut[name] = scopedValue
 							}
@@ -147,7 +147,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 						for name, attVal := range actConfig.Activity.Metadata().Input {
 							te.taskIn[name] = attVal.Value()
 							if taskInstance.inputs != nil {
-								scopedValue, ok := taskInstance.inputs(name)
+								scopedValue, ok := taskInstance.inputs[name]
 								if ok {
 									te.taskIn[name] = scopedValue
 								}
@@ -159,7 +159,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 						for name, attVal := range actConfig.Activity.Metadata().Output {
 							te.taskOut[name] = attVal.Value()
 							if taskInstance.outputs != nil {
-								scopedValue, ok := taskInstance.outputs(name)
+								scopedValue, ok := taskInstance.outputs[name]
 								if ok {
 									te.taskOut[name] = scopedValue
 								}
