@@ -56,14 +56,6 @@ type TaskContext interface {
 
 	GetWorkingData(key string) (interface{}, bool)
 
-	//Resolve(toResolve string) (value interface{}, err error)
-
-	//AddWorkingData(attr *data.Attribute)
-
-	//UpdateWorkingData(key string, value interface{}) error
-
-	//GetWorkingData(key string) (*data.Attribute, bool)
-
 	FlowLogger() log.Logger
 }
 

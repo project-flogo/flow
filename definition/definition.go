@@ -2,13 +2,13 @@ package definition
 
 import (
 	"fmt"
-	"github.com/project-flogo/core/support/log"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/support/log"
 )
 
 // Definition is the object that describes the definition of
