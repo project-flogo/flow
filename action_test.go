@@ -44,7 +44,7 @@ func TestInitUnCompressedFlowFlavorError(t *testing.T) {
 	f := &ActionFactory{}
 	f.Initialize(&testInitCtx{})
 	_, err := f.New(mockConfig)
-	assert.Nil(t, err)
+	assert.NotNil(t, err)
 }
 
 //TestInitCompressedFlowFlavorError

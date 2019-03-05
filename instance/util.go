@@ -57,6 +57,7 @@ func applyInputMapper(taskInst *TaskInst) error {
 		}
 
 		var err error
+
 		taskInst.inputs, err = inputMapper.Apply(inputScope)
 
 		if err != nil {

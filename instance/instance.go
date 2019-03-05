@@ -6,6 +6,7 @@ import (
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
+	
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
@@ -37,6 +38,7 @@ type Instance struct {
 
 	logger log.Logger
 }
+
 
 func (inst *Instance) FlowURI() string {
 	return inst.flowURI
@@ -168,6 +170,7 @@ func (inst *Instance) SetStatus(status model.FlowStatus) {
 
 	inst.status = status
 	inst.master.ChangeTracker.SetStatus(inst.subFlowId, status)
+	postFlowEvent(inst)
 }
 
 // FlowDefinition returns the Flow definition associated with this context

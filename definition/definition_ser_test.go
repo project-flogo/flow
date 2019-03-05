@@ -7,21 +7,23 @@ import (
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
 func init() {
-	activity.Register(NewLogActivity())
+	activity.LegacyRegister("log", NewLogActivity())
 }
 
 const defJSON = `
 {
 	"id":"DemoFlow",
-    "name": "Demo Flow",
-    "model": "simple",
-    "attributes": [
-      { "name": "petInfo", "type": "string", "value": "blahPet" }
-    ],
+  "name": "Demo Flow",
+   "metadata": {
+      "input":[
+        { "name":"petInfo", "type":"string","value":"blahPet" }
+      ]
+    },
 	"tasks": [
 	{
 	  "id":"LogStart",
@@ -38,18 +40,13 @@ const defJSON = `
 	  "activity" : {
 	    "ref":"log",
         "input" : {
-           "message" : "REST results"
-        },
-        "mappings" : {
-          "input": [
-		    { "type": 1, "value": "petInfo", "result": "message" }
-          ]
+           "message" : "=$.petInfo"
         }
       }
     }
     ],
     "links": [
-      { "id": 1, "type": "1",  "name": "", "from": "LogStart", "to": "LogResult"  }
+      { "id": 1, "name": "", "from": "LogStart", "to": "LogResult"  }
     ]
   }
 `
@@ -131,12 +128,8 @@ type LogActivity struct {
 
 // NewActivity creates a new AppActivity
 func NewLogActivity() activity.Activity {
-	metadata := &activity.Metadata{ID: "log"}
-	input := map[string]*data.Attribute{
-		"message": data.NewZeroAttribute("message", data.TypeString),
-	}
-	metadata.Input = input
-	return &LogActivity{metadata: metadata}
+	md := &activity.Metadata{IOMetadata: &metadata.IOMetadata{Input: map[string]data.TypedValue{"message": data.NewTypedValue(data.TypeString, "")}}}
+	return &LogActivity{metadata: md}
 }
 
 // Metadata returns the activity's metadata

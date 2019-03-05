@@ -110,10 +110,7 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
 	flowAction := &FlowAction{}
 
-	if config.Data != nil {
-		//As in old repo . Hack to support dynamic process running by tester
-		return flowAction, nil
-	} 
+	
 	settings := &Settings{}
 	err := metadata.MapToStruct(config.Settings, settings, true)
 	if err != nil {
@@ -161,7 +158,7 @@ func (fa *FlowAction) IOMetadata() *metadata.IOMetadata {
 
 // Run implements action.Action.Run
 func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}, handler action.ResultHandler) error {
-
+	var err error
 	op := instance.OpStart
 	retID := false
 	var initialState *instance.IndependentInstance
@@ -222,7 +219,10 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 			instLogger = log.ChildLoggerWithFields(logger, log.String("flowName", flowDef.Name()), log.String("flowId", instanceID))
 		}
 
-		inst = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
+		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
+		if err!= nil{
+			return err
+		}
 	case instance.OpResume:
 		if initialState != nil {
 			inst = initialState

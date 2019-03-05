@@ -1,0 +1,17 @@
+{
+    "name": "odflow",
+    "type": "flogo:action",
+    "version": "0.0.1",
+    "title": "OnDemand Flow",
+    "description": "Simple OnDemand Flow Action",
+    "homepage": "https://github.com/project-flogo/flow/tree/master/ondemand",
+    "async": true,
+    "input":[
+      {
+        "name": "flowPackage",
+        "type": "any"
+      }
+    ],
+    "output": [
+    ]
+  }
