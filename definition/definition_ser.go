@@ -12,6 +12,7 @@ import (
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/data/resolve"
+	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	flowutil "github.com/project-flogo/flow/util"
@@ -55,6 +56,12 @@ type ActivityConfigRep struct {
 	Settings map[string]interface{} `json:"settings"`
 	Input    map[string]interface{} `json:"input,omitempty"`
 	Output   map[string]interface{} `json:"output,omitempty"`
+	Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
+}
+
+type ActivitySchemasRep struct {
+	Input  map[string]*schema.Def `json:"input,omitempty"`
+	Output map[string]*schema.Def `json:"output,omitempty"`
 }
 
 // UnmarshalJSON overrides the default UnmarshalJSON for TaskInst
@@ -65,6 +72,7 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 		Settings map[string]interface{} `json:"settings"`
 		Input    map[string]interface{} `json:"input,omitempty"`
 		Output   map[string]interface{} `json:"output,omitempty"`
+		Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
 
 		//DEPRECATED
 		Mappings *mapper.LegacyMappings `json:"mappings,omitempty"`
@@ -79,6 +87,7 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 	ac.Settings = ser.Settings
 	ac.Input = ser.Input
 	ac.Output = ser.Output
+	ac.Schemas = ser.Schemas
 
 	if ac.Settings == nil {
 		ac.Settings = make(map[string]interface{}, 0)
@@ -322,6 +331,32 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 	//If outputMapper is null, use default output mapper
 	if activityCfg.outputMapper == nil {
 		activityCfg.outputMapper = NewDefaultActivityOutputMapper(task)
+	}
+
+	//schemas
+
+	if rep.Schemas != nil {
+		if in := rep.Schemas.Input; in != nil {
+			activityCfg.inputSchemas = make(map[string]schema.Schema, len(in))
+			for name, def := range in {
+				s, err := schema.New(def)
+				if err != nil {
+					return nil, err
+				}
+				activityCfg.inputSchemas[name] = s
+			}
+		}
+
+		if out := rep.Schemas.Output; out != nil {
+			activityCfg.outputSchemas = make(map[string]schema.Schema, len(out))
+			for name, def := range out {
+				s, err := schema.New(def)
+				if err != nil {
+					return nil, err
+				}
+				activityCfg.outputSchemas[name] = s
+			}
+		}
 	}
 
 	return activityCfg, nil

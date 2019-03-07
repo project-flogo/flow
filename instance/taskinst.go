@@ -4,16 +4,13 @@ import (
 	"fmt"
 	"runtime/debug"
 
-
-
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
-	
+	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
-	
 )
 
 func NewTaskInst(inst *Instance, task *definition.Task) *TaskInst {
@@ -127,17 +124,6 @@ func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	postTaskEvent(ti)
 }
 
-//func (ti *TaskInst) HasWorkingData() bool {
-//	return ti.workingData != nil
-//}
-
-//func (ti *TaskInst) Resolve(toResolve string) (value interface{}, err error) {
-//	//Support expression mapping
-//
-//	//return exprmapper.GetMappingValue(toResolve, ti.flowInst, definition.GetDataResolver())
-//	return nil, nil
-//}
-
 func (ti *TaskInst) SetWorkingData(key string, value interface{}) error {
 	if ti.workingData == nil {
 		ti.workingData = NewWorkingDataScope(ti.flowInst)
@@ -161,6 +147,17 @@ func (ti *TaskInst) Task() *definition.Task {
 
 func (ti *TaskInst) FlowLogger() log.Logger {
 	return ti.flowInst.logger
+}
+
+/////////////////////////////////////////
+// schema.HasSchemaIO Implementation
+
+func (ti *TaskInst) GetInputSchema(name string) schema.Schema {
+	return ti.task.ActivityConfig().GetInputSchema(name)
+}
+
+func (ti *TaskInst) GetOutputSchema(name string) schema.Schema {
+	return ti.task.ActivityConfig().GetOutputSchema(name)
 }
 
 /////////////////////////////////////////
