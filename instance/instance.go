@@ -6,7 +6,7 @@ import (
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
-	
+
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
@@ -38,7 +38,6 @@ type Instance struct {
 
 	logger log.Logger
 }
-
 
 func (inst *Instance) FlowURI() string {
 	return inst.flowURI
@@ -137,7 +136,7 @@ func (inst *Instance) GetError() error {
 }
 
 func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
-
+	
 	if inst.returnData == nil {
 
 		//construct returnData from instance attributes
@@ -150,6 +149,9 @@ func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
 				piAttr, exists := inst.attrs[name]
 				if exists {
 					inst.returnData[name] = piAttr
+				}
+				if md.Output[name].Value() != nil {
+					inst.returnData[name] = md.Output[name].Value()
 				}
 			}
 		}
