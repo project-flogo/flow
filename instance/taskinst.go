@@ -234,10 +234,12 @@ func (ti *TaskInst) HasActivity() bool {
 // EvalActivity implements activity.ActivityContext.EvalActivity method
 func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 
+	actCfg := ti.task.ActivityConfig()
+
 	defer func() {
 		if r := recover(); r != nil {
 
-			ref := activity.GetRef(ti.task.ActivityConfig().Activity)
+			ref := activity.GetRef(actCfg.Activity)
 			ti.logger.Warnf("Unhandled Error executing activity '%s'[%s] : %v\n", ti.task.ID(), ref, r)
 
 			if ti.logger.DebugEnabled() {
@@ -256,7 +258,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 
 	eval := true
 
-	if ti.task.ActivityConfig().InputMapper() != nil {
+	if actCfg.InputMapper() != nil {
 
 		err := applyInputMapper(ti)
 
@@ -271,8 +273,22 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 
 	if eval {
 
-		act := ti.task.ActivityConfig().Activity
-		done, evalErr = act.Eval(ti)
+		if schema.ValidationEnabled() {
+			if v, ok := actCfg.Activity.(schema.ValidationBypass); !(ok && v.BypassValidation()) {
+				//do validation
+				for name, value := range ti.inputs {
+					s := actCfg.GetInputSchema(name)
+					if s != nil {
+						err := s.Validate(value)
+						if err != nil {
+							return false, err
+						}
+					}
+				}
+			}
+		}
+
+		done, evalErr = actCfg.Activity.Eval(ti)
 
 		if evalErr != nil {
 			e, ok := evalErr.(*activity.Error)
@@ -282,15 +298,31 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 
 			return false, evalErr
 		}
+
 	} else {
 		done = true
 	}
 
 	if done {
 
+		if schema.ValidationEnabled() {
+			if v, ok := actCfg.Activity.(schema.ValidationBypass); !(ok && v.BypassValidation()) {
+				//do validation
+				for name, value := range ti.outputs {
+					s := actCfg.GetOutputSchema(name)
+					if s != nil {
+						err := s.Validate(value)
+						if err != nil {
+							return false, err
+						}
+					}
+				}
+			}
+		}
+
 		applyOutputInterceptor(ti)
 
-		if ti.task.ActivityConfig().OutputMapper() != nil {
+		if actCfg.OutputMapper() != nil {
 
 			appliedMapper, err := applyOutputMapper(ti)
 
