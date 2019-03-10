@@ -2,32 +2,28 @@ package ondemand
 
 import (
 	"context"
-	
 	"encoding/json"
-	"os"
 	"errors"
-
+	"os"
 	"strconv"
-	
+
+	"github.com/project-flogo/core/action"
+	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/expression"
+	"github.com/project-flogo/core/data/mapper"
+	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/data/resolve"
+	"github.com/project-flogo/core/support"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
-	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/flow/model"
-	"github.com/project-flogo/core/data/expression"
 	_ "github.com/project-flogo/flow/model/simple"
 	flowsupport "github.com/project-flogo/flow/support"
-	"github.com/project-flogo/core/action"
-	"github.com/project-flogo/core/data/resolve"
-	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/data/mapper"
-	"github.com/project-flogo/core/support/log"
-	"github.com/project-flogo/core/support"
 )
 
 const (
-	FLOW_REF = "github.com/project-flogo/flow/ondemand"
-
 	ENV_FLOW_RECORD = "FLOGO_FLOW_RECORD"
 
 	ivFlowPackage = "flowPackage"
@@ -38,11 +34,10 @@ type FlowAction struct {
 	IoMetadata *metadata.IOMetadata
 }
 
-
 type FlowPackage struct {
-	Inputs  		map[string]interface{}             `json:"inputs"`
-	Outputs  		map[string]interface{}            `json:"outputs"`
-	Flow           *definition.DefinitionRep `json:"flow"`
+	Inputs  map[string]interface{}    `json:"inputs"`
+	Outputs map[string]interface{}    `json:"outputs"`
+	Flow    *definition.DefinitionRep `json:"flow"`
 }
 
 var ep flow.ExtensionProvider
@@ -51,13 +46,13 @@ var record bool
 var flowManager *flowsupport.FlowManager
 var logger log.Logger
 
-var actionMd= action.ToMetadata(&Settings{})
+var actionMd = action.ToMetadata(&Settings{})
+
 //todo expose and support this properly
 var maxStepCount = 1000000
 
-type Settings struct{
+type Settings struct {
 }
-
 
 func init() {
 	action.Register(&FlowAction{}, &ActionFactory{})
@@ -77,7 +72,7 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 	if flowManager != nil {
 		return nil
 	}
-	
+
 	if ep == nil {
 		ep = flow.NewDefaultExtensionProvider()
 		record = recordFlows()
@@ -95,7 +90,7 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 	model.RegisterDefault(ep.GetDefaultFlowModel())
 
 	return nil
-	
+
 }
 
 func recordFlows() bool {
@@ -118,11 +113,10 @@ func (fa *FlowAction) IOMetadata() *metadata.IOMetadata {
 
 func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
-	
 	flowAction := &FlowAction{}
 
 	if config.Settings != nil {
-		
+
 	} else {
 		flowAction.IoMetadata = &metadata.IOMetadata{Input: nil, Output: nil}
 	}
@@ -133,13 +127,12 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 	}
 
 	return flowAction, nil
-	
-}
 
+}
 
 // Run implements action.Action.Run
 func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, handler action.ResultHandler) error {
-	
+
 	logger.Info("Running OnDemand Flow Action")
 
 	fpAttr, exists := inputs[ivFlowPackage]
@@ -147,7 +140,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	flowPackage := &FlowPackage{}
 
 	if exists {
-		
+
 		raw := fpAttr.(json.RawMessage)
 		err := json.Unmarshal(raw, flowPackage)
 		if err != nil {
@@ -161,7 +154,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	logger.Debugf("OutputMappings: %+v", flowPackage.Outputs)
 
 	flowDef, err := definition.NewDefinition(flowPackage.Flow)
-	
+
 	if err != nil {
 		return err
 	}
@@ -174,9 +167,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	instanceID := idGenerator.NextAsString()
 	logger.Debug("Creating Flow Instance: ", instanceID)
 
-	inst, err := instance.NewIndependentInstance(instanceID, "", flowDef,logger)
+	inst, err := instance.NewIndependentInstance(instanceID, "", flowDef, logger)
 
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
@@ -198,7 +191,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			results := make(map[string]interface{})
 
 			results["id"] = inst.ID
-			
+
 			handler.HandleResult(results, nil)
 		}
 
@@ -217,7 +210,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			returnData, err := inst.GetReturnData()
 
 			handler.HandleResult(returnData, err)
-			
 
 		} else if inst.Status() == model.FlowStatusFailed {
 			handler.HandleResult(nil, inst.GetError())
@@ -235,21 +227,19 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	return nil
 }
 
-
 func ApplyMappings(mappings map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error) {
 
+	mapperFactory := mapper.NewFactory(resolve.GetBasicResolver())
 
-	mapperFactory :=  mapper.NewFactory(resolve.GetBasicResolver())
+	mapper, err := mapperFactory.NewMapper(mappings)
 
-	mapper, err :=  mapperFactory.NewMapper(mappings)
-
-	if err != nil{
+	if err != nil {
 		return nil, err
 	}
 
 	inScope := data.NewSimpleScope(inputs, nil)
 
-	out,err := mapper.Apply(inScope)
+	out, err := mapper.Apply(inScope)
 
 	return out, nil
 }

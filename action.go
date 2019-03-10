@@ -18,7 +18,7 @@ import (
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
 	_ "github.com/project-flogo/flow/model/simple"
-	flowsupport "github.com/project-flogo/flow/support"
+	flowSupport "github.com/project-flogo/flow/support"
 	"github.com/project-flogo/flow/tester"
 )
 
@@ -28,15 +28,9 @@ const (
 
 func init() {
 	action.Register(&FlowAction{}, &ActionFactory{})
-	resource.RegisterLoader(flowsupport.RESTYPE_FLOW, &flowsupport.FlowLoader{})
+	resource.RegisterLoader(flowSupport.RESTYPE_FLOW, &flowSupport.FlowLoader{})
 }
 
-//DEPRECATED
-type ActionData struct {
-	// The flow is a URI
-	//DEPRECATED
-	FlowURI string `json:"flowURI"`
-}
 
 var ep ExtensionProvider
 var idGenerator *support.Generator
@@ -45,7 +39,7 @@ var maxStepCount = 1000000
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
 
-var flowManager *flowsupport.FlowManager
+var flowManager *flowSupport.FlowManager
 
 func SetExtensionProvider(provider ExtensionProvider) {
 	ep = provider
@@ -89,10 +83,10 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 	}
 
 	model.RegisterDefault(ep.GetDefaultFlowModel())
-	flowManager = flowsupport.NewFlowManager(ep.GetFlowProvider())
-	resource.RegisterLoader(flowsupport.RESTYPE_FLOW, &flowsupport.FlowLoader{})
+	flowManager = flowSupport.NewFlowManager(ep.GetFlowProvider())
+	resource.RegisterLoader(flowSupport.RESTYPE_FLOW, &flowSupport.FlowLoader{})
 
-	flowsupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
+	flowSupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
 
 	return nil
 }
@@ -110,7 +104,6 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
 	flowAction := &FlowAction{}
 
-	
 	settings := &Settings{}
 	err := metadata.MapToStruct(config.Settings, settings, true)
 	if err != nil {
@@ -119,7 +112,7 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
 	flowAction.flowURI = settings.FlowURI
 
-	def, res, err := flowsupport.GetDefinition(flowAction.flowURI)
+	def, res, err := flowSupport.GetDefinition(flowAction.flowURI)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +213,7 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 		}
 
 		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
-		if err!= nil{
+		if err != nil {
 			return err
 		}
 	case instance.OpResume:

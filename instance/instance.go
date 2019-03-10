@@ -6,7 +6,6 @@ import (
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
-
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
@@ -136,7 +135,7 @@ func (inst *Instance) GetError() error {
 }
 
 func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
-	
+
 	if inst.returnData == nil {
 
 		//construct returnData from instance attributes
@@ -227,104 +226,7 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 	}
 
 	return nil
-
-	//
-	//existingAttr, exists := inst.GetAttr(attrName)
-	//
-	////todo: optimize, use existing attr
-	//if exists {
-	//	//todo handle error
-	//	attr := data.NewTypedValue(existingAttr.Type(), value)
-	//	inst.attrs[attrName] = attr
-	//
-	//	if inst.master.trackingChanges {
-	//		inst.master.ChangeTracker.AttrChange(inst.subFlowId, CtUpd, data.NewAttribute(name, data.TypeAny, value))
-	//	}
-	//	return nil
-	//}
-	//
-	//return fmt.Errorf("Attr [%s] does not exists", name)
 }
-
-//
-//func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
-//		if inst.attrs != nil {
-//			attr, found := inst.attrs[attrName]
-//
-//			if found {
-//				return attr, true
-//			}
-//		}
-//
-//		return inst.flowDef.GetAttr(attrName)
-//}
-
-//
-//
-//// GetAttr implements data.Scope.GetAttr
-//func (inst *Instance) GetAttr(attrName string) (value typed.TypedValue, exists bool) {
-//
-//	if inst.attrs != nil {
-//		attr, found := inst.attrs[attrName]
-//
-//		if found {
-//			return attr, true
-//		}
-//	}
-//
-//	return inst.flowDef.GetAttr(attrName)
-//}
-//
-//// SetAttrValue implements api.Scope.SetAttrValue
-//func (inst *Instance) SetAttrValue(attrName string, value interface{}) error {
-//	if inst.attrs == nil {
-//		inst.attrs = make(map[string]typed.TypedValue)
-//	}
-//
-//	logger.Debugf("SetAttr - name: %s, value:%v\n", attrName, value)
-//
-//	existingAttr, exists := inst.GetAttr(attrName)
-//
-//	//todo: optimize, use existing attr
-//	if exists {
-//		//todo handle error
-//		attr, _ := data.NewAttribute(attrName, existingAttr.Type(), value)
-//		inst.attrs[attrName] = attr
-//		if inst.master.trackingChanges {
-//			inst.master.ChangeTracker.AttrChange(inst.subFlowId, CtUpd, data.NewAttribute(attrName, existingAttr.Type(), value))
-//		}
-//		return nil
-//	}
-//
-//	return fmt.Errorf("Attr [%s] does not exists", attrName)
-//}
-
-//// AddAttr add a new attribute to the instance
-//func (inst *Instance) AddAttr(attrName string, attrType data.Type, value interface{}) typed.TypedValue {
-//	if inst.attrs == nil {
-//		inst.attrs = make(map[string]typed.TypedValue)
-//	}
-//
-//	logger.Debugf("AddAttr - name: %s, type: %s, value:%v", attrName, attrType, value)
-//
-//	var attr typed.TypedValue
-//
-//	existingAttr, exists := inst.GetAttr(attrName)
-//
-//	if exists {
-//		attr = existingAttr
-//		attr.SetValue(value)
-//	} else {
-//		//todo handle error
-//		attr, _ = data.NewAttribute(attrName, attrType, value)
-//		inst.attrs[attrName] = attr
-//		if inst.master.trackingChanges {
-//			inst.master.ChangeTracker.AttrChange(inst.subFlowId, CtAdd, data.NewAttribute(attrName, existingAttr.Type(), value))
-//		}
-//	}
-//
-//	return attr
-//}
 
 ////////////
 
@@ -344,29 +246,3 @@ func (inst *Instance) UpdateAttrs(attrs map[string]interface{}) {
 		}
 	}
 }
-
-/////////////
-// FlowDetails
-
-//// ReplyHandler returns the reply handler for the instance
-//func (inst *Instance) ReplyHandler() activity.ReplyHandler {
-//	return &SimpleReplyHandler{inst.resultHandler}
-//}
-//
-//// SimpleReplyHandler is a simple ReplyHandler that is pass-thru to the action ResultHandler
-//type SimpleReplyHandler struct {
-//	resultHandler action.ResultHandler
-//}
-//
-//// Reply implements ReplyHandler.Reply
-//func (rh *SimpleReplyHandler) Reply(code int, replyData interface{}, err error) {
-//
-//	dataAttr, _ := data.NewAttribute("data", data.TypeAny, replyData)
-//	codeAttr, _ := data.NewAttribute("code", data.TypeInteger, code)
-//	resultData := map[string]typed.TypedValue{
-//		"data": dataAttr,
-//		"code": codeAttr,
-//	}
-//
-//	rh.resultHandler.HandleResult(resultData, err)
-//}

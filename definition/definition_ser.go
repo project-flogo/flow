@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/project-flogo/core/activity"
-	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
@@ -20,17 +19,13 @@ import (
 
 // DefinitionRep is a serializable representation of a flow Definition
 type DefinitionRep struct {
-	ExplicitReply bool   `json:"explicitReply"`
-	Name          string `json:"name"`
-	ModelID       string `json:"model"`
-
-	Metadata   *metadata.IOMetadata `json:"metadata"`
-	Attributes []*data.Attribute    `json:"attributes,omitempty"`
-
-	Tasks []*TaskRep `json:"tasks"`
-	Links []*LinkRep `json:"links"`
-
-	ErrorHandler *ErrorHandlerRep `json:"errorHandler"`
+	ExplicitReply bool                 `json:"explicitReply"`
+	Name          string               `json:"name"`
+	ModelID       string               `json:"model"`
+	Metadata      *metadata.IOMetadata `json:"metadata"`
+	Tasks         []*TaskRep           `json:"tasks"`
+	Links         []*LinkRep           `json:"links"`
+	ErrorHandler  *ErrorHandlerRep     `json:"errorHandler"`
 }
 
 // ErrorHandlerRep is a serializable representation of the error flow
@@ -41,12 +36,11 @@ type ErrorHandlerRep struct {
 
 // TaskRep is a serializable representation of a flow task
 type TaskRep struct {
-	ID       string                 `json:"id"`
-	Type     string                 `json:"type"`
-	Name     string                 `json:"name"`
-	Settings map[string]interface{} `json:"settings"`
-
-	ActivityCfgRep *ActivityConfigRep `json:"activity"`
+	ID             string                 `json:"id"`
+	Type           string                 `json:"type"`
+	Name           string                 `json:"name"`
+	Settings       map[string]interface{} `json:"settings"`
+	ActivityCfgRep *ActivityConfigRep     `json:"activity"`
 }
 
 // ActivityConfigRep is a serializable representation of an activity configuration
@@ -140,13 +134,13 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 	def.modelID = rep.ModelID
 	def.metadata = rep.Metadata
 	def.explicitReply = rep.ExplicitReply
-	if len(rep.Attributes) > 0 {
-		def.attrs = make(map[string]*data.Attribute, len(rep.Attributes))
-
-		for _, value := range rep.Attributes {
-			def.attrs[value.Name()] = value
-		}
-	}
+	//if len(rep.Attributes) > 0 {
+	//	def.attrs = make(map[string]*data.Attribute, len(rep.Attributes))
+	//
+	//	for _, value := range rep.Attributes {
+	//		def.attrs[value.Name()] = value
+	//	}
+	//}
 
 	def.tasks = make(map[string]*Task)
 	def.links = make(map[int]*Link)
