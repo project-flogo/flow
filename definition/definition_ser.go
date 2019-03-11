@@ -19,35 +19,35 @@ import (
 
 // DefinitionRep is a serializable representation of a flow Definition
 type DefinitionRep struct {
-	ExplicitReply bool                 `json:"explicitReply"`
+	ExplicitReply bool                 `json:"explicitReply,omitempty"`
 	Name          string               `json:"name"`
-	ModelID       string               `json:"model"`
-	Metadata      *metadata.IOMetadata `json:"metadata"`
+	ModelID       string               `json:"model,omitempty"`
+	Metadata      *metadata.IOMetadata `json:"metadata,omitempty"`
 	Tasks         []*TaskRep           `json:"tasks"`
-	Links         []*LinkRep           `json:"links"`
-	ErrorHandler  *ErrorHandlerRep     `json:"errorHandler"`
+	Links         []*LinkRep           `json:"links,omitempty"`
+	ErrorHandler  *ErrorHandlerRep     `json:"errorHandler,omitempty"`
 }
 
 // ErrorHandlerRep is a serializable representation of the error flow
 type ErrorHandlerRep struct {
 	Tasks []*TaskRep `json:"tasks"`
-	Links []*LinkRep `json:"links"`
+	Links []*LinkRep `json:"links,omitempty"`
 }
 
 // TaskRep is a serializable representation of a flow task
 type TaskRep struct {
 	ID             string                 `json:"id"`
-	Type           string                 `json:"type"`
+	Type           string                 `json:"type,omitempty"`
 	Name           string                 `json:"name"`
-	Settings       map[string]interface{} `json:"settings"`
+	Settings       map[string]interface{} `json:"settings,omitempty"`
 	ActivityCfgRep *ActivityConfigRep     `json:"activity"`
 }
 
 // ActivityConfigRep is a serializable representation of an activity configuration
 type ActivityConfigRep struct {
 	Ref      string                 `json:"ref"`
-	Type     string                 `json:"type"` //an alias to the ref, can be used if imported
-	Settings map[string]interface{} `json:"settings"`
+	Type     string                 `json:"type,omitempty"` //an alias to the ref, can be used if imported
+	Settings map[string]interface{} `json:"settings,omitempty"`
 	Input    map[string]interface{} `json:"input,omitempty"`
 	Output   map[string]interface{} `json:"output,omitempty"`
 	Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
@@ -113,12 +113,11 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 
 // LinkRep is a serializable representation of a flow LinkOld
 type LinkRep struct {
-	Type string `json:"type"`
-
-	Name   string `json:"name"`
+	Type string `json:"type,omitempty"`
+	Name   string `json:"name,omitempty"`
 	ToID   string `json:"to"`
 	FromID string `json:"from"`
-	Value  string `json:"value"`
+	Value  string `json:"value,omitempty"`
 }
 
 // NewDefinition creates a flow Definition from a serializable
