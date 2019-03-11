@@ -113,7 +113,7 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 
 // LinkRep is a serializable representation of a flow LinkOld
 type LinkRep struct {
-	Type string `json:"type,omitempty"`
+	Type   string `json:"type,omitempty"`
 	Name   string `json:"name,omitempty"`
 	ToID   string `json:"to"`
 	FromID string `json:"from"`
@@ -316,9 +316,11 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 		return nil, err
 	}
 
-	activityCfg.outputMapper, err = mf.NewMapper(rep.Output)
-	if err != nil {
-		return nil, err
+	if len(rep.Output) > 0 {
+		activityCfg.outputMapper, err = mf.NewMapper(rep.Output)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	//If outputMapper is null, use default output mapper
