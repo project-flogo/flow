@@ -58,10 +58,10 @@ func (pp *Patch) GetOutputMapper(taskID string) mapper.Mapper {
 // input mappings, output mappings.  This is used to override the corresponding
 // settings for a Task in the Process
 type TaskPatch struct {
-	ID             string                   `json:"id"`
-	Attributes     []*data.Attribute        `json:"attributes"`
-	InputMappings  []*mapper.LegacyMappings `json:"inputMappings"`  //put in mapper object
-	OutputMappings []*mapper.LegacyMappings `json:"outputMappings"` //put in mapper object
+	ID         string                 `json:"id"`
+	Attributes []*data.Attribute      `json:"attributes"`
+	Input      map[string]interface{} `json:"input"`
+	Output     map[string]interface{} `json:"output"`
 
 	Attrs        map[string]*data.Attribute
 	inputMapper  mapper.Mapper
