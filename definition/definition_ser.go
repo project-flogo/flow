@@ -7,11 +7,11 @@ import (
 	"strconv"
 
 	"github.com/project-flogo/core/activity"
-	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/data/resolve"
+	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	flowutil "github.com/project-flogo/flow/util"
@@ -19,42 +19,43 @@ import (
 
 // DefinitionRep is a serializable representation of a flow Definition
 type DefinitionRep struct {
-	ExplicitReply bool   `json:"explicitReply"`
-	Name          string `json:"name"`
-	ModelID       string `json:"model"`
-
-	Metadata   *metadata.IOMetadata `json:"metadata"`
-	Attributes []*data.Attribute    `json:"attributes,omitempty"`
-
-	Tasks []*TaskRep `json:"tasks"`
-	Links []*LinkRep `json:"links"`
-
-	ErrorHandler *ErrorHandlerRep `json:"errorHandler"`
+	ExplicitReply bool                 `json:"explicitReply,omitempty"`
+	Name          string               `json:"name"`
+	ModelID       string               `json:"model,omitempty"`
+	Metadata      *metadata.IOMetadata `json:"metadata,omitempty"`
+	Tasks         []*TaskRep           `json:"tasks"`
+	Links         []*LinkRep           `json:"links,omitempty"`
+	ErrorHandler  *ErrorHandlerRep     `json:"errorHandler,omitempty"`
 }
 
 // ErrorHandlerRep is a serializable representation of the error flow
 type ErrorHandlerRep struct {
 	Tasks []*TaskRep `json:"tasks"`
-	Links []*LinkRep `json:"links"`
+	Links []*LinkRep `json:"links,omitempty"`
 }
 
 // TaskRep is a serializable representation of a flow task
 type TaskRep struct {
-	ID       string                 `json:"id"`
-	Type     string                 `json:"type"`
-	Name     string                 `json:"name"`
-	Settings map[string]interface{} `json:"settings"`
-
-	ActivityCfgRep *ActivityConfigRep `json:"activity"`
+	ID             string                 `json:"id"`
+	Type           string                 `json:"type,omitempty"`
+	Name           string                 `json:"name"`
+	Settings       map[string]interface{} `json:"settings,omitempty"`
+	ActivityCfgRep *ActivityConfigRep     `json:"activity"`
 }
 
 // ActivityConfigRep is a serializable representation of an activity configuration
 type ActivityConfigRep struct {
 	Ref      string                 `json:"ref"`
-	Type     string                 `json:"type"` //an alias to the ref, can be used if imported
-	Settings map[string]interface{} `json:"settings"`
+	Type     string                 `json:"type,omitempty"` //an alias to the ref, can be used if imported
+	Settings map[string]interface{} `json:"settings,omitempty"`
 	Input    map[string]interface{} `json:"input,omitempty"`
 	Output   map[string]interface{} `json:"output,omitempty"`
+	Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
+}
+
+type ActivitySchemasRep struct {
+	Input  map[string]*schema.Def `json:"input,omitempty"`
+	Output map[string]*schema.Def `json:"output,omitempty"`
 }
 
 // UnmarshalJSON overrides the default UnmarshalJSON for TaskInst
@@ -65,6 +66,7 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 		Settings map[string]interface{} `json:"settings"`
 		Input    map[string]interface{} `json:"input,omitempty"`
 		Output   map[string]interface{} `json:"output,omitempty"`
+		Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
 
 		//DEPRECATED
 		Mappings *mapper.LegacyMappings `json:"mappings,omitempty"`
@@ -79,6 +81,7 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 	ac.Settings = ser.Settings
 	ac.Input = ser.Input
 	ac.Output = ser.Output
+	ac.Schemas = ser.Schemas
 
 	if ac.Settings == nil {
 		ac.Settings = make(map[string]interface{}, 0)
@@ -110,12 +113,11 @@ func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
 
 // LinkRep is a serializable representation of a flow LinkOld
 type LinkRep struct {
-	Type string `json:"type"`
-
-	Name   string `json:"name"`
+	Type   string `json:"type,omitempty"`
+	Name   string `json:"name,omitempty"`
 	ToID   string `json:"to"`
 	FromID string `json:"from"`
-	Value  string `json:"value"`
+	Value  string `json:"value,omitempty"`
 }
 
 // NewDefinition creates a flow Definition from a serializable
@@ -131,13 +133,13 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 	def.modelID = rep.ModelID
 	def.metadata = rep.Metadata
 	def.explicitReply = rep.ExplicitReply
-	if len(rep.Attributes) > 0 {
-		def.attrs = make(map[string]*data.Attribute, len(rep.Attributes))
-
-		for _, value := range rep.Attributes {
-			def.attrs[value.Name()] = value
-		}
-	}
+	//if len(rep.Attributes) > 0 {
+	//	def.attrs = make(map[string]*data.Attribute, len(rep.Attributes))
+	//
+	//	for _, value := range rep.Attributes {
+	//		def.attrs[value.Name()] = value
+	//	}
+	//}
 
 	def.tasks = make(map[string]*Task)
 	def.links = make(map[int]*Link)
@@ -314,14 +316,42 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 		return nil, err
 	}
 
-	activityCfg.outputMapper, err = mf.NewMapper(rep.Output)
-	if err != nil {
-		return nil, err
+	if len(rep.Output) > 0 {
+		activityCfg.outputMapper, err = mf.NewMapper(rep.Output)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	//If outputMapper is null, use default output mapper
 	if activityCfg.outputMapper == nil {
 		activityCfg.outputMapper = NewDefaultActivityOutputMapper(task)
+	}
+
+	//schemas
+
+	if rep.Schemas != nil {
+		if in := rep.Schemas.Input; in != nil {
+			activityCfg.inputSchemas = make(map[string]schema.Schema, len(in))
+			for name, def := range in {
+				s, err := schema.New(def)
+				if err != nil {
+					return nil, err
+				}
+				activityCfg.inputSchemas[name] = s
+			}
+		}
+
+		if out := rep.Schemas.Output; out != nil {
+			activityCfg.outputSchemas = make(map[string]schema.Schema, len(out))
+			for name, def := range out {
+				s, err := schema.New(def)
+				if err != nil {
+					return nil, err
+				}
+				activityCfg.outputSchemas[name] = s
+			}
+		}
 	}
 
 	return activityCfg, nil

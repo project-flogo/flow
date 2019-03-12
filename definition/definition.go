@@ -8,6 +8,7 @@ import (
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support/log"
 )
 
@@ -103,7 +104,27 @@ type ActivityConfig struct {
 
 	inputMapper  mapper.Mapper
 	outputMapper mapper.Mapper
-	Details      *activity.Details
+
+	inputSchemas  map[string]schema.Schema
+	outputSchemas map[string]schema.Schema
+
+	Details *activity.Details
+}
+
+func (ac *ActivityConfig) GetInputSchema(name string) schema.Schema {
+	if ac.inputSchemas != nil {
+		return ac.inputSchemas[name]
+	}
+
+	return nil
+}
+
+func (ac *ActivityConfig) GetOutputSchema(name string) schema.Schema {
+	if ac.outputSchemas != nil {
+		return ac.outputSchemas[name]
+	}
+
+	return nil
 }
 
 func (ac *ActivityConfig) Ref() string {
@@ -144,7 +165,7 @@ type Task struct {
 
 	activityCfg *ActivityConfig
 	isScope     bool
-	//settings    map[string]interface{}
+
 	settingsMapper mapper.Mapper
 
 	toLinks   []*Link
@@ -174,11 +195,6 @@ func (task *Task) ActivityConfig() *ActivityConfig {
 func (task *Task) SettingsMapper() mapper.Mapper {
 	return task.settingsMapper
 }
-
-//func (task *Task) GetSetting(name string) (value interface{}, exists bool) {
-//	value, exists = task.settings[name]
-//	return value, exists
-//}
 
 // ToLinks returns the predecessor links of the task
 func (task *Task) ToLinks() []*Link {
