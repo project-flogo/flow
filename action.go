@@ -3,6 +3,7 @@ package flow
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -107,7 +108,7 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 	settings := &Settings{}
 	err := metadata.MapToStruct(config.Settings, settings, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("action settings error: %s", err.Error())
 	}
 
 	flowAction.flowURI = settings.FlowURI

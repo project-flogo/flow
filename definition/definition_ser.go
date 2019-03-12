@@ -1,7 +1,6 @@
 package definition
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -10,7 +9,6 @@ import (
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
@@ -36,79 +34,11 @@ type ErrorHandlerRep struct {
 
 // TaskRep is a serializable representation of a flow task
 type TaskRep struct {
-	ID             string                 `json:"id"`
-	Type           string                 `json:"type,omitempty"`
-	Name           string                 `json:"name"`
-	Settings       map[string]interface{} `json:"settings,omitempty"`
-	ActivityCfgRep *ActivityConfigRep     `json:"activity"`
-}
-
-// ActivityConfigRep is a serializable representation of an activity configuration
-type ActivityConfigRep struct {
-	Ref      string                 `json:"ref"`
-	Type     string                 `json:"type,omitempty"` //an alias to the ref, can be used if imported
-	Settings map[string]interface{} `json:"settings,omitempty"`
-	Input    map[string]interface{} `json:"input,omitempty"`
-	Output   map[string]interface{} `json:"output,omitempty"`
-	Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
-}
-
-type ActivitySchemasRep struct {
-	Input  map[string]*schema.Def `json:"input,omitempty"`
-	Output map[string]*schema.Def `json:"output,omitempty"`
-}
-
-// UnmarshalJSON overrides the default UnmarshalJSON for TaskInst
-func (ac *ActivityConfigRep) UnmarshalJSON(d []byte) error {
-	ser := &struct {
-		Ref      string                 `json:"ref"`
-		Type     string                 `json:"type"` //an alias to the ref, can be used if imported
-		Settings map[string]interface{} `json:"settings"`
-		Input    map[string]interface{} `json:"input,omitempty"`
-		Output   map[string]interface{} `json:"output,omitempty"`
-		Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
-
-		//DEPRECATED
-		Mappings *mapper.LegacyMappings `json:"mappings,omitempty"`
-	}{}
-
-	if err := json.Unmarshal(d, ser); err != nil {
-		return err
-	}
-
-	ac.Ref = ser.Ref
-	ac.Type = ser.Type
-	ac.Settings = ser.Settings
-	ac.Input = ser.Input
-	ac.Output = ser.Output
-	ac.Schemas = ser.Schemas
-
-	if ac.Settings == nil {
-		ac.Settings = make(map[string]interface{}, 0)
-	}
-
-	input, output, err := mapper.ConvertLegacyMappings(ser.Mappings, GetDataResolver())
-	if err != nil {
-		return err
-	}
-
-	if ac.Input == nil {
-		ac.Input = input
-	} else {
-		for key, value := range input {
-			ac.Input[key] = value
-		}
-	}
-
-	if ac.Output == nil {
-		ac.Output = output
-	} else {
-		for key, value := range output {
-			ac.Output[key] = value
-		}
-	}
-
-	return nil
+	ID          string                 `json:"id"`
+	Type        string                 `json:"type,omitempty"`
+	Name        string                 `json:"name,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
+	ActivityCfgRep *activity.Config       `json:"activity"`
 }
 
 // LinkRep is a serializable representation of a flow LinkOld
@@ -126,21 +56,13 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 	defer support.HandlePanic("NewDefinition", &err)
 
-	ef := expression.NewFactory(resolve.GetBasicResolver())
+	ef := expression.NewFactory(GetDataResolver())
 
 	def = &Definition{}
 	def.name = rep.Name
 	def.modelID = rep.ModelID
 	def.metadata = rep.Metadata
 	def.explicitReply = rep.ExplicitReply
-	//if len(rep.Attributes) > 0 {
-	//	def.attrs = make(map[string]*data.Attribute, len(rep.Attributes))
-	//
-	//	for _, value := range rep.Attributes {
-	//		def.attrs[value.Name()] = value
-	//	}
-	//}
-
 	def.tasks = make(map[string]*Task)
 	def.links = make(map[int]*Link)
 
@@ -230,13 +152,6 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 		return nil, err
 	}
 
-	//if len(rep.Settings) > 0 {
-	//	task.settings = make(map[string]interface{}, len(rep.Settings))
-	//	for name, value := range rep.Settings {
-	//		task.settings[name], _ = metadata.ResolveSettingValue(name, value, nil, ef)
-	//	}
-	//}
-
 	if rep.ActivityCfgRep != nil {
 
 		actCfg, err := createActivityConfig(task, rep.ActivityCfgRep, ef)
@@ -255,21 +170,28 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 	return task, nil
 }
 
-func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Factory) (*ActivityConfig, error) {
+func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factory) (*ActivityConfig, error) {
+
+	if rep.Ref == "" && rep.Type != "" {
+		log.RootLogger().Warnf("activity configuration 'type' deprecated, use 'ref' in the future")
+		rep.Ref = "#" + rep.Type
+	}
 
 	if rep.Ref == "" {
+		return nil, fmt.Errorf("activity ref not specified for task: %s", task.ID())
+	}
+
+	ref := rep.Ref
+
+	if rep.Ref[0] == '#' {
 		var ok bool
-		rep.Ref, ok = support.GetAliasRef("activity", rep.Type)
+		ref, ok = support.GetAliasRef("activity", rep.Ref)
 		if !ok {
-			return nil, fmt.Errorf("Activity type '%s' not registered", rep.Type)
+			return nil, fmt.Errorf("activity '%s' not imported", rep.Ref)
 		}
 	}
 
-	if rep.Ref == "" {
-		return nil, errors.New("Activity Not Specified for Task :" + task.ID())
-	}
-
-	act := activity.Get(rep.Ref)
+	act := activity.Get(ref)
 	if act == nil {
 		return nil, errors.New("Unsupported Activity:" + rep.Ref)
 	}
@@ -329,12 +251,11 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 	}
 
 	//schemas
-
 	if rep.Schemas != nil {
 		if in := rep.Schemas.Input; in != nil {
 			activityCfg.inputSchemas = make(map[string]schema.Schema, len(in))
 			for name, def := range in {
-				s, err := schema.New(def)
+				s, err := schema.FindOrCreate(def)
 				if err != nil {
 					return nil, err
 				}
@@ -345,7 +266,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 		if out := rep.Schemas.Output; out != nil {
 			activityCfg.outputSchemas = make(map[string]schema.Schema, len(out))
 			for name, def := range out {
-				s, err := schema.New(def)
+				s, err := schema.FindOrCreate(def)
 				if err != nil {
 					return nil, err
 				}
@@ -371,7 +292,7 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			link.linkType = LtExpression
 
 			if linkRep.Value == "" {
-				return nil, errors.New("Expression value not set")
+				return nil, errors.New("expression value not set")
 			}
 			link.expr, err = ef.NewExpr(linkRep.Value)
 			if err != nil {
