@@ -9,7 +9,6 @@ import (
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
@@ -57,7 +56,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 	defer support.HandlePanic("NewDefinition", &err)
 
-	ef := expression.NewFactory(resolve.GetBasicResolver())
+	ef := expression.NewFactory(GetDataResolver())
 
 	def = &Definition{}
 	def.name = rep.Name
