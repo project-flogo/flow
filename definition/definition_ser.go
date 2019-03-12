@@ -35,28 +35,11 @@ type ErrorHandlerRep struct {
 
 // TaskRep is a serializable representation of a flow task
 type TaskRep struct {
-	ID             string                 `json:"id"`
-	Type           string                 `json:"type,omitempty"`
-	Name           string                 `json:"name,omitempty"`
-	Settings       map[string]interface{} `json:"settings,omitempty"`
-	ActivityCfgRep *ActivityConfigRep     `json:"activity"`
-}
-
-// ActivityConfigRep is a serializable representation of an activity configuration
-type ActivityConfigRep struct {
-	Ref      string                 `json:"ref"`
-	Settings map[string]interface{} `json:"settings,omitempty"`
-	Input    map[string]interface{} `json:"input,omitempty"`
-	Output   map[string]interface{} `json:"output,omitempty"`
-	Schemas  *ActivitySchemasRep    `json:"schemas,omitempty"`
-
-	//DEPRECATED
-	Type string `json:"type,omitempty"`
-}
-
-type ActivitySchemasRep struct {
-	Input  map[string]*schema.Def `json:"input,omitempty"`
-	Output map[string]*schema.Def `json:"output,omitempty"`
+	ID          string                 `json:"id"`
+	Type        string                 `json:"type,omitempty"`
+	Name        string                 `json:"name,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
+	ActivityCfgRep *activity.Config       `json:"activity"`
 }
 
 // LinkRep is a serializable representation of a flow LinkOld
@@ -188,7 +171,7 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 	return task, nil
 }
 
-func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Factory) (*ActivityConfig, error) {
+func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factory) (*ActivityConfig, error) {
 
 	if rep.Ref == "" && rep.Type != "" {
 		log.RootLogger().Warnf("activity configuration 'type' deprecated, use 'ref' in the future")
@@ -269,12 +252,11 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 	}
 
 	//schemas
-
 	if rep.Schemas != nil {
 		if in := rep.Schemas.Input; in != nil {
 			activityCfg.inputSchemas = make(map[string]schema.Schema, len(in))
 			for name, def := range in {
-				s, err := schema.New(def)
+				s, err := schema.FindOrCreate(def)
 				if err != nil {
 					return nil, err
 				}
@@ -285,7 +267,7 @@ func createActivityConfig(task *Task, rep *ActivityConfigRep, ef expression.Fact
 		if out := rep.Schemas.Output; out != nil {
 			activityCfg.outputSchemas = make(map[string]schema.Schema, len(out))
 			for name, def := range out {
-				s, err := schema.New(def)
+				s, err := schema.FindOrCreate(def)
 				if err != nil {
 					return nil, err
 				}
