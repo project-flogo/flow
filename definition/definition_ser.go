@@ -34,10 +34,10 @@ type ErrorHandlerRep struct {
 
 // TaskRep is a serializable representation of a flow task
 type TaskRep struct {
-	ID          string                 `json:"id"`
-	Type        string                 `json:"type,omitempty"`
-	Name        string                 `json:"name,omitempty"`
-	Settings    map[string]interface{} `json:"settings,omitempty"`
+	ID             string                 `json:"id"`
+	Type           string                 `json:"type,omitempty"`
+	Name           string                 `json:"name,omitempty"`
+	Settings       map[string]interface{} `json:"settings,omitempty"`
 	ActivityCfgRep *activity.Config       `json:"activity"`
 }
 
@@ -181,17 +181,15 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		return nil, fmt.Errorf("activity ref not specified for task: %s", task.ID())
 	}
 
-	ref := rep.Ref
-
 	if rep.Ref[0] == '#' {
 		var ok bool
-		ref, ok = support.GetAliasRef("activity", rep.Ref)
+		rep.Ref, ok = support.GetAliasRef("activity", rep.Ref)
 		if !ok {
 			return nil, fmt.Errorf("activity '%s' not imported", rep.Ref)
 		}
 	}
 
-	act := activity.Get(ref)
+	act := activity.Get(rep.Ref)
 	if act == nil {
 		return nil, errors.New("Unsupported Activity:" + rep.Ref)
 	}
