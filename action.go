@@ -32,7 +32,6 @@ func init() {
 	resource.RegisterLoader(flowSupport.RESTYPE_FLOW, &flowSupport.FlowLoader{})
 }
 
-
 var ep ExtensionProvider
 var idGenerator *support.Generator
 var record bool
