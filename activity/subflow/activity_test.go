@@ -185,7 +185,7 @@ func TestSubFlow(t *testing.T) {
 	err := initActionFactory(af)
 	assert.Nil(t, err)
 
-	flowAction, err := f.New(&action.Config{Settings: map[string]interface{}{"flowURI": "res://flow:flow1"}})
+	flowAction, err := f.New(&action.ActionConfig{Settings: map[string]interface{}{"flowURI": "res://flow:flow1"}})
 
 	assert.Nil(t, err)
 	assert.NotNil(t, flowAction)
@@ -201,8 +201,8 @@ func initActionFactory(af action.Factory) error {
 	ctx := test.NewActionInitCtx()
 	af.Initialize(ctx)
 
-	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
-	rConfig2 := &resource.Config{ID: "flow:flow2", Data: []byte(jsonFlow2)}
+	rConfig1 := &resource.ResourceConfig{ID: "flow:flow1", Data: []byte(jsonFlow1)}
+	rConfig2 := &resource.ResourceConfig{ID: "flow:flow2", Data: []byte(jsonFlow2)}
 
 	err := ctx.AddResource(support.RESTYPE_FLOW, rConfig1)
 	if err != nil {

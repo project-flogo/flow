@@ -100,7 +100,7 @@ func recordFlows() bool {
 	return b
 }
 
-func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
+func (f *ActionFactory) New(config *action.ActionConfig) (action.Action, error) {
 
 	flowAction := &FlowAction{}
 

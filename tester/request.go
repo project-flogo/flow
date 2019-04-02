@@ -41,7 +41,7 @@ func (rp *RequestProcessor) StartFlow(startRequest *StartRequest) (results map[s
 	logger.Debugf("Tester starting flow")
 
 	factory := action.GetFactory(RefFlow)
-	act, _ := factory.New(&action.Config{})
+	act, _ := factory.New(&action.ActionConfig{})
 
 	var inputs map[string]interface{}
 
@@ -88,7 +88,7 @@ func (rp *RequestProcessor) RestartFlow(restartRequest *RestartRequest) (results
 	logger.Debugf("Tester restarting flow")
 
 	factory := action.GetFactory(RefFlow)
-	act, _ := factory.New(&action.Config{})
+	act, _ := factory.New(&action.ActionConfig{})
 
 	inputs := make(map[string]interface{}, len(restartRequest.Data)+1)
 
@@ -119,7 +119,7 @@ func (rp *RequestProcessor) ResumeFlow(resumeRequest *ResumeRequest) (results ma
 	logger.Debugf("Tester resuming flow")
 
 	factory := action.GetFactory(RefFlow)
-	act, _ := factory.New(&action.Config{})
+	act, _ := factory.New(&action.ActionConfig{})
 
 	inputs := make(map[string]interface{}, len(resumeRequest.Data)+1)
 
