@@ -209,7 +209,7 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 		instLogger := logger
 
 		if log.CtxLoggingEnabled() {
-			instLogger = log.ChildLoggerWithFields(logger, log.String("flowName", flowDef.Name()), log.String("flowId", instanceID))
+			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID))
 		}
 
 		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
