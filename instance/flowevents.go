@@ -62,7 +62,7 @@ func (fe *flowEvent) FlowError() error {
 
 func postFlowEvent(inst *Instance) {
 
-	if coreevent.HasListener(event.FLOW_EVENT_TYPE) {
+	if coreevent.HasListener(event.FlowEventType) {
 
 		fe := &flowEvent{}
 		fe.time = time.Now()
@@ -97,7 +97,7 @@ func postFlowEvent(inst *Instance) {
 		if fe.status == event.FAILED {
 			fe.err = inst.returnError
 		}
-		coreevent.Post(event.FLOW_EVENT_TYPE, fe)
+		coreevent.Post(event.FlowEventType, fe)
 	}
 }
 

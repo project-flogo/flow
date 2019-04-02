@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	activity.Register(&SubFlowActivity{}, New)
+	_ = activity.Register(&SubFlowActivity{}, New)
 }
 
 type Settings struct {

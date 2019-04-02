@@ -35,9 +35,8 @@ func (s *WorkingDataScope) GetWorkingValue(name string) (value interface{}, exis
 	return nil, false
 }
 
-func (s *WorkingDataScope) SetWorkingValue(name string, value interface{}) error {
+func (s *WorkingDataScope) SetWorkingValue(name string, value interface{}) {
 	s.workingData[name] = value
-	return nil
 }
 
 // NewWorkingDataScope

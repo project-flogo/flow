@@ -79,10 +79,9 @@ func TestFullSerialization(t *testing.T) {
 	for hasWork && instance.Status() < model.FlowStatusCompleted {
 		hasWork = instance.DoStep()
 
-		json, _ := json.Marshal(instance)
-		log.RootLogger().Debugf("Snapshot: %s\n", string(json))
+		jsonRep, _ := json.Marshal(instance)
+		log.RootLogger().Debugf("Snapshot: %s\n", string(jsonRep))
 	}
-
 }
 
 /*

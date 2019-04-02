@@ -246,17 +246,17 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	}
 
 	switch evalResult {
-	case model.EVAL_DONE:
+	case model.EvalDone:
 		//taskInst.SetStatus(model.TaskStatusDone)
 		inst.handleTaskDone(behavior, taskInst)
-	case model.EVAL_SKIP:
+	case model.EvalSkip:
 		//taskInst.SetStatus(model.TaskStatusSkipped)
 		inst.handleTaskDone(behavior, taskInst)
-	case model.EVAL_WAIT:
+	case model.EvalWait:
 		taskInst.SetStatus(model.TaskStatusWaiting)
-	case model.EVAL_FAIL:
+	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
-	case model.EVAL_REPEAT:
+	case model.EvalRepeat:
 		taskInst.SetStatus(model.TaskStatusReady)
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
@@ -309,6 +309,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 			if ok {
 				//if the flow failed, set the error
 				for name, value := range containerInst.returnData {
+					//todo review how we should handle an error encountered here
 					host.SetOutput(name, value)
 				}
 
@@ -336,7 +337,11 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 	} else {
 		// not done, so enter tasks specified by the Done behavior call
-		inst.enterTasks(containerInst, taskEntries)
+		err := inst.enterTasks(containerInst, taskEntries)
+		if err != nil {
+			//todo review how we should handle an error encountered here
+			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+		}
 	}
 
 	// task is done, so we can release it
@@ -362,7 +367,11 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 	}
 
 	if len(taskEntries) != 0 {
-		inst.enterTasks(containerInst, taskEntries)
+		err := inst.enterTasks(containerInst, taskEntries)
+		if err != nil {
+			//todo review how we should handle an error encountered here
+			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+		}
 	}
 
 	containerInst.releaseTask(taskInst.Task())
@@ -390,7 +399,12 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 		inst.taskInsts = make(map[string]*TaskInst)
 
 		taskEntries := flowBehavior.StartErrorHandler(containerInst)
-		inst.enterTasks(containerInst, taskEntries)
+		err := inst.enterTasks(containerInst, taskEntries)
+		if err != nil {
+			//todo review how we should handle an error encountered here
+			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+		}
+
 	} else {
 
 		containerInst.SetStatus(model.FlowStatusFailed)
@@ -438,13 +452,17 @@ func (inst *IndependentInstance) startInstance(toStart *Instance) bool {
 	ok, taskEntries := flowBehavior.Start(toStart)
 
 	if ok {
-		inst.enterTasks(toStart, taskEntries)
+		err := inst.enterTasks(toStart, taskEntries)
+		if err != nil {
+			//todo review how we should handle an error encountered here
+			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+		}
 	}
 
 	return ok
 }
 
-func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) {
+func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
 
 	for _, taskEntry := range taskEntries {
 
@@ -455,14 +473,19 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 
 		enterResult := taskToEnterBehavior.Enter(enterTaskData)
 
-		if enterResult == model.ENTER_EVAL {
-			applySettingsMapper(enterTaskData)
+		if enterResult == model.EnterEval {
+			err := applySettingsMapper(enterTaskData)
+			if err != nil {
+				return err
+			}
 			inst.scheduleEval(enterTaskData)
-		} else if enterResult == model.ENTER_SKIP {
+		} else if enterResult == model.EnterSkip {
 			//todo optimize skip, just keep skipping and don't schedule eval
 			inst.scheduleEval(enterTaskData)
 		}
 	}
+
+	return nil
 }
 
 //////////////////////////////////////////////////////////////////

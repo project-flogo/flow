@@ -83,7 +83,7 @@ func convertTaskStatus(code model.TaskStatus) event.Status {
 
 func postTaskEvent(taskInstance *TaskInst) {
 
-	if coreevent.HasListener(event.TASK_EVENT_TYPE) {
+	if coreevent.HasListener(event.TaskEventType) {
 		te := &taskEvent{}
 		te.time = time.Now()
 		te.name = taskInstance.Task().Name()
@@ -171,7 +171,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 
 			}
 		}
-		coreevent.Post(event.TASK_EVENT_TYPE, te)
+		coreevent.Post(event.TaskEventType, te)
 	}
 
 }
