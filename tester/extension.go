@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	ENV_ENABLED         = "TESTER_ENABLED"
-	ENV_SETTING_PORT    = "TESTER_PORT"
-	ENV_SETTING_SR_HOST = "TESTER_SR_SERVER"
+	EnvEnabled       = "TESTER_ENABLED"
+	EnvSettingPort   = "TESTER_PORT"
+	EnvSettingSrHost = "TESTER_SR_SERVER"
 )
 
 //ExtensionProvider is the extension provider for the flow action
@@ -52,7 +52,7 @@ func (fp *TesterProvider) GetStateRecorder() instance.StateRecorder {
 	if fp.stateRecorder == nil {
 		config := &support.ServiceConfig{Enabled: true}
 
-		server := os.Getenv(ENV_SETTING_SR_HOST)
+		server := os.Getenv(EnvSettingSrHost)
 
 		if server != "" {
 			parts := strings.Split(server, ":")
@@ -88,7 +88,7 @@ func (fp *TesterProvider) GetFlowTester() *RestEngineTester {
 	config := &support.ServiceConfig{Enabled: true}
 
 	settings := map[string]string{
-		"port": os.Getenv(ENV_SETTING_PORT),
+		"port": os.Getenv(EnvSettingPort),
 	}
 	config.Settings = settings
 	return NewRestEngineTester(config)

@@ -18,8 +18,8 @@ const (
 	UNKNOWN   = "Created"
 )
 
-const FLOW_EVENT_TYPE = "flowevent"
-const TASK_EVENT_TYPE = "taskevent"
+const FlowEventType = "flowevent"
+const TaskEventType = "taskevent"
 
 // FlowEvent provides access to flow instance execution details
 type FlowEvent interface {

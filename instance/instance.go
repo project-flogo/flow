@@ -144,7 +144,7 @@ func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
 		if md != nil && md.Output != nil {
 
 			inst.returnData = make(map[string]interface{})
-			for name, _ := range md.Output {
+			for name := range md.Output {
 				piAttr, exists := inst.attrs[name]
 				if exists {
 					inst.returnData[name] = piAttr

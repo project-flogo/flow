@@ -16,7 +16,7 @@ type Provider interface {
 }
 
 //// RemoteFlowProvider is an implementation of FlowProvider service
-//// that can access flowes via URI
+//// that can access flows via URI
 //type RemoteFlowProvider struct {
 //	//todo: switch to LRU cache
 //	mutex     *sync.Mutex

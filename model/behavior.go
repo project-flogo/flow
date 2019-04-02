@@ -39,19 +39,19 @@ type FlowBehavior interface {
 type EvalResult int
 
 const (
-	EVAL_FAIL EvalResult = iota
-	EVAL_DONE
-	EVAL_REPEAT
-	EVAL_WAIT
-	EVAL_SKIP
+	EvalFail EvalResult = iota
+	EvalDone
+	EvalRepeat
+	EvalWait
+	EvalSkip
 )
 
 type EnterResult int
 
 const (
-	ENTER_NOTREADY EnterResult = iota
-	ENTER_EVAL
-	ENTER_SKIP
+	EnterNotReady EnterResult = iota
+	EnterEval
+	EnterSkip
 )
 
 // TaskBehavior is the execution behavior of a Task.

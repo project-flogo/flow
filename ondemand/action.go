@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	ENV_FLOW_RECORD = "FLOGO_FLOW_RECORD"
+	EnvFlowRecord = "FLOGO_FLOW_RECORD"
 
 	ivFlowPackage = "flowPackage"
 )
@@ -55,7 +55,7 @@ type Settings struct {
 }
 
 func init() {
-	action.Register(&FlowAction{}, &ActionFactory{})
+	_ = action.Register(&FlowAction{}, &ActionFactory{})
 }
 
 func SetExtensionProvider(provider flow.ExtensionProvider) {
@@ -94,7 +94,7 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 }
 
 func recordFlows() bool {
-	recordFlows := os.Getenv(ENV_FLOW_RECORD)
+	recordFlows := os.Getenv(EnvFlowRecord)
 	if len(recordFlows) == 0 {
 		return false
 	}
@@ -122,9 +122,9 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 	}
 
 	//temporary hack to support dynamic process running by tester
-	if config.Data == nil {
-		return flowAction, nil
-	}
+	//if config.Data == nil {
+	//	return flowAction, nil
+	//}
 
 	return flowAction, nil
 
@@ -231,15 +231,14 @@ func ApplyMappings(mappings map[string]interface{}, inputs map[string]interface{
 
 	mapperFactory := mapper.NewFactory(resolve.GetBasicResolver())
 
-	mapper, err := mapperFactory.NewMapper(mappings)
-
+	m, err := mapperFactory.NewMapper(mappings)
 	if err != nil {
 		return nil, err
 	}
 
 	inScope := data.NewSimpleScope(inputs, nil)
 
-	out, err := mapper.Apply(inScope)
+	out, err := m.Apply(inScope)
 
 	return out, nil
 }

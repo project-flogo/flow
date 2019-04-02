@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	RESTYPE_FLOW = "flow"
+	ResTypeFlow = "flow"
 )
 
 type FlowLoader struct {
@@ -31,5 +31,5 @@ func (*FlowLoader) LoadResource(config *resource.Config) (*resource.Resource, er
 		return nil, err
 	}
 
-	return resource.New(RESTYPE_FLOW, flow), nil
+	return resource.New(ResTypeFlow, flow), nil
 }

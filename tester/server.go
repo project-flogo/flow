@@ -43,11 +43,11 @@ func (s *Server) InstanceID() string {
 //note: command isn't blocking, will exit after run
 func (s *Server) Start() error {
 	if s.Handler == nil {
-		return errors.New("No server handler set")
+		return errors.New("no server handler set")
 	}
 
 	if s.listener != nil {
-		return errors.New("Server already started")
+		return errors.New("server already started")
 	}
 
 	addr := s.Addr
@@ -88,7 +88,7 @@ func (s *Server) Start() error {
 // Stop sends stop command to the server
 func (s *Server) Stop() error {
 	if s.listener == nil {
-		return errors.New("Server not started")
+		return errors.New("server not started")
 	}
 
 	if err := s.listener.Close(); err != nil {
@@ -117,7 +117,7 @@ func (s *Server) IsStarted() bool {
 // note: will return error if there are still some requests not finished
 func (s *Server) WaitStop(timeout time.Duration) error {
 	if s.listener == nil {
-		return errors.New("Server not started")
+		return errors.New("server not started")
 	}
 
 	s.serverGroup.Wait()

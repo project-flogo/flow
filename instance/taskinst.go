@@ -21,7 +21,7 @@ func NewTaskInst(inst *Instance, task *definition.Task) *TaskInst {
 	taskInst.taskID = task.ID()
 
 	if log.CtxLoggingEnabled() {
-		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.String("flowId", inst.ID()))
+		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("flowId", inst.ID()))
 
 	} else {
 		taskInst.logger = task.ActivityConfig().Logger
@@ -124,11 +124,11 @@ func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	postTaskEvent(ti)
 }
 
-func (ti *TaskInst) SetWorkingData(key string, value interface{}) error {
+func (ti *TaskInst) SetWorkingData(key string, value interface{}) {
 	if ti.workingData == nil {
 		ti.workingData = NewWorkingDataScope(ti.flowInst)
 	}
-	return ti.workingData.SetWorkingValue(key, value)
+	ti.workingData.SetWorkingValue(key, value)
 }
 
 func (ti *TaskInst) GetWorkingData(key string) (interface{}, bool) {
@@ -320,7 +320,10 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 
-		applyOutputInterceptor(ti)
+		err := applyOutputInterceptor(ti)
+		if err != nil {
+			return false, err
+		}
 
 		if actCfg.OutputMapper() != nil {
 
@@ -383,7 +386,10 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 	if done {
 
 		if ti.task.ActivityConfig().OutputMapper() != nil {
-			applyOutputInterceptor(ti)
+			err := applyOutputInterceptor(ti)
+			if err != nil {
+				return false, err
+			}
 
 			appliedMapper, err := applyOutputMapper(ti)
 
@@ -431,34 +437,34 @@ func (ti *TaskInst) appendErrorData(err error) {
 
 	switch e := err.(type) {
 	case *definition.LinkExprError:
-		ti.flowInst.SetValue("_E.type", "link_expr")
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.data", nil)
-		ti.flowInst.SetValue("_E.code", "")
-		ti.flowInst.SetValue("_E.activity", ti.taskID)
+		_ = ti.flowInst.SetValue("_E.type", "link_expr")
+		_ = ti.flowInst.SetValue("_E.message", err.Error())
+		_ = ti.flowInst.SetValue("_E.data", nil)
+		_ = ti.flowInst.SetValue("_E.code", "")
+		_ = ti.flowInst.SetValue("_E.activity", ti.taskID)
 	case *activity.Error:
-		ti.flowInst.SetValue("_E.type", "activity")
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.data", e.Data())
-		ti.flowInst.SetValue("_E.code", e.Code())
+		_ = ti.flowInst.SetValue("_E.type", "activity")
+		_ = ti.flowInst.SetValue("_E.message", err.Error())
+		_ = ti.flowInst.SetValue("_E.data", e.Data())
+		_ = ti.flowInst.SetValue("_E.code", e.Code())
 
 		if e.ActivityName() != "" {
-			ti.flowInst.SetValue("_E.activity", e.ActivityName())
+			_ = ti.flowInst.SetValue("_E.activity", e.ActivityName())
 		} else {
-			ti.flowInst.SetValue("_E.activity", ti.taskID)
+			_ = ti.flowInst.SetValue("_E.activity", ti.taskID)
 		}
 	case *ActivityEvalError:
-		ti.flowInst.SetValue("_E.activity", e.TaskName())
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.type", e.Type())
-		ti.flowInst.SetValue("_E.data", nil)
-		ti.flowInst.SetValue("_E.code", "")
+		_ = ti.flowInst.SetValue("_E.activity", e.TaskName())
+		_ = ti.flowInst.SetValue("_E.message", err.Error())
+		_ = ti.flowInst.SetValue("_E.type", e.Type())
+		_ = ti.flowInst.SetValue("_E.data", nil)
+		_ = ti.flowInst.SetValue("_E.code", "")
 	default:
-		ti.flowInst.SetValue("_E.activity", ti.taskID)
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.type", "unknown")
-		ti.flowInst.SetValue("_E.data", nil)
-		ti.flowInst.SetValue("_E.code", "")
+		_ = ti.flowInst.SetValue("_E.activity", ti.taskID)
+		_ = ti.flowInst.SetValue("_E.message", err.Error())
+		_ = ti.flowInst.SetValue("_E.type", "unknown")
+		_ = ti.flowInst.SetValue("_E.data", nil)
+		_ = ti.flowInst.SetValue("_E.code", "")
 	}
 
 	//todo add case for *dataMapperError & *activity.Error

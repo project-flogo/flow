@@ -57,14 +57,14 @@ func (tb *TaskBehavior) Enter(ctx model.TaskContext) (enterResult model.EnterRes
 
 		if skipped {
 			ctx.SetStatus(model.TaskStatusSkipped)
-			return model.ENTER_SKIP
+			return model.EnterSkip
 		} else {
 			if logger.DebugEnabled() {
 				logger.Debugf("Task '%s' Ready", ctx.Task().ID())
 			}
 			ctx.SetStatus(model.TaskStatusReady)
 		}
-		return model.ENTER_EVAL
+		return model.EnterEval
 
 	} else {
 		if logger.DebugEnabled() {
@@ -72,14 +72,14 @@ func (tb *TaskBehavior) Enter(ctx model.TaskContext) (enterResult model.EnterRes
 		}
 	}
 
-	return model.ENTER_NOTREADY
+	return model.EnterNotReady
 }
 
 // Eval implements model.TaskBehavior.Eval
 func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 
 	if ctx.Status() == model.TaskStatusSkipped {
-		return model.EVAL_SKIP, nil
+		return model.EvalSkip, nil
 	}
 
 	task := ctx.Task()
@@ -91,13 +91,13 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
-		return model.EVAL_FAIL, err
+		return model.EvalFail, err
 	}
 
 	if done {
-		evalResult = model.EVAL_DONE
+		evalResult = model.EvalDone
 	} else {
-		evalResult = model.EVAL_WAIT
+		evalResult = model.EvalWait
 	}
 
 	return evalResult, nil
@@ -115,10 +115,10 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
-		return model.EVAL_FAIL, err
+		return model.EvalFail, err
 	}
 
-	return model.EVAL_DONE, nil
+	return model.EvalDone, nil
 }
 
 // Done implements model.TaskBehavior.Done
