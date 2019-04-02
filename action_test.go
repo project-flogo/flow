@@ -3,13 +3,13 @@ package flow
 import (
 	"context"
 	"encoding/json"
-	"github.com/project-flogo/core/support/test"
 	"testing"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/engine/runner"
+	"github.com/project-flogo/core/support/test"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
 	"github.com/project-flogo/flow/tester"
@@ -17,7 +17,6 @@ import (
 )
 
 const FlowRef = "github.com/project-flogo/flow"
-
 
 var testFlowActionCfg = `{
  "id": "flow",
@@ -342,7 +341,6 @@ func TestRequestProcessor_RestartFlow(t *testing.T) {
 	af := f.(*ActionFactory)
 	err := af.Initialize(test.NewActionInitCtx())
 	assert.Nil(t, err)
-
 
 	loader := resource.GetLoader("flow")
 	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
