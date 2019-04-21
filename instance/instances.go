@@ -106,10 +106,13 @@ func (inst *IndependentInstance) startEmbedded(embedded *Instance, startAttrs ma
 
 func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
 
-	if inst.IOMetadata().Input != nil {
-		inst.attrs = make(map[string]interface{}, len(inst.IOMetadata().Input))
+	md := inst.flowDef.Metadata()
 
-		for key, value := range inst.IOMetadata().Input {
+	if md != nil && md.Input != nil {
+
+		inst.attrs = make(map[string]interface{}, len(md.Input))
+
+		for key, value := range md.Input {
 			if value != nil {
 				inst.attrs[key] = value.Value()
 			} else {
