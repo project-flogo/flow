@@ -9,6 +9,7 @@ import (
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/data/schema"
+	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 )
 
@@ -76,6 +77,21 @@ func (d *Definition) GetAttr(attrName string) (attr *data.Attribute, exists bool
 	}
 
 	return nil, false
+}
+
+func (d *Definition) Cleanup() error {
+	for id, task := range d.tasks {
+		if !activity.IsSingleton(task.activityCfg.Activity) {
+			if needsDisposal, ok := task.activityCfg.Activity.(support.NeedsCleanup); ok {
+				err := needsDisposal.Cleanup()
+				if err != nil {
+					log.RootLogger().Warnf("Error disposing activity '%s' : ", id, err)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // GetTask returns the task with the specified ID
