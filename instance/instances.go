@@ -106,8 +106,6 @@ func (inst *IndependentInstance) startEmbedded(embedded *Instance, startAttrs ma
 
 func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
 
-	inst.attrs = startAttrs
-
 	if inst.IOMetadata().Input != nil {
 		inst.attrs = make(map[string]interface{}, len(inst.IOMetadata().Input))
 
