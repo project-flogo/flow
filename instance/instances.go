@@ -112,19 +112,19 @@ func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
 
 		inst.attrs = make(map[string]interface{}, len(md.Input))
 
-		for key, value := range md.Input {
+		for name, value := range md.Input {
 			if value != nil {
-				inst.attrs[key] = value.Value()
+				inst.attrs[name] = value.Value()
 			} else {
-				inst.attrs[key] = nil
+				inst.attrs[name] = nil
 			}
 		}
 	} else {
 		inst.attrs = make(map[string]interface{}, len(startAttrs))
 	}
 
-	for key, value := range inst.attrs {
-		inst.attrs[key] = value
+	for name, value := range inst.attrs {
+		inst.attrs[name] = value
 	}
 
 	return inst.startInstance(inst.Instance)
