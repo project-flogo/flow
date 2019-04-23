@@ -106,14 +106,26 @@ func (inst *IndependentInstance) startEmbedded(embedded *Instance, startAttrs ma
 
 func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
 
-	inst.attrs = startAttrs
-	//if inst.attrs == nil {
-	//	inst.attrs = make(map[string]*data.Attribute)
-	//}
-	//
-	//for _, attr := range startAttrs {
-	//	inst.attrs[attr.Name()] = attr
-	//}
+	md := inst.flowDef.Metadata()
+
+	if md != nil && md.Input != nil {
+
+		inst.attrs = make(map[string]interface{}, len(md.Input))
+
+		for name, value := range md.Input {
+			if value != nil {
+				inst.attrs[name] = value.Value()
+			} else {
+				inst.attrs[name] = nil
+			}
+		}
+	} else {
+		inst.attrs = make(map[string]interface{}, len(startAttrs))
+	}
+
+	for name, value := range inst.attrs {
+		inst.attrs[name] = value
+	}
 
 	return inst.startInstance(inst.Instance)
 }
