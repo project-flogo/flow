@@ -3,6 +3,7 @@ package definition
 import (
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/data/coerce"
 	"strconv"
 
 	"github.com/project-flogo/core/activity"
@@ -231,13 +232,48 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	}
 
 	var err error
-	activityCfg.inputMapper, err = mf.NewMapper(rep.Input)
+	//Convert to correct datatype for input
+	input := make(map[string]interface{})
+	for k, v := range rep.Input {
+		if !isExpr(v) {
+			fieldMetaddata, ok := act.Metadata().Input[k]
+			if ok {
+				v, err = coerce.ToType(v, fieldMetaddata.Type())
+				if err != nil {
+					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+				}
+				input[k] = v
+			}
+		} else {
+			input[k] = v
+		}
+
+	}
+
+	activityCfg.inputMapper, err = mf.NewMapper(input)
 	if err != nil {
 		return nil, err
 	}
 
+	output := make(map[string]interface{})
+	for k, v := range rep.Output {
+		if !isExpr(v) {
+			fieldMetaddata, ok := act.Metadata().Output[k]
+			if ok {
+				v, err = coerce.ToType(v, fieldMetaddata.Type())
+				if err != nil {
+					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+				}
+				output[k] = v
+			}
+		} else {
+			output[k] = v
+		}
+
+	}
+
 	if len(rep.Output) > 0 {
-		activityCfg.outputMapper, err = mf.NewMapper(rep.Output)
+		activityCfg.outputMapper, err = mf.NewMapper(output)
 		if err != nil {
 			return nil, err
 		}
@@ -274,6 +310,20 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	}
 
 	return activityCfg, nil
+}
+
+func isExpr(v interface{}) bool {
+	switch t := v.(type) {
+	case string:
+		if len(t) > 0 && t[0] == '=' {
+			return true
+		}
+	default:
+		if _, ok := mapper.GetObjectMapping(t); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.Factory) (*Link, error) {
