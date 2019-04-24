@@ -273,9 +273,11 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	}
 
 	if len(rep.Output) > 0 {
-		activityCfg.outputMapper, err = mf.NewMapper(output)
-		if err != nil {
-			return nil, err
+		if !(activity.HasLegacyActivities() && activity.IsLegacyActivity(rep.Ref)) {
+			activityCfg.outputMapper, err = mf.NewMapper(output)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
