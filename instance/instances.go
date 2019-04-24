@@ -123,7 +123,7 @@ func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
 		inst.attrs = make(map[string]interface{}, len(startAttrs))
 	}
 
-	for name, value := range inst.attrs {
+	for name, value := range startAttrs {
 		inst.attrs[name] = value
 	}
 
