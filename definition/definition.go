@@ -125,6 +125,8 @@ type ActivityConfig struct {
 	outputSchemas map[string]schema.Schema
 
 	Details *activity.Details
+
+	IsLegacy bool
 }
 
 func (ac *ActivityConfig) GetInputSchema(name string) schema.Schema {

@@ -198,6 +198,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	activityCfg := &ActivityConfig{}
 	activityCfg.Activity = act
 	activityCfg.Logger = activity.GetLogger(rep.Ref)
+	activityCfg.IsLegacy = activity.HasLegacyActivities() && activity.IsLegacyActivity(rep.Ref)
 
 	if hasDetails, ok := act.(activity.HasDetails); ok {
 		activityCfg.Details = hasDetails.Details()
@@ -273,7 +274,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	}
 
 	if len(rep.Output) > 0 {
-		if !(activity.HasLegacyActivities() && activity.IsLegacyActivity(rep.Ref)) {
+		if !activityCfg.IsLegacy {
 			activityCfg.outputMapper, err = mf.NewMapper(output)
 			if err != nil {
 				return nil, err

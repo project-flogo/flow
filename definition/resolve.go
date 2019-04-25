@@ -69,12 +69,21 @@ func (r *ErrorResolver) GetResolverInfo() *resolve.ResolverInfo {
 
 func (r *ErrorResolver) Resolve(scope data.Scope, itemName, valueName string) (interface{}, error) {
 
-	value, exists := scope.GetValue("_E." + valueName)
+	err, exists := scope.GetValue("_E")
 	if !exists {
-		return nil, fmt.Errorf("failed to resolve error attr: '%s', not found in flow", valueName)
+		return nil, fmt.Errorf("failed to resolve error, not found in flow")
 	}
 
-	return value, nil
+	errObj, ok := err.(map[string]interface{})
+	if ok {
+		value, ok := errObj[valueName]
+		if !ok {
+			return nil, nil
+		}
+		return value, nil
+	} else {
+		return nil, fmt.Errorf("invalid error object: %v", errObj)
+	}
 }
 
 type IteratorResolver struct {
