@@ -126,6 +126,7 @@ type ActivityConfig struct {
 
 	Details *activity.Details
 
+	outputs  map[string]interface{}
 	IsLegacy bool
 }
 
@@ -134,6 +135,14 @@ func (ac *ActivityConfig) GetInputSchema(name string) schema.Schema {
 		return ac.inputSchemas[name]
 	}
 
+	return nil
+}
+
+//Deprecated
+func (ac *ActivityConfig) GetOutput(name string) interface{} {
+	if ac.outputs != nil {
+		return ac.outputs[name]
+	}
 	return nil
 }
 
