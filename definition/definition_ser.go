@@ -184,9 +184,10 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 
 	if rep.Ref[0] == '#' {
 		var ok bool
-		rep.Ref, ok = support.GetAliasRef("activity", rep.Ref)
+		activityRef := rep.Ref
+		rep.Ref, ok = support.GetAliasRef("activity", activityRef)
 		if !ok {
-			return nil, fmt.Errorf("activity '%s' not imported", rep.Ref)
+			return nil, fmt.Errorf("activity '%s' not imported", activityRef)
 		}
 	}
 
@@ -343,9 +344,8 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			link.linkType = LtDependency
 		case "expression", "1":
 			link.linkType = LtExpression
-
 			if linkRep.Value == "" {
-				return nil, errors.New("expression value not set")
+				return nil, fmt.Errorf("expression value not set on link id [%d] from [%s] to [%s]", id, linkRep.FromID, linkRep.ToID)
 			}
 			link.expr, err = ef.NewExpr(linkRep.Value)
 			if err != nil {
