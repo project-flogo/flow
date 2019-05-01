@@ -291,7 +291,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		var ctx activity.Context
 		ctx = ti
 		if actCfg.IsLegacy {
-			ctx = &LegacyCtx{task:ti}
+			ctx = &LegacyCtx{task: ti}
 		}
 
 		done, evalErr = actCfg.Activity.Eval(ctx)
@@ -439,16 +439,15 @@ func (ti *TaskInst) appendErrorData(err error) {
 			errorObj["activity"] = e.ActivityName()
 		}
 	case *ActivityEvalError:
-		errorObj["type"] =  e.Type()
-		errorObj["activity"] =  e.TaskName()
+		errorObj["type"] = e.Type()
+		errorObj["activity"] = e.TaskName()
 	}
 
 	_ = ti.flowInst.SetValue("_E", errorObj)
 }
 
-
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
-	return map[string]interface{}{"activity":taskId, "message":msg, "type":"unknown", "code":""}
+	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": ""}
 }
 
 //DEPRECATED
@@ -461,6 +460,11 @@ func (l *LegacyCtx) GetOutput(name string) interface{} {
 	if ok {
 		return val
 	}
+
+	if len(l.task.task.ActivityConfig().Ref()) > 0 {
+		return l.task.task.ActivityConfig().GetOutput(name)
+	}
+
 	return nil
 }
 
@@ -495,4 +499,3 @@ func (l *LegacyCtx) GetSharedTempData() map[string]interface{} {
 func (l *LegacyCtx) Logger() log.Logger {
 	return l.task.Logger()
 }
-
