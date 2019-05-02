@@ -495,6 +495,13 @@ func (l *LegacyCtx) SetOutputObject(output data.StructValue) error {
 func (l *LegacyCtx) GetSharedTempData() map[string]interface{} {
 	return l.task.GetSharedTempData()
 }
+func (l *LegacyCtx) GetInputSchema(name string) schema.Schema {
+	return l.task.GetInputSchema(name)
+}
+
+func (l *LegacyCtx) GetOutputSchema(name string) schema.Schema {
+	return l.task.GetOutputSchema(name)
+}
 
 func (l *LegacyCtx) Logger() log.Logger {
 	return l.task.Logger()
