@@ -245,8 +245,8 @@ func (tb *TaskBehavior) Error(ctx model.TaskContext, err error) (handled bool, t
 		for _, linkInst := range linkInsts {
 			if linkInst.Link().Type() == definition.LtError {
 				handled = true
+				break
 			}
-			break
 		}
 
 		if handled {
