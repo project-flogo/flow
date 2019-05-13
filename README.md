@@ -1,9 +1,9 @@
 <p align="center">
-  <img src ="https://raw.githubusercontent.com/TIBCOSoftware/flogo/master/images/projectflogo.png" />
+  <img src ="https://raw.githubusercontent.com/TIBCOSoftware/flogo/master/images/flogo-ecosystem_Flows.png" />
 </p>
 
 <p align="center" >
-  <b>Streams is a pipeline based, stream processing action for the Project Flogo Ecosystem</b>
+  <b>Flows is a simple process flow action for the Project Flogo Ecosystem</b>
 </p>
 
 <p align="center">
