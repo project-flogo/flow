@@ -245,6 +245,9 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
 				}
 				input[k] = v
+			} else {
+				//For the cases that metadata comes from iometadata, eg: subflow
+				input[k] = v
 			}
 		} else {
 			input[k] = v
@@ -267,7 +270,10 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
 				}
 				output[k] = v
+			} else {
+				output[k] = v
 			}
+
 		} else {
 			output[k] = v
 		}
