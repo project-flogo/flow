@@ -26,7 +26,7 @@ func NewRequestProcessor() *RequestProcessor {
 
 	var rp RequestProcessor
 	rp.runner = runner.NewDirect()
-	//todo whoat logger should this use?
+	//todo what logger should this use?
 	rp.logger = log.RootLogger()
 
 	return &rp

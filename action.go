@@ -24,12 +24,12 @@ import (
 )
 
 const (
-	ENV_FLOW_RECORD = "FLOGO_FLOW_RECORD"
+	EnvFlowRecord = "FLOGO_FLOW_RECORD"
 )
 
 func init() {
-	action.Register(&FlowAction{}, &ActionFactory{})
-	resource.RegisterLoader(flowSupport.RESTYPE_FLOW, &flowSupport.FlowLoader{})
+	_ = action.Register(&FlowAction{}, &ActionFactory{})
+	_ = resource.RegisterLoader(flowSupport.ResTypeFlow, &flowSupport.FlowLoader{})
 }
 
 var ep ExtensionProvider
@@ -59,12 +59,15 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 	}
 
 	if ep == nil {
-		testerEnabled := os.Getenv(tester.ENV_ENABLED)
+		testerEnabled := os.Getenv(tester.EnvEnabled)
 		if strings.ToLower(testerEnabled) == "true" {
 			ep = tester.NewExtensionProvider()
 
 			sm := support.GetDefaultServiceManager()
-			sm.RegisterService(ep.GetFlowTester())
+			err := sm.RegisterService(ep.GetFlowTester())
+			if err != nil {
+				return err
+			}
 			record = true
 		} else {
 			ep = NewDefaultExtensionProvider()
@@ -84,15 +87,13 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 
 	model.RegisterDefault(ep.GetDefaultFlowModel())
 	flowManager = flowSupport.NewFlowManager(ep.GetFlowProvider())
-	resource.RegisterLoader(flowSupport.RESTYPE_FLOW, &flowSupport.FlowLoader{})
-
 	flowSupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
 
 	return nil
 }
 
 func recordFlows() bool {
-	recordFlows := os.Getenv(ENV_FLOW_RECORD)
+	recordFlows := os.Getenv(EnvFlowRecord)
 	if len(recordFlows) == 0 {
 		return false
 	}
@@ -209,7 +210,7 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 		instLogger := logger
 
 		if log.CtxLoggingEnabled() {
-			instLogger = log.ChildLoggerWithFields(logger, log.String("flowName", flowDef.Name()), log.String("flowId", instanceID))
+			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID))
 		}
 
 		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)

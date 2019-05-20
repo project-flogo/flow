@@ -14,12 +14,6 @@ func GetExprFactory() expression.Factory {
 	return exprFactory
 }
 
-//// LinkExprManager interface that defines a Link Expr Manager
-//type LinkExprManager interface {
-//	// EvalLinkExpr evaluate the link expression
-//	EvalLinkExpr(link *Link, scope data.Scope) (bool, error)
-//}
-
 func NewLinkExprError(msg string) *LinkExprError {
 	return &LinkExprError{msg: msg}
 }
@@ -32,20 +26,6 @@ type LinkExprError struct {
 func (e *LinkExprError) Error() string {
 	return e.msg
 }
-
-//type LinkExprManagerFactory interface {
-//	NewLinkExprManager() LinkExprManager
-//}
-//
-//var linkExprMangerFactory LinkExprManagerFactory
-//
-//func SetLinkExprManagerFactory(factory LinkExprManagerFactory) {
-//	linkExprMangerFactory = factory
-//}
-//
-//func GetLinkExprManagerFactory() LinkExprManagerFactory {
-//	return linkExprMangerFactory
-//}
 
 // GetExpressionLinks gets the links of the definition that are of type LtExpression
 func GetExpressionLinks(def *Definition) []*Link {

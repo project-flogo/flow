@@ -9,6 +9,7 @@ import (
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/data/schema"
+	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 )
 
@@ -78,6 +79,21 @@ func (d *Definition) GetAttr(attrName string) (attr *data.Attribute, exists bool
 	return nil, false
 }
 
+func (d *Definition) Cleanup() error {
+	for id, task := range d.tasks {
+		if !activity.IsSingleton(task.activityCfg.Activity) {
+			if needsDisposal, ok := task.activityCfg.Activity.(support.NeedsCleanup); ok {
+				err := needsDisposal.Cleanup()
+				if err != nil {
+					log.RootLogger().Warnf("Error disposing activity '%s' : ", id, err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // GetTask returns the task with the specified ID
 func (d *Definition) Tasks() []*Task {
 
@@ -109,6 +125,9 @@ type ActivityConfig struct {
 	outputSchemas map[string]schema.Schema
 
 	Details *activity.Details
+
+	outputs  map[string]interface{}
+	IsLegacy bool
 }
 
 func (ac *ActivityConfig) GetInputSchema(name string) schema.Schema {
@@ -116,6 +135,14 @@ func (ac *ActivityConfig) GetInputSchema(name string) schema.Schema {
 		return ac.inputSchemas[name]
 	}
 
+	return nil
+}
+
+//Deprecated
+func (ac *ActivityConfig) GetOutput(name string) interface{} {
+	if ac.outputs != nil {
+		return ac.outputs[name]
+	}
 	return nil
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	activity.Register(&SubFlowActivity{}, New)
+	_ = activity.Register(&SubFlowActivity{}, New)
 }
 
 type Settings struct {
@@ -72,7 +72,7 @@ func (a *SubFlowActivity) Metadata() *activity.Metadata {
 		if a.mdUpdated == 0 {
 			flowIOMd, err := instance.GetFlowIOMetadata(a.flowURI)
 			if err != nil {
-				log.RootLogger().Errorf("unable to load subflow metadata: %s", err.Error())
+				log.RootLogger().Warnf("unable to load subflow metadata: %s", err.Error())
 				return a.activityMd
 			}
 			a.activityMd.IOMetadata = flowIOMd

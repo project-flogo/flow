@@ -3,6 +3,7 @@ package definition
 import (
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/data/coerce"
 	"strconv"
 
 	"github.com/project-flogo/core/activity"
@@ -183,9 +184,10 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 
 	if rep.Ref[0] == '#' {
 		var ok bool
-		rep.Ref, ok = support.GetAliasRef("activity", rep.Ref)
+		activityRef := rep.Ref
+		rep.Ref, ok = support.GetAliasRef("activity", activityRef)
 		if !ok {
-			return nil, fmt.Errorf("activity '%s' not imported", rep.Ref)
+			return nil, fmt.Errorf("activity '%s' not imported", activityRef)
 		}
 	}
 
@@ -197,6 +199,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	activityCfg := &ActivityConfig{}
 	activityCfg.Activity = act
 	activityCfg.Logger = activity.GetLogger(rep.Ref)
+	activityCfg.IsLegacy = activity.HasLegacyActivities() && activity.IsLegacyActivity(rep.Ref)
 
 	if hasDetails, ok := act.(activity.HasDetails); ok {
 		activityCfg.Details = hasDetails.Details()
@@ -231,15 +234,60 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	}
 
 	var err error
-	activityCfg.inputMapper, err = mf.NewMapper(rep.Input)
+	//Convert to correct datatype for input
+	input := make(map[string]interface{})
+	for k, v := range rep.Input {
+		if !isExpr(v) {
+			fieldMetaddata, ok := act.Metadata().Input[k]
+			if ok {
+				v, err = coerce.ToType(v, fieldMetaddata.Type())
+				if err != nil {
+					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+				}
+				input[k] = v
+			} else {
+				//For the cases that metadata comes from iometadata, eg: subflow
+				input[k] = v
+			}
+		} else {
+			input[k] = v
+		}
+
+	}
+
+	activityCfg.inputMapper, err = mf.NewMapper(input)
 	if err != nil {
 		return nil, err
 	}
 
+	output := make(map[string]interface{})
+	for k, v := range rep.Output {
+		if !isExpr(v) {
+			fieldMetaddata, ok := act.Metadata().Output[k]
+			if ok {
+				v, err = coerce.ToType(v, fieldMetaddata.Type())
+				if err != nil {
+					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+				}
+				output[k] = v
+			} else {
+				output[k] = v
+			}
+
+		} else {
+			output[k] = v
+		}
+
+	}
+
 	if len(rep.Output) > 0 {
-		activityCfg.outputMapper, err = mf.NewMapper(rep.Output)
-		if err != nil {
-			return nil, err
+		if !activityCfg.IsLegacy {
+			activityCfg.outputMapper, err = mf.NewMapper(output)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			activityCfg.outputs = output
 		}
 	}
 
@@ -276,6 +324,20 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	return activityCfg, nil
 }
 
+func isExpr(v interface{}) bool {
+	switch t := v.(type) {
+	case string:
+		if len(t) > 0 && t[0] == '=' {
+			return true
+		}
+	default:
+		if _, ok := mapper.GetObjectMapping(t); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.Factory) (*Link, error) {
 
 	link := &Link{}
@@ -288,9 +350,8 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			link.linkType = LtDependency
 		case "expression", "1":
 			link.linkType = LtExpression
-
 			if linkRep.Value == "" {
-				return nil, errors.New("expression value not set")
+				return nil, fmt.Errorf("expression value not set on link id [%d] from [%s] to [%s]", id, linkRep.FromID, linkRep.ToID)
 			}
 			link.expr, err = ef.NewExpr(linkRep.Value)
 			if err != nil {

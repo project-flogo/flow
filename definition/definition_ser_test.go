@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	activity.LegacyRegister("log", NewLogActivity())
+	_ = activity.LegacyRegister("log", NewLogActivity())
 }
 
 const defJSON = `

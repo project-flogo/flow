@@ -21,7 +21,7 @@ func NewTaskInst(inst *Instance, task *definition.Task) *TaskInst {
 	taskInst.taskID = task.ID()
 
 	if log.CtxLoggingEnabled() {
-		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.String("flowId", inst.ID()))
+		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("flowId", inst.ID()))
 
 	} else {
 		taskInst.logger = task.ActivityConfig().Logger
@@ -124,11 +124,11 @@ func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	postTaskEvent(ti)
 }
 
-func (ti *TaskInst) SetWorkingData(key string, value interface{}) error {
+func (ti *TaskInst) SetWorkingData(key string, value interface{}) {
 	if ti.workingData == nil {
 		ti.workingData = NewWorkingDataScope(ti.flowInst)
 	}
-	return ti.workingData.SetWorkingValue(key, value)
+	ti.workingData.SetWorkingValue(key, value)
 }
 
 func (ti *TaskInst) GetWorkingData(key string) (interface{}, bool) {
@@ -288,7 +288,13 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 
-		done, evalErr = actCfg.Activity.Eval(ti)
+		var ctx activity.Context
+		ctx = ti
+		if actCfg.IsLegacy {
+			ctx = &LegacyCtx{task: ti}
+		}
+
+		done, evalErr = actCfg.Activity.Eval(ctx)
 
 		if evalErr != nil {
 			e, ok := evalErr.(*activity.Error)
@@ -320,7 +326,10 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 
-		applyOutputInterceptor(ti)
+		err := applyOutputInterceptor(ti)
+		if err != nil {
+			return false, err
+		}
 
 		if actCfg.OutputMapper() != nil {
 
@@ -383,7 +392,10 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 	if done {
 
 		if ti.task.ActivityConfig().OutputMapper() != nil {
-			applyOutputInterceptor(ti)
+			err := applyOutputInterceptor(ti)
+			if err != nil {
+				return false, err
+			}
 
 			appliedMapper, err := applyOutputMapper(ti)
 
@@ -412,54 +424,85 @@ func (ti *TaskInst) GetSetting(name string) (value interface{}, exists bool) {
 	return value, exists
 }
 
-//// FlowReply is used to reply to the Flow Host with the results of the execution
-//func (ti *TaskInst) FlowReply(replyData map[string]interface{}, err error) {
-//	//ignore
-//}
-//
-//// FlowReturn is used to indicate to the Flow Host that it should complete and return the results of the execution
-//func (ti *TaskInst) FlowReturn(returnData map[string]interface{}, err error) {
-//
-//	if err != nil {
-//		for name, value := range returnData {
-//			ti.SetWorkingData(name, value)
-//		}
-//	}
-//}
-
 func (ti *TaskInst) appendErrorData(err error) {
+
+	errorObj := NewErrorObj(ti.taskID, err.Error())
 
 	switch e := err.(type) {
 	case *definition.LinkExprError:
-		ti.flowInst.SetValue("_E.type", "link_expr")
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.data", nil)
-		ti.flowInst.SetValue("_E.code", "")
-		ti.flowInst.SetValue("_E.activity", ti.taskID)
+		errorObj["type"] = "link_expr"
 	case *activity.Error:
-		ti.flowInst.SetValue("_E.type", "activity")
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.data", e.Data())
-		ti.flowInst.SetValue("_E.code", e.Code())
-
+		errorObj["type"] = "activity"
+		errorObj["data"] = e.Data()
+		errorObj["code"] = e.Code()
 		if e.ActivityName() != "" {
-			ti.flowInst.SetValue("_E.activity", e.ActivityName())
-		} else {
-			ti.flowInst.SetValue("_E.activity", ti.taskID)
+			errorObj["activity"] = e.ActivityName()
 		}
 	case *ActivityEvalError:
-		ti.flowInst.SetValue("_E.activity", e.TaskName())
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.type", e.Type())
-		ti.flowInst.SetValue("_E.data", nil)
-		ti.flowInst.SetValue("_E.code", "")
-	default:
-		ti.flowInst.SetValue("_E.activity", ti.taskID)
-		ti.flowInst.SetValue("_E.message", err.Error())
-		ti.flowInst.SetValue("_E.type", "unknown")
-		ti.flowInst.SetValue("_E.data", nil)
-		ti.flowInst.SetValue("_E.code", "")
+		errorObj["type"] = e.Type()
+		errorObj["activity"] = e.TaskName()
 	}
 
-	//todo add case for *dataMapperError & *activity.Error
+	_ = ti.flowInst.SetValue("_E", errorObj)
+}
+
+func NewErrorObj(taskId string, msg string) map[string]interface{} {
+	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": ""}
+}
+
+//DEPRECATED
+type LegacyCtx struct {
+	task *TaskInst
+}
+
+func (l *LegacyCtx) GetOutput(name string) interface{} {
+	val, ok := l.task.outputs[name]
+	if ok {
+		return val
+	}
+
+	if len(l.task.task.ActivityConfig().Ref()) > 0 {
+		return l.task.task.ActivityConfig().GetOutput(name)
+	}
+
+	return nil
+}
+
+func (l *LegacyCtx) ActivityHost() activity.Host {
+	return l.task.ActivityHost()
+}
+
+func (l *LegacyCtx) Name() string {
+	return l.task.Name()
+}
+
+func (l *LegacyCtx) GetInput(name string) interface{} {
+	return l.task.GetInput(name)
+}
+
+func (l *LegacyCtx) SetOutput(name string, value interface{}) error {
+	return l.task.SetOutput(name, value)
+}
+
+func (l *LegacyCtx) GetInputObject(input data.StructValue) error {
+	return l.task.GetInputObject(input)
+}
+
+func (l *LegacyCtx) SetOutputObject(output data.StructValue) error {
+	return l.task.SetOutputObject(output)
+}
+
+func (l *LegacyCtx) GetSharedTempData() map[string]interface{} {
+	return l.task.GetSharedTempData()
+}
+func (l *LegacyCtx) GetInputSchema(name string) schema.Schema {
+	return l.task.GetInputSchema(name)
+}
+
+func (l *LegacyCtx) GetOutputSchema(name string) schema.Schema {
+	return l.task.GetOutputSchema(name)
+}
+
+func (l *LegacyCtx) Logger() log.Logger {
+	return l.task.Logger()
 }

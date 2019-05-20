@@ -52,7 +52,7 @@ type TaskContext interface {
 
 	GetSetting(name string) (value interface{}, exists bool)
 
-	SetWorkingData(key string, value interface{}) error
+	SetWorkingData(key string, value interface{})
 
 	GetWorkingData(key string) (interface{}, bool)
 

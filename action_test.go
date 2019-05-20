@@ -9,69 +9,14 @@ import (
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/engine/runner"
+	"github.com/project-flogo/core/support/test"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
 	"github.com/project-flogo/flow/tester"
 	"github.com/stretchr/testify/assert"
 )
 
-const FLOW_REF = "github.com/project-flogo/flow"
-
-type testInitCtx struct {
-}
-
-func (testInitCtx) ResourceManager() *resource.Manager {
-	return nil
-}
-
-//TestInitNoFlavorError
-func TestInitNoFlavorError(t *testing.T) {
-
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: []byte(`{}`)}
-	f := &ActionFactory{}
-	f.Initialize(&testInitCtx{})
-	_, err := f.New(mockConfig)
-	assert.NotNil(t, err)
-}
-
-//TestInitUnCompressedFlowFlavorError
-func TestInitUnCompressedFlowFlavorError(t *testing.T) {
-
-	mockFlowData := []byte(`{"flow":{}}`)
-
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
-
-	f := &ActionFactory{}
-	f.Initialize(&testInitCtx{})
-	_, err := f.New(mockConfig)
-	assert.NotNil(t, err)
-}
-
-//TestInitCompressedFlowFlavorError
-func TestInitCompressedFlowFlavorError(t *testing.T) {
-
-	mockFlowData := []byte(`{"flowCompressed":""}`)
-
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
-
-	f := &ActionFactory{}
-	f.Initialize(&testInitCtx{})
-	_, err := f.New(mockConfig)
-	assert.NotNil(t, err)
-}
-
-//TestInitURIFlowFlavorError
-func TestInitURIFlowFlavorError(t *testing.T) {
-
-	mockFlowData := []byte(`{"flowURI":""}`)
-
-	mockConfig := &action.Config{Id: "myMockConfig", Ref: "github.com/my/mock/ref", Data: mockFlowData}
-
-	f := &ActionFactory{}
-	f.Initialize(&testInitCtx{})
-	_, err := f.New(mockConfig)
-	assert.NotNil(t, err)
-}
+const FlowRef = "github.com/project-flogo/flow"
 
 var testFlowActionCfg = `{
  "id": "flow",
@@ -222,14 +167,15 @@ func TestFlowAction_Run_Restart(t *testing.T) {
 
 	cfg := &action.Config{}
 	err := json.Unmarshal([]byte(testFlowActionCfg), cfg)
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	ff := ActionFactory{}
-	ff.Initialize(&testInitCtx{})
+	err = ff.Initialize(test.NewActionInitCtx())
+	assert.Nil(t, err)
+
 	flowAction, err := ff.New(cfg)
 	assert.NotNil(t, err)
 
@@ -263,7 +209,8 @@ func TestFlowAction_Run_Restart(t *testing.T) {
 	inputs["_run_options"] = ro
 
 	r := runner.NewDirect()
-	r.RunAction(ctx, flowAction, inputs)
+	_, err = r.RunAction(ctx, flowAction, inputs)
+	assert.Nil(t, err)
 }
 
 type RestartRequest struct {
@@ -390,13 +337,14 @@ var jsonRestartRequest = `{
 
 func TestRequestProcessor_RestartFlow(t *testing.T) {
 
-	f := action.GetFactory(FLOW_REF)
+	f := action.GetFactory(FlowRef)
 	af := f.(*ActionFactory)
-	af.Initialize(&testInitCtx{})
+	err := af.Initialize(test.NewActionInitCtx())
+	assert.Nil(t, err)
 
 	loader := resource.GetLoader("flow")
 	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
-	_, err := loader.LoadResource(rConfig1)
+	_, err = loader.LoadResource(rConfig1)
 	assert.Nil(t, err)
 
 	rp := tester.NewRequestProcessor()

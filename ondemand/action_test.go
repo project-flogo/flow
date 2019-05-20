@@ -77,7 +77,9 @@ func TestFlowAction_Run(t *testing.T) {
 	cfg := &action.Config{}
 
 	ff := ActionFactory{}
-	ff.Initialize(&testInitCtx{})
+	err := ff.Initialize(&testInitCtx{})
+	assert.Nil(t, err)
+
 	fa, err := ff.New(cfg)
 	assert.Nil(t, err)
 

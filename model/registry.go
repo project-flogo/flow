@@ -50,7 +50,7 @@ func Registered() []*FlowModel {
 // Get gets specified FlowModel
 func Get(id string) (*FlowModel, error) {
 	if _, ok := models[id]; !ok {
-		return nil, errors.New("Model not found")
+		return nil, errors.New("model not found")
 	}
 	return models[id], nil
 }

@@ -135,6 +135,8 @@ func (sr *RemoteStateRecorder) RecordStep(instance *IndependentInstance) {
 	sr.logger.Debug("JSON: ", string(jsonReq))
 
 	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(jsonReq))
+
+	//todo fix this
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}

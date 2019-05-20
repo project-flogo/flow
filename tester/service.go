@@ -115,7 +115,10 @@ func (et *RestEngineTester) StartFlow(w http.ResponseWriter, r *http.Request, _ 
 			logger.Debugf("Started Instance [ID:%s] for %s", idResponse.ID, req.FlowURI)
 
 			encoder := json.NewEncoder(w)
-			encoder.Encode(idResponse)
+			err := encoder.Encode(idResponse)
+			if err != nil {
+				logger.Errorf("Unable to encode response: %v", err)
+			}
 		} else {
 			logger.Error("Id not returned")
 			w.WriteHeader(http.StatusOK)
@@ -164,7 +167,10 @@ func (et *RestEngineTester) RestartFlow(w http.ResponseWriter, r *http.Request, 
 		logger.Debugf("Restarted Instance [ID:%s] for %s", idResponse.ID, req.InitialState.FlowURI())
 
 		encoder := json.NewEncoder(w)
-		encoder.Encode(idResponse)
+		err := encoder.Encode(idResponse)
+		if err != nil {
+			logger.Errorf("Unable to encode response: %v", err)
+		}
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
@@ -209,7 +215,10 @@ func (et *RestEngineTester) ResumeFlow(w http.ResponseWriter, r *http.Request, _
 		logger.Debugf("Resumed Instance [ID:%s] for %s", idResponse.ID, req.State.FlowURI())
 
 		encoder := json.NewEncoder(w)
-		encoder.Encode(idResponse)
+		err := encoder.Encode(idResponse)
+		if err != nil {
+			logger.Errorf("Unable to encode response: %v", err)
+		}
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}
@@ -220,7 +229,7 @@ func (et *RestEngineTester) Status(w http.ResponseWriter, r *http.Request, _ htt
 
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
-	w.Write([]byte(`{"status":"ok"}`))
+	_, _ = w.Write([]byte(`{"status":"ok"}`))
 	//w.WriteHeader(http.StatusOK)
 }
 

@@ -164,6 +164,7 @@ func TestDynamicIO(t *testing.T) {
 	settings := &Settings{FlowURI: "res://flow:flow2"}
 	iCtx := test.NewActivityInitContext(settings, nil)
 	act, err := New(iCtx)
+	assert.Nil(t, err)
 
 	activityMd := act.Metadata()
 	ioMd := activityMd.IOMetadata
@@ -199,17 +200,20 @@ func TestSubFlow(t *testing.T) {
 func initActionFactory(af action.Factory) error {
 
 	ctx := test.NewActionInitCtx()
-	af.Initialize(ctx)
-
-	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
-	rConfig2 := &resource.Config{ID: "flow:flow2", Data: []byte(jsonFlow2)}
-
-	err := ctx.AddResource(support.RESTYPE_FLOW, rConfig1)
+	err := af.Initialize(ctx)
 	if err != nil {
 		return err
 	}
 
-	err = ctx.AddResource(support.RESTYPE_FLOW, rConfig2)
+	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
+	rConfig2 := &resource.Config{ID: "flow:flow2", Data: []byte(jsonFlow2)}
+
+	err = ctx.AddResource(support.ResTypeFlow, rConfig1)
+	if err != nil {
+		return err
+	}
+
+	err = ctx.AddResource(support.ResTypeFlow, rConfig2)
 	if err != nil {
 		return err
 	}
