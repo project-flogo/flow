@@ -503,6 +503,10 @@ func (l *LegacyCtx) GetOutputSchema(name string) schema.Schema {
 	return l.task.GetOutputSchema(name)
 }
 
+func (l *LegacyCtx) GetSetting(name string) (interface{}, bool) {
+	return l.task.task.ActivityConfig().GetSetting(name)
+}
+
 func (l *LegacyCtx) Logger() log.Logger {
 	return l.task.Logger()
 }
