@@ -35,8 +35,8 @@ func (rb *RepeatOnErrorTaskBehavior) Eval(ctx model.TaskContext) (evalResult mod
 		// first attempt - get retry count
 		retryObj, _ := ctx.GetSetting("retryCount")
 		maxRetries, err = coerce.ToInt64(retryObj)
-		if err != nil {
-			err = fmt.Errorf("repeat on error for task '%s' is not properly configured. '%s' is not a valid retry value", ctx.Task().Name(), retryObj)
+		if err != nil || maxRetries < 0 {
+			err = fmt.Errorf("repeat on error for task '%s' is not properly configured. '%v' is not a valid retry value", ctx.Task().Name(), retryObj)
 			logger.Error(err)
 			return model.EvalFail, err
 		}
@@ -76,8 +76,8 @@ func (rb *RepeatOnErrorTaskBehavior) doRetry(ctx model.TaskContext, maxRetries i
 		// check if retryInterval is set
 		retryIntvlObj, _ := ctx.GetSetting("retryInterval")
 		retryInterval, err := coerce.ToInt64(retryIntvlObj)
-		if err != nil {
-			err = fmt.Errorf("repeat on error for task '%s' is not properly configured. '%s' is not a valid retryInterval value", ctx.Task().Name(), retryIntvlObj)
+		if err != nil || retryInterval < 0 {
+			err = fmt.Errorf("repeat on error for task '%s' is not properly configured. '%v' is not a valid retryInterval value", ctx.Task().Name(), retryIntvlObj)
 			ctx.FlowLogger().Error(err)
 			return model.EvalFail, err
 		}
