@@ -99,5 +99,9 @@ func (*IteratorResolver) Resolve(scope data.Scope, item string, field string) (i
 	if !exists {
 		return nil, fmt.Errorf("failed to resolve iteration value, not in an iterator")
 	}
-	return path.GetValue(value, "."+item)
+	if len(field) > 0 {
+		return path.GetValue(value, "."+item+"."+field)
+	} else {
+		return path.GetValue(value, "."+item)
+	}
 }
