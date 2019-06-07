@@ -367,7 +367,20 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 	containerInst := taskInst.flowInst
 
-	if !handled {
+	if handled {
+		//Add error details to scope
+		taskInst.appendErrorData(err)
+
+		if len(taskEntries) != 0 {
+			err := inst.enterTasks(containerInst, taskEntries)
+			if err != nil {
+				//todo review how we should handle an error encountered here
+				log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+			}
+		}
+
+		containerInst.releaseTask(taskInst.Task())
+	}else {
 		if containerInst.isHandlingError {
 			//fail
 			inst.SetStatus(model.FlowStatusFailed)
@@ -378,15 +391,6 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 		return
 	}
 
-	if len(taskEntries) != 0 {
-		err := inst.enterTasks(containerInst, taskEntries)
-		if err != nil {
-			//todo review how we should handle an error encountered here
-			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
-		}
-	}
-
-	containerInst.releaseTask(taskInst.Task())
 }
 
 // HandleGlobalError handles instance errors
