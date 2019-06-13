@@ -369,8 +369,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 	if handled {
 		//Add error details to scope
-		taskInst.appendErrorData(err)
-
+		taskInst.setTaskError(err)
 		if len(taskEntries) != 0 {
 			err := inst.enterTasks(containerInst, taskEntries)
 			if err != nil {
@@ -380,7 +379,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 		}
 
 		containerInst.releaseTask(taskInst.Task())
-	}else {
+	} else {
 		if containerInst.isHandlingError {
 			//fail
 			inst.SetStatus(model.FlowStatusFailed)
