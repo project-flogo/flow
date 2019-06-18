@@ -37,7 +37,6 @@ func (r *FlowResolver) Resolve(scope data.Scope, itemName, valueName string) (in
 	if !exists {
 		return nil, fmt.Errorf("failed to resolve flow attr: '%s', not found in flow", valueName)
 	}
-	fmt.Println(value)
 	return value, nil
 }
 
