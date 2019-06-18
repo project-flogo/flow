@@ -427,7 +427,7 @@ func (ti *TaskInst) GetSetting(name string) (value interface{}, exists bool) {
 func (ti *TaskInst) appendErrorData(err error) {
 	//For global handle only
 	errObj := ti.getErrorObject(err)
-	ti.flowInst.attrs["_E."+ti.Task().Name()] = errObj
+	ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
 	ti.flowInst.SetValue("_E", errObj)
 
 }
