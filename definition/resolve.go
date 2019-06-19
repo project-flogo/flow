@@ -37,7 +37,6 @@ func (r *FlowResolver) Resolve(scope data.Scope, itemName, valueName string) (in
 	if !exists {
 		return nil, fmt.Errorf("failed to resolve flow attr: '%s', not found in flow", valueName)
 	}
-
 	return value, nil
 }
 
@@ -60,30 +59,34 @@ func (r *ActivityResolver) Resolve(scope data.Scope, itemName, valueName string)
 	return value, nil
 }
 
+var errorResolverInfo = resolve.NewImplicitResolverInfo(false, true)
+
 type ErrorResolver struct {
 }
 
 func (r *ErrorResolver) GetResolverInfo() *resolve.ResolverInfo {
-	return resolverInfo
+	return errorResolverInfo
 }
 
 func (r *ErrorResolver) Resolve(scope data.Scope, itemName, valueName string) (interface{}, error) {
-
-	err, exists := scope.GetValue("_E")
-	if !exists {
-		return nil, fmt.Errorf("failed to resolve error, not found in flow")
-	}
-
-	errObj, ok := err.(map[string]interface{})
-	if ok {
-		value, ok := errObj[valueName]
-		if !ok {
-			return nil, nil
+	//2 cases,  1. $error.code 2. $error[activityName].code
+	var value interface{}
+	if itemName == "" {
+		v, exist := scope.GetValue("_E")
+		if !exist {
+			return nil, fmt.Errorf("failed to resolve error, not found in flow")
 		}
-		return value, nil
+		value = v
 	} else {
-		return nil, fmt.Errorf("invalid error object: %v", errObj)
+		v, exists := scope.GetValue("_E." + itemName)
+		if !exists {
+			return nil, fmt.Errorf("failed to resolve activity [%s] error, not found in flow", itemName)
+
+		}
+		value = v
 	}
+
+	return path.GetValue(value, "."+valueName)
 }
 
 type IteratorResolver struct {
