@@ -261,7 +261,7 @@ const (
 	// LtError denotes an error link
 	LtError LinkType = 3
 
-	// LtOtherwise denotes an otherwise link which doesn't follow any other links
+	// LtOtherwise denotes an otherwise link
 	LtOtherwise = 4
 )
 

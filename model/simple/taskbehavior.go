@@ -188,7 +188,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			}
 		}
 
-		//Oherwise branch
+		//Oherwise branch while no branch to follow
 		if !hasFollow && hasOtherwise {
 			for _, linkInst := range linkInsts {
 				if linkInst.Link().Type() == definition.LtOtherwise {
