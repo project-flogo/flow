@@ -260,6 +260,9 @@ const (
 
 	// LtError denotes an error link
 	LtError LinkType = 3
+
+	// LtOtherwise denotes an otherwise link which doesn't follow any other links
+	LtOtherwise = 4
 )
 
 // LinkOld is the object that describes the definition of

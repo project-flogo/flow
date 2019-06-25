@@ -144,12 +144,18 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			logger.Debugf("Task '%s' has %d outgoing links", ctx.Task().ID(), numLinks)
 		}
 
+		var hasFollow, hasOtherwise bool
 		for _, linkInst := range linkInsts {
 
 			follow := true
 
 			if linkInst.Link().Type() == definition.LtError {
 				//todo should we skip or ignore?
+				continue
+			}
+
+			if linkInst.Link().Type() == definition.LtOtherwise {
+				hasOtherwise = true
 				continue
 			}
 
@@ -166,6 +172,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			}
 
 			if follow {
+				hasFollow = true
 				linkInst.SetStatus(model.LinkStatusTrue)
 
 				if logger.DebugEnabled() {
@@ -179,6 +186,21 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
 				taskEntries = append(taskEntries, taskEntry)
 			}
+		}
+
+		//Oherwise branch
+		if !hasFollow && hasOtherwise {
+			for _, linkInst := range linkInsts {
+				if linkInst.Link().Type() == definition.LtOtherwise {
+					linkInst.SetStatus(model.LinkStatusTrue)
+					if logger.DebugEnabled() {
+						logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
+					}
+					taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
+					taskEntries = append(taskEntries, taskEntry)
+				}
+			}
+
 		}
 
 		//continue on to successor tasks
