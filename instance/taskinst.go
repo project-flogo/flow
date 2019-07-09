@@ -425,9 +425,22 @@ func (ti *TaskInst) GetSetting(name string) (value interface{}, exists bool) {
 }
 
 func (ti *TaskInst) appendErrorData(err error) {
+	//For global handle only
+	errObj := ti.getErrorObject(err)
+	ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
+	ti.flowInst.SetValue("_E", errObj)
 
+}
+
+func (ti *TaskInst) setTaskError(err error) {
+	//For error branch handle.
+	errObj := ti.getErrorObject(err)
+	ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
+
+}
+
+func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 	errorObj := NewErrorObj(ti.taskID, err.Error())
-
 	switch e := err.(type) {
 	case *definition.LinkExprError:
 		errorObj["type"] = "link_expr"
@@ -442,8 +455,7 @@ func (ti *TaskInst) appendErrorData(err error) {
 		errorObj["type"] = e.Type()
 		errorObj["activity"] = e.TaskName()
 	}
-
-	_ = ti.flowInst.SetValue("_E", errorObj)
+	return errorObj
 }
 
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
@@ -501,6 +513,10 @@ func (l *LegacyCtx) GetInputSchema(name string) schema.Schema {
 
 func (l *LegacyCtx) GetOutputSchema(name string) schema.Schema {
 	return l.task.GetOutputSchema(name)
+}
+
+func (l *LegacyCtx) GetSetting(name string) (interface{}, bool) {
+	return l.task.task.ActivityConfig().GetSetting(name)
 }
 
 func (l *LegacyCtx) Logger() log.Logger {
