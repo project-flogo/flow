@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/flow/model"
 )
@@ -89,20 +90,34 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		ctx.SetWorkingData("iteration", iteration)
 	}
 
-	repeat := itx.next()
+	shouldIterate := itx.next()
 
-	if repeat {
+	if shouldIterate {
 		if logger.DebugEnabled() {
-			logger.Debugf("Repeat:%s, Key:%s, Value:%v", repeat, itx.Key(), itx.Value())
+			logger.Debugf("Repeat:%s, Key:%s, Value:%v", shouldIterate, itx.Key(), itx.Value())
 		}
 
 		iteration, _ := iterationAttr.(map[string]interface{})
 		iteration["key"] = itx.Key()
 		iteration["value"] = itx.Value()
 
+		// Repeat label is used to eval activity if condition matches
+	repeat:
 		done, err := ctx.EvalActivity()
 
 		if err != nil {
+			// check if error returned is retriable
+			if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+				// check if task is configured to repeat on error
+				repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+				if rerr != nil {
+					return model.EvalFail, rerr
+				}
+				if repeatData.Count > 0 {
+					evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
+					return evalResult, err
+				}
+			}
 			ref := ctx.Task().ActivityConfig().Ref()
 			logger.Errorf("Error evaluating activity '%s'[%s] - %s", ref, err.Error())
 			ctx.SetStatus(model.TaskStatusFailed)
@@ -114,6 +129,20 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			return model.EvalWait, nil
 		}
 
+		// check if task is configured to repeat on condition
+		repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
+		if rerr != nil {
+			return model.EvalFail, rerr
+		}
+		if len(repeatData.Condition) > 0 {
+			evalResult, err = EvaluateExpression(ctx, repeatData)
+			if err != nil {
+				return model.EvalFail, err
+			}
+			if evalResult == model.EvalRepeat {
+				goto repeat
+			}
+		}
 		evalResult = model.EvalRepeat
 
 	} else {
@@ -132,6 +161,18 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 
 	//what to do if eval isn't "done"?
 	if err != nil {
+		// check if error returned is retriable
+		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+			// check if task is configured to repeat on error
+			repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+			if rerr != nil {
+				return model.EvalFail, rerr
+			}
+			if repeatData.Count > 0 {
+				evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
+				return evalResult, err
+			}
+		}
 		ref := ctx.Task().ActivityConfig().Ref()
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().Name(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
@@ -143,6 +184,15 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 
 	if itx.HasNext() {
 		return model.EvalRepeat, nil
+	}
+
+	// check if task is configured to repeat on condition
+	repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
+	if rerr != nil {
+		return model.EvalFail, rerr
+	}
+	if len(repeatData.Condition) > 0 {
+		return EvaluateExpression(ctx, repeatData)
 	}
 
 	return model.EvalDone, nil

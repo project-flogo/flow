@@ -88,6 +88,18 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	done, err := ctx.EvalActivity()
 
 	if err != nil {
+		// check if error returned is retriable
+		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+			// check if task is configured to repeat on error
+			repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+			if rerr != nil {
+				return model.EvalFail, rerr
+			}
+			if repeatData.Count > 0 {
+				evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
+				return evalResult, err
+			}
+		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
@@ -95,6 +107,14 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	}
 
 	if done {
+		// check if task is configured to repeat on condition
+		repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
+		if rerr != nil {
+			return model.EvalFail, rerr
+		}
+		if len(repeatData.Condition) > 0 {
+			return EvaluateExpression(ctx, repeatData)
+		}
 		evalResult = model.EvalDone
 	} else {
 		evalResult = model.EvalWait
@@ -112,10 +132,31 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 
 	//what to do if eval isn't "done"?
 	if err != nil {
+		// check if error returned is retriable
+		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+			// check if task is configured to repeat on error
+			repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+			if rerr != nil {
+				return model.EvalFail, rerr
+			}
+			if repeatData.Count > 0 {
+				evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
+				return evalResult, err
+			}
+		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
+	}
+
+	// check if task is configured to repeat on condition
+	repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
+	if rerr != nil {
+		return model.EvalFail, rerr
+	}
+	if len(repeatData.Condition) > 0 {
+		return EvaluateExpression(ctx, repeatData)
 	}
 
 	return model.EvalDone, nil
@@ -211,7 +252,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 	return true, nil, nil
 }
 
-// Done implements model.TaskBehavior.Skip
+// Skip implements model.TaskBehavior.Skip
 func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry) {
 	linkInsts := ctx.GetToLinkInstances()
 	numLinks := len(linkInsts)
@@ -249,7 +290,7 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 	return true, nil
 }
 
-// Done implements model.TaskBehavior.Error
+// Error implements model.TaskBehavior.Error
 func (tb *TaskBehavior) Error(ctx model.TaskContext, err error) (handled bool, taskEntries []*model.TaskEntry) {
 
 	linkInsts := ctx.GetToLinkInstances()
