@@ -56,6 +56,9 @@ type TaskContext interface {
 
 	GetWorkingData(key string) (interface{}, bool)
 
+	GetOutputs() map[string]interface{}
+
+	SetFlowAttr(key string, value interface{})
 	FlowLogger() log.Logger
 }
 
