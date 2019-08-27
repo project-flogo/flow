@@ -13,11 +13,6 @@ type IteratorTaskBehavior struct {
 	TaskBehavior
 }
 
-type iteratorData struct {
-	iterator         Iterator
-	accumulateOutput bool
-}
-
 // Eval implements model.TaskBehavior.Eval
 func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 
@@ -31,26 +26,23 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		logger.Debugf("Eval Iterator Task '%s'", ctx.Task().ID())
 	}
 
-	var itxData *iteratorData
-	itxDataAttr, ok := ctx.GetWorkingData("_iterator")
+	var itx Iterator
+
+	itxAttr, ok := ctx.GetWorkingData("_iterator")
 	iterationAttr, _ := ctx.GetWorkingData("iteration")
+
 	if ok {
-		itxData = itxDataAttr.(*iteratorData)
+		itx = itxAttr.(Iterator)
 	} else {
 
 		iterateOn, ok := ctx.GetSetting("iterate")
+
 		if !ok {
 			//todo if iterateOn is not defined, what should we do?
 			//just skip for now
 			return model.EvalDone, nil
 		}
-		//Handle accumulate output
-		var accumulate bool
-		accumulateOutput, ok := ctx.GetSetting("accumulate")
-		if ok {
-			accumulate, _ = coerce.ToBool(accumulateOutput)
-		}
-		var itx Iterator
+
 		switch t := iterateOn.(type) {
 		case string:
 			count, err := coerce.ToInt(iterateOn)
@@ -85,32 +77,28 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			}
 		}
 
-		itxData = &iteratorData{
-			iterator:         itx,
-			accumulateOutput: accumulate,
-		}
-		ctx.SetWorkingData("_iterator", itxData)
+		itxAttr = itx
+		ctx.SetWorkingData("_iterator", itxAttr)
 
 		iteration := map[string]interface{}{
-			"key":                nil,
-			"value":              nil,
-			"accumulate_outputs": []interface{}{},
+			"key":   nil,
+			"value": nil,
 		}
 
 		iterationAttr = iteration
 		ctx.SetWorkingData("iteration", iteration)
 	}
 
-	repeat := itxData.iterator.next()
+	repeat := itx.next()
 
 	if repeat {
 		if logger.DebugEnabled() {
-			logger.Debugf("Repeat:%s, Key:%s, Value:%v", repeat, itxData.iterator.Key(), itxData.iterator.Value())
+			logger.Debugf("Repeat:%s, Key:%s, Value:%v", repeat, itx.Key(), itx.Value())
 		}
 
 		iteration, _ := iterationAttr.(map[string]interface{})
-		iteration["key"] = itxData.iterator.Key()
-		iteration["value"] = itxData.iterator.Value()
+		iteration["key"] = itx.Key()
+		iteration["value"] = itx.Value()
 
 		done, err := ctx.EvalActivity()
 
@@ -121,13 +109,6 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			return model.EvalFail, err
 		}
 
-		if itxData.accumulateOutput {
-			if outputs, ok := iteration["accumulate_outputs"]; ok {
-				outputs = append(outputs.([]interface{}), ctx.GetOutputs())
-				iteration["accumulate_outputs"] = outputs
-			}
-		}
-
 		if !done {
 			ctx.SetStatus(model.TaskStatusWaiting)
 			return model.EvalWait, nil
@@ -136,9 +117,6 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		evalResult = model.EvalRepeat
 
 	} else {
-		if itxData.accumulateOutput {
-			ctx.SetFlowAttr("_accumulate."+ctx.Task().Name()+".outputs", iterationAttr.(map[string]interface{})["accumulate_outputs"])
-		}
 		evalResult = model.EvalDone
 	}
 

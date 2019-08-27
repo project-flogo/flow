@@ -351,18 +351,40 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		if actCfg.OutputMapper() != nil {
-
-			appliedMapper, err := applyOutputMapper(ti)
-
-			if err != nil {
-				evalErr = NewActivityEvalError(ti.task.Name(), "mapper", err.Error())
-				return done, evalErr
+		//skip apply output mapper while enable accumulate for iterator/dowhile
+		if ti.IsAccumulate() {
+			if ti.flowInst.attrs == nil {
+				ti.flowInst.attrs = make(map[string]interface{})
 			}
 
-			if !appliedMapper && !ti.task.IsScope() {
+			attrName := "_A." + ti.Task().ID() + "."
+			var outputs []interface{}
+			if attr, ok := ti.flowInst.attrs[attrName]; ok {
+				outputs, err = coerce.ToArray(attr)
+				if err != nil {
+					return false, fmt.Errorf("Accumuate outputs must be array")
+				}
+				outputs = append(outputs, ti.outputs)
+			} else {
+				outputs = append(outputs, ti.outputs)
+			}
 
-				ti.logger.Debug("Mapper not applied")
+			ti.flowInst.attrs[attrName] = outputs
+
+		} else {
+			if actCfg.OutputMapper() != nil {
+
+				appliedMapper, err := applyOutputMapper(ti)
+
+				if err != nil {
+					evalErr = NewActivityEvalError(ti.task.Name(), "mapper", err.Error())
+					return done, evalErr
+				}
+
+				if !appliedMapper && !ti.task.IsScope() {
+
+					ti.logger.Debug("Mapper not applied")
+				}
 			}
 		}
 	}
@@ -476,6 +498,16 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 		errorObj["activity"] = e.TaskName()
 	}
 	return errorObj
+}
+
+// IsAccumulate use to check if task enable accumulate when it is iterator or dowhile
+func (ti *TaskInst) IsAccumulate() bool {
+	var accumulate bool
+	accumulateOutput, ok := ti.GetSetting("accumulate")
+	if ok {
+		accumulate, _ = coerce.ToBool(accumulateOutput)
+	}
+	return accumulate
 }
 
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
