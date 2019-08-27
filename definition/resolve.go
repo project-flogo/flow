@@ -9,15 +9,14 @@ import (
 )
 
 var defResolver = resolve.NewCompositeResolver(map[string]resolve.Resolver{
-	".":          &resolve.ScopeResolver{},
-	"env":        &resolve.EnvResolver{},
-	"property":   &resolve.PropertyResolver{},
-	"loop":       &resolve.LoopResolver{},
-	"iteration":  &IteratorResolver{}, //todo should we create a separate resolver to use in iterations?
-	"accumulate": &AccumulateResolver{},
-	"activity":   &ActivityResolver{},
-	"error":      &ErrorResolver{},
-	"flow":       &FlowResolver{}})
+	".":         &resolve.ScopeResolver{},
+	"env":       &resolve.EnvResolver{},
+	"property":  &resolve.PropertyResolver{},
+	"loop":      &resolve.LoopResolver{},
+	"iteration": &IteratorResolver{}, //todo should we create a separate resolver to use in iterations?
+	"activity":  &ActivityResolver{},
+	"error":     &ErrorResolver{},
+	"flow":      &FlowResolver{}})
 
 func GetDataResolver() resolve.CompositeResolver {
 	return defResolver
@@ -108,20 +107,4 @@ func (*IteratorResolver) Resolve(scope data.Scope, item string, field string) (i
 	} else {
 		return path.GetValue(value, "."+item)
 	}
-}
-
-type AccumulateResolver struct {
-}
-
-func (*AccumulateResolver) GetResolverInfo() *resolve.ResolverInfo {
-	return dynamicItemResolver
-}
-
-//Resolve resolved iterator value using  the following syntax:  $accumulate[activityName].outputs
-func (*AccumulateResolver) Resolve(scope data.Scope, item string, field string) (interface{}, error) {
-	value, exists := scope.GetValue("_accumulate." + item + "." + field)
-	if !exists {
-		return nil, fmt.Errorf("failed to resolve accumulate value, value not set")
-	}
-	return value, nil
 }

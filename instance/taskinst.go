@@ -87,32 +87,6 @@ func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 	return nil
 }
 
-// SetFlowAttr implements tak.Context.SetFlowAttr
-func (ti *TaskInst) SetFlowAttr(name string, value interface{}) {
-
-	if ti.logger.DebugEnabled() {
-		ti.logger.Debugf("Task[%s] - Set flow attr: %s = %v", ti.taskID, name, value)
-	}
-
-	if ti.flowInst == nil {
-		if ti.flowInst.attrs == nil {
-			ti.flowInst.attrs = make(map[string]interface{})
-		}
-	}
-
-	ti.flowInst.attrs[name] = value
-}
-
-func (ti *TaskInst) GetOutputs() map[string]interface{} {
-	return ti.outputs
-}
-
-// GetInputObject implements activity.Context.GetInputObject
-func (ti *TaskInst) GetInputObject(input data.StructValue) error {
-	err := input.FromMap(ti.inputs)
-	return err
-}
-
 // SetOutputObject implements activity.Context.SetOutputObject
 func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
 	ti.outputs = output.ToMap()
