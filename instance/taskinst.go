@@ -87,6 +87,12 @@ func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 	return nil
 }
 
+// GetInputObject implements activity.Context.GetInputObject
+func (ti *TaskInst) GetInputObject(input data.StructValue) error {
+	err := input.FromMap(ti.inputs)
+	return err
+}
+
 // SetOutputObject implements activity.Context.SetOutputObject
 func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
 	ti.outputs = output.ToMap()
