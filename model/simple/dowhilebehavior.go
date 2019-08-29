@@ -12,11 +12,6 @@ import (
 	"github.com/project-flogo/flow/model"
 )
 
-// constants for do while
-const (
-	DoWhileAttr = "_doWhileCondAttr"
-)
-
 // DoWhileTaskBehavior implements model.TaskBehavior
 type DoWhileTaskBehavior struct {
 	TaskBehavior
@@ -89,34 +84,18 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 
 func (dw *DoWhileTaskBehavior) checkDoWhileCondition(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 	// check if task is configured to repeat on condition match
-	condition, err := dw.getDoWhileCondition(ctx)
-	if err != nil {
-		return model.EvalFail, err
+	condition := ""
+	if d, ok := ctx.GetSetting("do-while"); ok {
+		doWhileObj, err := coerce.ToObject(d)
+		if err != nil {
+			return model.EvalFail, fmt.Errorf("do-while setting is not properly configured")
+		}
+		condition, _ = doWhileObj["condition"].(string)
 	}
 	if len(condition) > 0 {
 		return dw.evaluateCondition(ctx, condition)
 	}
 	return model.EvalDone, nil
-}
-
-// Returns condition set for do-while task type
-func (dw *DoWhileTaskBehavior) getDoWhileCondition(ctx model.TaskContext) (string, error) {
-	if _, ok := ctx.GetWorkingData(DoWhileAttr); !ok {
-		// first attempt - condition attribute not set yet
-		if d, ok := ctx.GetSetting("do-while"); ok {
-			doWhileObj, err := coerce.ToObject(d)
-			if err != nil {
-				return "", fmt.Errorf("do-while setting is not properly configured")
-			}
-			condition, _ := doWhileObj["condition"].(string)
-			ctx.SetWorkingData(DoWhileAttr, condition)
-			return condition, nil
-		}
-		return "", nil
-	}
-	// should be set by now
-	c, _ := ctx.GetWorkingData(DoWhileAttr)
-	return coerce.ToString(c)
 }
 
 // Evaluates condition set for do while task
