@@ -482,7 +482,7 @@ func (ti *TaskInst) handleAccumulation() error {
 		ti.flowInst.attrs = make(map[string]interface{})
 	}
 
-	attrName := "_A." + ti.Task().ID() + "."
+	attrName := "_A." + ti.Task().ID()
 	var outputs []interface{}
 	if attr, ok := ti.flowInst.attrs[attrName]; ok {
 		var err error
