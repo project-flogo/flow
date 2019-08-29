@@ -90,14 +90,13 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	if err != nil {
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-			// check if task is configured to repeat on error
-			repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+			// check if task is configured to retry on error
+			retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
 			if rerr != nil {
 				return model.EvalFail, rerr
 			}
-			if repeatData.Count > 0 {
-				evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
-				return evalResult, err
+			if retryData.Count > 0 {
+				return DoRetry(ctx, retryData, RetryOnErrorAttr), nil
 			}
 		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
@@ -107,14 +106,6 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	}
 
 	if done {
-		// check if task is configured to repeat on condition
-		repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
-		if rerr != nil {
-			return model.EvalFail, rerr
-		}
-		if len(repeatData.Condition) > 0 {
-			return EvaluateExpression(ctx, repeatData)
-		}
 		evalResult = model.EvalDone
 	} else {
 		evalResult = model.EvalWait
@@ -134,14 +125,13 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 	if err != nil {
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-			// check if task is configured to repeat on error
-			repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+			// check if task is configured to retry on error
+			retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
 			if rerr != nil {
 				return model.EvalFail, rerr
 			}
-			if repeatData.Count > 0 {
-				evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
-				return evalResult, err
+			if retryData.Count > 0 {
+				return DoRetry(ctx, retryData, RetryOnErrorAttr), nil
 			}
 		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
@@ -149,16 +139,6 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
-
-	// check if task is configured to repeat on condition
-	repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
-	if rerr != nil {
-		return model.EvalFail, rerr
-	}
-	if len(repeatData.Condition) > 0 {
-		return EvaluateExpression(ctx, repeatData)
-	}
-
 	return model.EvalDone, nil
 }
 

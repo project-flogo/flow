@@ -101,21 +101,24 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		iteration["key"] = itx.Key()
 		iteration["value"] = itx.Value()
 
-		// Repeat label is used to eval activity if condition matches
-	repeat:
+		// Repeat label is used to retry activity on error
+	repeatLabel:
 		done, err := ctx.EvalActivity()
 
 		if err != nil {
 			// check if error returned is retriable
 			if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-				// check if task is configured to repeat on error
-				repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+				// check if task is configured to retry on error
+				retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
 				if rerr != nil {
 					return model.EvalFail, rerr
 				}
-				if repeatData.Count > 0 {
-					evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
-					return evalResult, err
+				if retryData.Count > 0 {
+					evalResult = DoRetry(ctx, retryData, RetryOnErrorAttr)
+					if evalResult == model.EvalRepeat {
+						goto repeatLabel
+					}
+					return evalResult, nil
 				}
 			}
 			ref := ctx.Task().ActivityConfig().Ref()
@@ -127,21 +130,6 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		if !done {
 			ctx.SetStatus(model.TaskStatusWaiting)
 			return model.EvalWait, nil
-		}
-
-		// check if task is configured to repeat on condition
-		repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
-		if rerr != nil {
-			return model.EvalFail, rerr
-		}
-		if len(repeatData.Condition) > 0 {
-			evalResult, err = EvaluateExpression(ctx, repeatData)
-			if err != nil {
-				return model.EvalFail, err
-			}
-			if evalResult == model.EvalRepeat {
-				goto repeat
-			}
 		}
 		evalResult = model.EvalRepeat
 
@@ -163,14 +151,13 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 	if err != nil {
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-			// check if task is configured to repeat on error
-			repeatData, rerr := GetRepeatData(ctx, ErrorRepeatData)
+			// check if task is configured to retry on error
+			retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
 			if rerr != nil {
 				return model.EvalFail, rerr
 			}
-			if repeatData.Count > 0 {
-				evalResult, err = DoRepeat(ctx, repeatData, ErrorRepeatData)
-				return evalResult, err
+			if retryData.Count > 0 {
+				return DoRetry(ctx, retryData, RetryOnErrorAttr), nil
 			}
 		}
 		ref := ctx.Task().ActivityConfig().Ref()
@@ -184,15 +171,6 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 
 	if itx.HasNext() {
 		return model.EvalRepeat, nil
-	}
-
-	// check if task is configured to repeat on condition
-	repeatData, rerr := GetRepeatData(ctx, OnCondRepeatData)
-	if rerr != nil {
-		return model.EvalFail, rerr
-	}
-	if len(repeatData.Condition) > 0 {
-		return EvaluateExpression(ctx, repeatData)
 	}
 
 	return model.EvalDone, nil
