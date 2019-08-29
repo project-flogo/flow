@@ -331,7 +331,12 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		if actCfg.OutputMapper() != nil {
+		//skip apply output mapper while enable accumulate for iterator/dowhile
+		if ti.Accumulated() {
+			if err := ti.handleAccumulation(); err != nil {
+				return false, err
+			}
+		} else if actCfg.OutputMapper() != nil {
 
 			appliedMapper, err := applyOutputMapper(ti)
 
@@ -391,12 +396,16 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 
 	if done {
 
-		if ti.task.ActivityConfig().OutputMapper() != nil {
-			err := applyOutputInterceptor(ti)
-			if err != nil {
+		err := applyOutputInterceptor(ti)
+		if err != nil {
+			return false, err
+		}
+
+		if ti.Accumulated() {
+			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
-
+		} else if ti.task.ActivityConfig().OutputMapper() != nil {
 			appliedMapper, err := applyOutputMapper(ti)
 
 			if err != nil {
@@ -456,6 +465,37 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 		errorObj["activity"] = e.TaskName()
 	}
 	return errorObj
+}
+
+// Accumulated  return whether task enable accumulation in iterator or dowhile
+func (ti *TaskInst) Accumulated() bool {
+	var accumulate bool
+	accumulateOutput, ok := ti.GetSetting("accumulate")
+	if ok {
+		accumulate, _ = coerce.ToBool(accumulateOutput)
+	}
+	return accumulate
+}
+
+func (ti *TaskInst) handleAccumulation() error {
+	if ti.flowInst.attrs == nil {
+		ti.flowInst.attrs = make(map[string]interface{})
+	}
+
+	attrName := "_A." + ti.Task().ID()
+	var outputs []interface{}
+	if attr, ok := ti.flowInst.attrs[attrName]; ok {
+		var err error
+		outputs, err = coerce.ToArray(attr)
+		if err != nil {
+			return fmt.Errorf("Accumuate outputs must be array")
+		}
+		outputs = append(outputs, ti.outputs)
+	} else {
+		outputs = append(outputs, ti.outputs)
+	}
+	ti.flowInst.attrs[attrName] = outputs
+	return nil
 }
 
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
