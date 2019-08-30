@@ -1,13 +1,9 @@
 package simple
 
 import (
-	"fmt"
-
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
-	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/expression"
-	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
 )
@@ -83,32 +79,16 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 }
 
 func (dw *DoWhileTaskBehavior) checkDoWhileCondition(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
-	// check if task is configured to repeat on condition match
-	condition := ""
-	if d, ok := ctx.GetSetting("do-while"); ok {
-		doWhileObj, err := coerce.ToObject(d)
-		if err != nil {
-			return model.EvalFail, fmt.Errorf("do-while setting is not properly configured")
-		}
-		condition, _ = doWhileObj["condition"].(string)
-	}
-	if len(condition) > 0 {
-		return dw.evaluateCondition(ctx, condition)
+	if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().DowhileCondition() != nil {
+		return dw.evaluateCondition(ctx, ctx.Task().LoopConfig().DowhileCondition())
 	}
 	return model.EvalDone, nil
 }
 
 // Evaluates condition set for do while task
-func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, condition string) (evalResult model.EvalResult, err error) {
-	factory := expression.NewFactory(definition.GetDataResolver())
-	expr, err := factory.NewExpr(condition)
-	if err != nil {
-		err = fmt.Errorf("error building expression with condition: %s", condition)
-		return model.EvalFail, err
-	}
-
+func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, condition expression.Expr) (evalResult model.EvalResult, err error) {
 	if t, ok := ctx.(*instance.TaskInst); ok {
-		result, err := expr.Eval(t.ActivityHost().(data.Scope))
+		result, err := condition.Eval(t.ActivityHost().(data.Scope))
 		if err != nil {
 			return model.EvalFail, err
 		}

@@ -181,6 +181,40 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 	return ac.outputMapper
 }
 
+type loopCfg struct {
+	doWhile *struct {
+		condition expression.Expr
+	}
+
+	retryOnError *struct {
+		count    int
+		interval int
+	}
+}
+
+func (l *loopCfg) DowhileCondition() expression.Expr {
+	if l.doWhile != nil {
+		return l.doWhile.condition
+	}
+	return nil
+}
+
+func (l *loopCfg) EnabledDowhile() bool {
+	return l.doWhile != nil
+}
+
+func (l *loopCfg) EnabledRetryOnError() bool {
+	return l.retryOnError != nil
+}
+
+func (l *loopCfg) RetryOnErrorCount() int {
+	return l.retryOnError.count
+}
+
+func (l *loopCfg) RetryOnErrorInterval() int {
+	return l.retryOnError.interval
+}
+
 // Task is the object that describes the definition of
 // a task.  It contains its data (attributes) and its
 // nested structure (child tasks & child links).
@@ -194,6 +228,9 @@ type Task struct {
 	isScope     bool
 
 	settingsMapper mapper.Mapper
+
+	//For do-while and retry
+	loopCfg *loopCfg
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -221,6 +258,10 @@ func (task *Task) ActivityConfig() *ActivityConfig {
 // SettingsMapper returns the SettingsMapper of the task
 func (task *Task) SettingsMapper() mapper.Mapper {
 	return task.settingsMapper
+}
+
+func (task *Task) LoopConfig() *loopCfg {
+	return task.loopCfg
 }
 
 // ToLinks returns the predecessor links of the task
