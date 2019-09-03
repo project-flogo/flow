@@ -94,14 +94,13 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 
 	if shouldIterate {
 		if logger.DebugEnabled() {
-			logger.Debugf("Repeat:%s, Key:%s, Value:%v", shouldIterate, itx.Key(), itx.Value())
+			logger.Debugf("Repeat:%t, Key:%v, Value:%v", shouldIterate, itx.Key(), itx.Value())
 		}
 
 		iteration, _ := iterationAttr.(map[string]interface{})
 		iteration["key"] = itx.Key()
 		iteration["value"] = itx.Value()
 
-		// Repeat label is used to retry activity on error
 		done, err := evalActivity(ctx)
 		if err != nil {
 			ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
@@ -132,12 +131,12 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
 			// check if task is configured to retry on error
-			retryData, rerr := getRetryData(ctx, RetryOnErrorAttr)
+			retryData, rerr := getRetryData(ctx)
 			if rerr != nil {
 				return model.EvalFail, rerr
 			}
 			if retryData.Count > 0 {
-				return retryPostEval(ctx, retryData, RetryOnErrorAttr), nil
+				return retryPostEval(ctx, retryData), nil
 			}
 		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)

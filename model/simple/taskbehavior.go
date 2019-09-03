@@ -109,12 +109,12 @@ func evalActivity(ctx model.TaskContext) (bool, error) {
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
 			// check if task is configured to retry on error
-			retryData, rerr := getRetryData(ctx, RetryOnErrorAttr)
+			retryData, rerr := getRetryData(ctx)
 			if rerr != nil {
 				return done, rerr
 			}
 			if retryData.Count > 0 {
-				return retryEval(ctx, retryData, RetryOnErrorAttr)
+				return retryEval(ctx, retryData)
 			}
 		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
@@ -133,12 +133,12 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
 			// check if task is configured to retry on error
-			retryData, rerr := getRetryData(ctx, RetryOnErrorAttr)
+			retryData, rerr := getRetryData(ctx)
 			if rerr != nil {
 				return model.EvalFail, rerr
 			}
 			if retryData.Count > 0 {
-				return retryPostEval(ctx, retryData, RetryOnErrorAttr), nil
+				return retryPostEval(ctx, retryData), nil
 			}
 		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)

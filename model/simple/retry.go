@@ -9,7 +9,7 @@ import (
 
 // constants for retry data
 const (
-	RetryOnErrorAttr = "_retryOnErrorAttr"
+	retryOnErrorAttr = "_retryOnErrorAttr"
 )
 
 // RetryData type
@@ -18,29 +18,29 @@ type RetryData struct {
 	Interval int
 }
 
-// GetRetryData returns retryonerror configuration for a task
-func getRetryData(ctx model.TaskContext, attrName string) (retryData *RetryData, err error) {
-	if _, ok := ctx.GetWorkingData(attrName); !ok {
+// getRetryData returns retryonerror configuration for a task
+func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
+	if _, ok := ctx.GetWorkingData(retryOnErrorAttr); !ok {
 		// first attempt - build retry data
 		if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().EnabledRetryOnError() {
 			retryData := &RetryData{
 				Count:    ctx.Task().LoopConfig().RetryOnErrorCount(),
 				Interval: ctx.Task().LoopConfig().RetryOnErrorInterval(),
 			}
-			ctx.SetWorkingData(attrName, retryData)
+			ctx.SetWorkingData(retryOnErrorAttr, retryData)
 			return retryData, nil
 		}
 	}
 	// should be set by now
-	rd, _ := ctx.GetWorkingData(attrName)
+	rd, _ := ctx.GetWorkingData(retryOnErrorAttr)
 	if retryData, ok := rd.(*RetryData); ok {
 		return retryData, nil
 	}
 	return nil, fmt.Errorf("error getting retry data")
 }
 
-// DoRetry retries current task
-func retryEval(ctx model.TaskContext, retryData *RetryData, attrName string) (bool, error) {
+// retryEval retries current task from Eval
+func retryEval(ctx model.TaskContext, retryData *RetryData) (bool, error) {
 	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
 
 	if retryData.Interval > 0 {
@@ -50,11 +50,12 @@ func retryEval(ctx model.TaskContext, retryData *RetryData, attrName string) (bo
 
 	// update retry count
 	retryData.Count = retryData.Count - 1
-	ctx.SetWorkingData(attrName, retryData)
+	ctx.SetWorkingData(retryOnErrorAttr, retryData)
 	return evalActivity(ctx)
 }
 
-func retryPostEval(ctx model.TaskContext, retryData *RetryData, attrName string) model.EvalResult {
+// retryPostEval retries current task from PostEval
+func retryPostEval(ctx model.TaskContext, retryData *RetryData) model.EvalResult {
 	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
 
 	if retryData.Interval > 0 {
@@ -64,6 +65,6 @@ func retryPostEval(ctx model.TaskContext, retryData *RetryData, attrName string)
 
 	// update retry count
 	retryData.Count = retryData.Count - 1
-	ctx.SetWorkingData(attrName, retryData)
+	ctx.SetWorkingData(retryOnErrorAttr, retryData)
 	return model.EvalRepeat
 }

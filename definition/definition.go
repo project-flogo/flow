@@ -182,29 +182,26 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 }
 
 type loopCfg struct {
-	doWhile *struct {
+	doWhile struct {
 		condition expression.Expr
 	}
 
-	retryOnError *struct {
+	retryOnError struct {
 		count    int
 		interval int
 	}
 }
 
 func (l *loopCfg) DowhileCondition() expression.Expr {
-	if l.doWhile != nil {
-		return l.doWhile.condition
-	}
-	return nil
+	return l.doWhile.condition
 }
 
 func (l *loopCfg) EnabledDowhile() bool {
-	return l.doWhile != nil
+	return l.doWhile.condition != nil
 }
 
 func (l *loopCfg) EnabledRetryOnError() bool {
-	return l.retryOnError != nil
+	return l.retryOnError.count > 0
 }
 
 func (l *loopCfg) RetryOnErrorCount() int {
