@@ -85,20 +85,8 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	task := ctx.Task()
 	ctx.FlowLogger().Debugf("Eval Task '%s'", task.ID())
 
-	done, err := ctx.EvalActivity()
-
+	done, err := evalActivity(ctx)
 	if err != nil {
-		// check if error returned is retriable
-		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-			// check if task is configured to retry on error
-			retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
-			if rerr != nil {
-				return model.EvalFail, rerr
-			}
-			if retryData.Count > 0 {
-				return DoRetry(ctx, retryData, RetryOnErrorAttr), nil
-			}
-		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
@@ -114,24 +102,43 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	return evalResult, nil
 }
 
-// PostEval implements model.TaskBehavior.PostEval
-func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
+func evalActivity(ctx model.TaskContext) (bool, error) {
+	done, err := ctx.EvalActivity()
 
-	ctx.FlowLogger().Debugf("PostEval Task '%s'", ctx.Task().ID())
-
-	_, err = ctx.PostEvalActivity()
-
-	//what to do if eval isn't "done"?
 	if err != nil {
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
 			// check if task is configured to retry on error
-			retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
+			retryData, rerr := getRetryData(ctx, RetryOnErrorAttr)
+			if rerr != nil {
+				return done, rerr
+			}
+			if retryData.Count > 0 {
+				return retryEval(ctx, retryData, RetryOnErrorAttr)
+			}
+		}
+		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
+		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
+		ctx.SetStatus(model.TaskStatusFailed)
+		return done, err
+	}
+	return done, nil
+}
+
+// PostEval implements model.TaskBehavior.PostEval
+func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
+	ctx.FlowLogger().Debugf("PostEval Task '%s'", ctx.Task().ID())
+	_, err = ctx.PostEvalActivity()
+	if err != nil {
+		// check if error returned is retriable
+		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+			// check if task is configured to retry on error
+			retryData, rerr := getRetryData(ctx, RetryOnErrorAttr)
 			if rerr != nil {
 				return model.EvalFail, rerr
 			}
 			if retryData.Count > 0 {
-				return DoRetry(ctx, retryData, RetryOnErrorAttr), nil
+				return retryPostEval(ctx, retryData, RetryOnErrorAttr), nil
 			}
 		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)

@@ -25,20 +25,8 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 		logger.Debugf("Eval do-while Task '%s'", ctx.Task().ID())
 	}
 
-	done, err := ctx.EvalActivity()
-
+	done, err := evalActivity(ctx)
 	if err != nil {
-		// check if error returned is retriable
-		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-			// check if task is configured to retry on error
-			retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
-			if rerr != nil {
-				return model.EvalFail, rerr
-			}
-			if retryData.Count > 0 {
-				return DoRetry(ctx, retryData, RetryOnErrorAttr), nil
-			}
-		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
@@ -62,12 +50,12 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
 			// check if task is configured to retry on error
-			retryData, rerr := GetRetryData(ctx, RetryOnErrorAttr)
+			retryData, rerr := getRetryData(ctx, RetryOnErrorAttr)
 			if rerr != nil {
 				return model.EvalFail, rerr
 			}
 			if retryData.Count > 0 {
-				return DoRetry(ctx, retryData, RetryOnErrorAttr), nil
+				return retryPostEval(ctx, retryData, RetryOnErrorAttr), nil
 			}
 		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)

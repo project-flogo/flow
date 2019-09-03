@@ -19,7 +19,7 @@ type RetryData struct {
 }
 
 // GetRetryData returns retryonerror configuration for a task
-func GetRetryData(ctx model.TaskContext, attrName string) (retryData *RetryData, err error) {
+func getRetryData(ctx model.TaskContext, attrName string) (retryData *RetryData, err error) {
 	if _, ok := ctx.GetWorkingData(attrName); !ok {
 		// first attempt - build retry data
 		if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().EnabledRetryOnError() {
@@ -40,7 +40,7 @@ func GetRetryData(ctx model.TaskContext, attrName string) (retryData *RetryData,
 }
 
 // DoRetry retries current task
-func DoRetry(ctx model.TaskContext, retryData *RetryData, attrName string) (evalResult model.EvalResult) {
+func retryEval(ctx model.TaskContext, retryData *RetryData, attrName string) (bool, error) {
 	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
 
 	if retryData.Interval > 0 {
@@ -50,7 +50,20 @@ func DoRetry(ctx model.TaskContext, retryData *RetryData, attrName string) (eval
 
 	// update retry count
 	retryData.Count = retryData.Count - 1
+	ctx.SetWorkingData(attrName, retryData)
+	return evalActivity(ctx)
+}
 
+func retryPostEval(ctx model.TaskContext, retryData *RetryData, attrName string) model.EvalResult {
+	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
+
+	if retryData.Interval > 0 {
+		ctx.FlowLogger().Debugf("Task[%s] sleeping for %d milliseconds...", ctx.Task().ID(), retryData.Interval)
+		time.Sleep(time.Duration(retryData.Interval) * time.Millisecond)
+	}
+
+	// update retry count
+	retryData.Count = retryData.Count - 1
 	ctx.SetWorkingData(attrName, retryData)
 	return model.EvalRepeat
 }
