@@ -3,9 +3,10 @@ package definition
 import (
 	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/project-flogo/core/app/resolve"
 	"github.com/project-flogo/core/data/coerce"
-	"strconv"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/expression"
@@ -403,11 +404,11 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 
 		loop := &loopCfg{}
 
-		dowhile, ok := settings["do-while"]
+		dowhile, ok := settings["doWhile"]
 		if ok && dowhile != nil {
 			dowhileObj, err := coerce.ToObject(dowhile)
 			if err != nil {
-				return nil, fmt.Errorf("do-while configuration error : %s", err.Error())
+				return nil, fmt.Errorf("doWhile configuration error : %s", err.Error())
 			}
 			condition, exist := dowhileObj["condition"]
 			if exist && len(condition.(string)) > 0 {
@@ -417,17 +418,17 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				}
 				conditionExpr, err := ef.NewExpr(conditionStr)
 				if err != nil {
-					return nil, fmt.Errorf("compile do-while condition error: %s", err.Error())
+					return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
 				}
 				loop.doWhile.condition = conditionExpr
 			}
 		}
 
-		retryonError, ok := settings["retryonerror"]
-		if ok && retryonError != nil {
-			retryObj, err := coerce.ToObject(retryonError)
+		retryOnError, ok := settings["retryOnError"]
+		if ok && retryOnError != nil {
+			retryObj, err := coerce.ToObject(retryOnError)
 			if err != nil {
-				return nil, fmt.Errorf("retryonerror configuration error : %s", err.Error())
+				return nil, fmt.Errorf("retryOnError configuration error : %s", err.Error())
 			}
 
 			count, exist := retryObj["count"]
@@ -441,7 +442,7 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				}
 				cnt, err := coerce.ToInt(count)
 				if err != nil {
-					return nil, fmt.Errorf("retryonerror count must be int")
+					return nil, fmt.Errorf("retryOnError count must be int")
 				}
 				loop.retryOnError.count = cnt
 			}
@@ -457,7 +458,7 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				}
 				intervalInt, err := coerce.ToInt(interval)
 				if err != nil {
-					return nil, fmt.Errorf("retryonerror interval must be int")
+					return nil, fmt.Errorf("retryOnError interval must be int")
 				}
 				loop.retryOnError.interval = intervalInt
 			}
