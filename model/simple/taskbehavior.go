@@ -85,8 +85,7 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	task := ctx.Task()
 	ctx.FlowLogger().Debugf("Eval Task '%s'", task.ID())
 
-	done, err := ctx.EvalActivity()
-
+	done, err := evalActivity(ctx)
 	if err != nil {
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
@@ -103,21 +102,50 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	return evalResult, nil
 }
 
+func evalActivity(ctx model.TaskContext) (bool, error) {
+	done, err := ctx.EvalActivity()
+
+	if err != nil {
+		// check if error returned is retriable
+		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+			// check if task is configured to retry on error
+			retryData, rerr := getRetryData(ctx)
+			if rerr != nil {
+				return done, rerr
+			}
+			if retryData.Count > 0 {
+				return retryEval(ctx, retryData)
+			}
+		}
+		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
+		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
+		ctx.SetStatus(model.TaskStatusFailed)
+		return done, err
+	}
+	return done, nil
+}
+
 // PostEval implements model.TaskBehavior.PostEval
 func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
-
 	ctx.FlowLogger().Debugf("PostEval Task '%s'", ctx.Task().ID())
-
 	_, err = ctx.PostEvalActivity()
-
-	//what to do if eval isn't "done"?
 	if err != nil {
+		// check if error returned is retriable
+		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+			// check if task is configured to retry on error
+			retryData, rerr := getRetryData(ctx)
+			if rerr != nil {
+				return model.EvalFail, rerr
+			}
+			if retryData.Count > 0 {
+				return retryPostEval(ctx, retryData), nil
+			}
+		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
-
 	return model.EvalDone, nil
 }
 
@@ -211,7 +239,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 	return true, nil, nil
 }
 
-// Done implements model.TaskBehavior.Skip
+// Skip implements model.TaskBehavior.Skip
 func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry) {
 	linkInsts := ctx.GetToLinkInstances()
 	numLinks := len(linkInsts)
@@ -249,7 +277,7 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 	return true, nil
 }
 
-// Done implements model.TaskBehavior.Error
+// Error implements model.TaskBehavior.Error
 func (tb *TaskBehavior) Error(ctx model.TaskContext, err error) (handled bool, taskEntries []*model.TaskEntry) {
 
 	linkInsts := ctx.GetToLinkInstances()

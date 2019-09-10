@@ -17,6 +17,6 @@ func New() *model.FlowModel {
 	m.RegisterFlowBehavior(&FlowBehavior{})
 	m.RegisterDefaultTaskBehavior("basic", &TaskBehavior{})
 	m.RegisterTaskBehavior("iterator", &IteratorTaskBehavior{})
-
+	m.RegisterTaskBehavior("doWhile", &DoWhileTaskBehavior{})
 	return m
 }

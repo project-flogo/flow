@@ -3,8 +3,10 @@ package definition
 import (
 	"errors"
 	"fmt"
-	"github.com/project-flogo/core/data/coerce"
 	"strconv"
+
+	"github.com/project-flogo/core/app/resolve"
+	"github.com/project-flogo/core/data/coerce"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/expression"
@@ -147,7 +149,12 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 
 	mf := GetMapperFactory()
 
-	var err error
+	loopConfigure, err := getLoopCfg(rep.Settings, ef)
+	if err != nil {
+		return nil, err
+	}
+	task.loopCfg = loopConfigure
+
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
 	if err != nil {
 		return nil, err
@@ -390,6 +397,75 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 	link.fromTask.toLinks = append(link.fromTask.toLinks, link)
 
 	return link, nil
+}
+
+func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCfg, error) {
+	if len(settings) > 0 {
+
+		loop := &loopCfg{}
+
+		dowhile, ok := settings["doWhile"]
+		if ok && dowhile != nil {
+			dowhileObj, err := coerce.ToObject(dowhile)
+			if err != nil {
+				return nil, fmt.Errorf("doWhile configuration error : %s", err.Error())
+			}
+			condition, exist := dowhileObj["condition"]
+			if exist && len(condition.(string)) > 0 {
+				conditionStr := condition.(string)
+				if conditionStr[0] == '=' {
+					conditionStr = conditionStr[1:]
+				}
+				conditionExpr, err := ef.NewExpr(conditionStr)
+				if err != nil {
+					return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
+				}
+				loop.doWhile.condition = conditionExpr
+			}
+		}
+
+		retryOnError, ok := settings["retryOnError"]
+		if ok && retryOnError != nil {
+			retryObj, err := coerce.ToObject(retryOnError)
+			if err != nil {
+				return nil, fmt.Errorf("retryOnError configuration error : %s", err.Error())
+			}
+
+			count, exist := retryObj["count"]
+			if exist && count != nil {
+				strVal, ok := count.(string)
+				if ok && len(strVal) > 0 && strVal[0] == '=' {
+					count, err = resolve.Resolve(strVal[1:], nil)
+					if err != nil {
+						return nil, err
+					}
+				}
+				cnt, err := coerce.ToInt(count)
+				if err != nil {
+					return nil, fmt.Errorf("retryOnError count must be int")
+				}
+				loop.retryOnError.count = cnt
+			}
+
+			interval, exist := retryObj["interval"]
+			if exist && interval != nil {
+				strVal, ok := interval.(string)
+				if ok && len(strVal) > 0 && strVal[0] == '=' {
+					interval, err = resolve.Resolve(strVal[1:], nil)
+					if err != nil {
+						return nil, err
+					}
+				}
+				intervalInt, err := coerce.ToInt(interval)
+				if err != nil {
+					return nil, fmt.Errorf("retryOnError interval must be int")
+				}
+				loop.retryOnError.interval = intervalInt
+			}
+		}
+		return loop, nil
+	}
+	return nil, nil
 }
 
 type initCtxImpl struct {

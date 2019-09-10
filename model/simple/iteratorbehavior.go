@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/flow/model"
 )
@@ -89,22 +90,21 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		ctx.SetWorkingData("iteration", iteration)
 	}
 
-	repeat := itx.next()
+	shouldIterate := itx.next()
 
-	if repeat {
+	if shouldIterate {
 		if logger.DebugEnabled() {
-			logger.Debugf("Repeat:%s, Key:%s, Value:%v", repeat, itx.Key(), itx.Value())
+			logger.Debugf("Repeat:%t, Key:%v, Value:%v", shouldIterate, itx.Key(), itx.Value())
 		}
 
 		iteration, _ := iterationAttr.(map[string]interface{})
 		iteration["key"] = itx.Key()
 		iteration["value"] = itx.Value()
 
-		done, err := ctx.EvalActivity()
-
+		done, err := evalActivity(ctx)
 		if err != nil {
-			ref := ctx.Task().ActivityConfig().Ref()
-			logger.Errorf("Error evaluating activity '%s'[%s] - %s", ref, err.Error())
+			ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
+			ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 			ctx.SetStatus(model.TaskStatusFailed)
 			return model.EvalFail, err
 		}
@@ -113,7 +113,6 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			ctx.SetStatus(model.TaskStatusWaiting)
 			return model.EvalWait, nil
 		}
-
 		evalResult = model.EvalRepeat
 
 	} else {
@@ -125,15 +124,23 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 
 // PostEval implements model.TaskBehavior.PostEval
 func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
-
 	ctx.FlowLogger().Debugf("PostEval Iterator Task '%s'", ctx.Task().ID())
-
 	_, err = ctx.PostEvalActivity()
 
-	//what to do if eval isn't "done"?
 	if err != nil {
-		ref := ctx.Task().ActivityConfig().Ref()
-		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().Name(), ref, err.Error())
+		// check if error returned is retriable
+		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+			// check if task is configured to retry on error
+			retryData, rerr := getRetryData(ctx)
+			if rerr != nil {
+				return model.EvalFail, rerr
+			}
+			if retryData.Count > 0 {
+				return retryPostEval(ctx, retryData), nil
+			}
+		}
+		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
+		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
