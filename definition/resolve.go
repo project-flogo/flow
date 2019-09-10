@@ -50,10 +50,19 @@ func (r *ActivityResolver) GetResolverInfo() *resolve.ResolverInfo {
 }
 
 func (r *ActivityResolver) Resolve(scope data.Scope, itemName, valueName string) (interface{}, error) {
-
-	value, exists := scope.GetValue("_A." + itemName + "." + valueName)
-	if !exists {
-		return nil, fmt.Errorf("failed to resolve activity attr: '%s', not found in activity '%s'", valueName, itemName)
+	var value interface{}
+	var exists bool
+	if len(valueName) > 0 {
+		value, exists = scope.GetValue("_A." + itemName + "." + valueName)
+		if !exists {
+			return nil, fmt.Errorf("failed to resolve activity attr: '%s', not found in activity '%s'", valueName, itemName)
+		}
+	} else {
+		//For accumulate
+		value, exists = scope.GetValue("_A." + itemName)
+		if !exists {
+			return nil, fmt.Errorf("failed to resolve activity value: '%s'", itemName)
+		}
 	}
 
 	return value, nil
