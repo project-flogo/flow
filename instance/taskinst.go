@@ -490,12 +490,20 @@ func (ti *TaskInst) handleAccumulation() error {
 		if err != nil {
 			return fmt.Errorf("Accumuate outputs must be array")
 		}
-		outputs = append(outputs, ti.outputs)
+		outputs = append(outputs, ti.copyOutputs())
 	} else {
-		outputs = append(outputs, ti.outputs)
+		outputs = append(outputs, ti.copyOutputs())
 	}
 	ti.flowInst.attrs[attrName] = outputs
 	return nil
+}
+
+func (ti *TaskInst) copyOutputs() map[string]interface{} {
+	targetMap := make(map[string]interface{})
+	for key, value := range ti.outputs {
+		targetMap[key] = value
+	}
+	return targetMap
 }
 
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
