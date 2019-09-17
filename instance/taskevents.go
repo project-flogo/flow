@@ -17,7 +17,7 @@ type taskEvent struct {
 }
 
 // Returns activity ref
-func (te *taskEvent) Ref() string {
+func (te *taskEvent) ActivityRef() string {
 	return te.ref
 }
 
