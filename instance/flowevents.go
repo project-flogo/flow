@@ -9,11 +9,11 @@ import (
 )
 
 type flowEvent struct {
-	time                           time.Time
-	err                            error
-	input, output                  map[string]interface{}
-	status                         event.Status
-	name, id, parentName, parentId string
+	time                                     time.Time
+	err                                      error
+	input, output                            map[string]interface{}
+	status                                   event.Status
+	name, id, parentName, parentId, hostName string
 }
 
 func (fe *flowEvent) FlowName() string {
@@ -60,6 +60,11 @@ func (fe *flowEvent) FlowError() error {
 	return fe.err
 }
 
+// Returns name of activity calling this flow in case of subflow invocation
+func (fe *flowEvent) HostName() string {
+	return fe.hostName
+}
+
 func postFlowEvent(inst *Instance) {
 
 	if coreevent.HasListener(event.FlowEventType) {
@@ -68,10 +73,16 @@ func postFlowEvent(inst *Instance) {
 		fe.time = time.Now()
 		fe.name = inst.Name()
 		fe.id = inst.ID()
-		if inst.master != nil {
+		if inst.master != nil && inst.master.id != inst.ID() {
 			fe.parentName = inst.master.Name()
 			fe.parentId = inst.master.ID()
 		}
+
+		taskInst, ok := inst.host.(*TaskInst)
+		if ok {
+			fe.hostName = taskInst.Task().Name()
+		}
+
 		fe.status = convertFlowStatus(inst.Status())
 
 		fe.input = make(map[string]interface{})

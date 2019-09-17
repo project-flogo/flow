@@ -9,11 +9,16 @@ import (
 )
 
 type taskEvent struct {
-	time                           time.Time
-	err                            error
-	taskIn, taskOut                map[string]interface{}
-	status                         event.Status
-	name, typeId, flowName, flowId string
+	time                                time.Time
+	err                                 error
+	taskIn, taskOut                     map[string]interface{}
+	status                              event.Status
+	name, typeId, flowName, flowId, ref string
+}
+
+// Returns activity ref
+func (te *taskEvent) Ref() string {
+	return te.ref
 }
 
 // Returns flow name
@@ -91,6 +96,10 @@ func postTaskEvent(taskInstance *TaskInst) {
 		te.flowName = taskInstance.flowInst.Name()
 		te.flowId = taskInstance.flowInst.ID()
 		te.typeId = taskInstance.Task().TypeID()
+
+		if taskInstance.HasActivity() {
+			te.ref = taskInstance.Task().ActivityConfig().Ref()
+		}
 
 		if te.status == event.FAILED {
 			te.err = taskInstance.returnError

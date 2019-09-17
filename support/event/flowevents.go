@@ -27,12 +27,6 @@ type FlowEvent interface {
 	FlowName() string
 	// Returns flow ID
 	FlowID() string
-	// In case of subflow, returns parent flow name
-	ParentFlowName() string
-	// In case of subflow, returns parent flow ID
-	ParentFlowID() string
-	// Returns event time
-	Time() time.Time
 	// Returns current flow status
 	FlowStatus() Status
 	// Returns input data for flow instance
@@ -41,10 +35,20 @@ type FlowEvent interface {
 	FlowOutput() map[string]interface{}
 	// Returns error for failed flow instance
 	FlowError() error
+	// Returns name of activity calling this flow in case of subflow invocation
+	HostName() string
+	// In case of subflow, returns parent flow name
+	ParentFlowName() string
+	// In case of subflow, returns parent flow ID
+	ParentFlowID() string
+	// Returns event time
+	Time() time.Time
 }
 
 // TaskEvent provides access to task instance execution details
 type TaskEvent interface {
+	// Returns activity ref
+	ActivityRef() string
 	// Returns flow name
 	FlowName() string
 	// Returns flow ID
