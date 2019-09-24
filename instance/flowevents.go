@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"time"
 
 	coreevent "github.com/project-flogo/core/engine/event"
@@ -10,6 +11,7 @@ import (
 
 type flowEvent struct {
 	time                                     time.Time
+	tContext                                 context.Context
 	err                                      error
 	input, output                            map[string]interface{}
 	status                                   event.Status
@@ -38,6 +40,11 @@ func (fe *flowEvent) ParentFlowID() string {
 // Returns event time
 func (fe *flowEvent) Time() time.Time {
 	return fe.time
+}
+
+// Returns trigger context
+func (fe *flowEvent) TriggerContext() context.Context {
+	return fe.tContext
 }
 
 // Returns current flow status
@@ -76,6 +83,11 @@ func postFlowEvent(inst *Instance) {
 		if inst.master != nil && inst.master.id != inst.ID() {
 			fe.parentName = inst.master.Name()
 			fe.parentId = inst.master.ID()
+		}
+
+		tContext, found := inst.GetValue("_triggerContext")
+		if found {
+			fe.tContext = tContext.(context.Context)
 		}
 
 		taskInst, ok := inst.host.(*TaskInst)

@@ -217,6 +217,8 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 		if err != nil {
 			return err
 		}
+		// Set trigger context in process instance for propagation
+		_ = inst.SetValue("_triggerContext", context)
 	case instance.OpResume:
 		if initialState != nil {
 			inst = initialState

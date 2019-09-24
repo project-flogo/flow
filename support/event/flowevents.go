@@ -1,6 +1,7 @@
 package event
 
 import (
+	"context"
 	"time"
 )
 
@@ -43,6 +44,8 @@ type FlowEvent interface {
 	ParentFlowID() string
 	// Returns event time
 	Time() time.Time
+	//Returns Trigger context set by the trigger
+	TriggerContext() context.Context
 }
 
 // TaskEvent provides access to task instance execution details
