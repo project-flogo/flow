@@ -43,6 +43,8 @@ type FlowEvent interface {
 	ParentFlowID() string
 	// Returns event time
 	Time() time.Time
+	// Returns tracing context set by the trigger
+	TracingContext() interface{}
 }
 
 // TaskEvent provides access to task instance execution details
