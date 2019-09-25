@@ -596,3 +596,7 @@ func (inst *IndependentInstance) init(flowInst *Instance) {
 		v.link = flowInst.flowDef.GetLink(v.linkID)
 	}
 }
+
+func (inst *IndependentInstance) SetTracingContext(tracingCtx interface{}) {
+	inst.tracingCtx = tracingCtx
+}

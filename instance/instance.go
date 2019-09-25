@@ -36,6 +36,8 @@ type Instance struct {
 	resultHandler action.ResultHandler
 
 	logger log.Logger
+
+	tracingCtx interface{}
 }
 
 func (inst *Instance) FlowURI() string {
@@ -52,6 +54,15 @@ func (inst *Instance) ID() string {
 	}
 
 	return inst.master.id
+}
+
+func (inst *Instance) TracingContext() interface{} {
+
+	if inst.master != nil {
+		return inst.master.tracingCtx
+	}
+
+	return inst.tracingCtx
 }
 
 // InitActionContext initialize the action context, should be initialized before execution

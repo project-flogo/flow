@@ -15,6 +15,7 @@ import (
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
@@ -151,7 +152,7 @@ func (fa *FlowAction) IOMetadata() *metadata.IOMetadata {
 }
 
 // Run implements action.Action.Run
-func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}, handler action.ResultHandler) error {
+func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, handler action.ResultHandler) error {
 	var err error
 	op := instance.OpStart
 	retID := false
@@ -250,6 +251,11 @@ func (fa *FlowAction) Run(context context.Context, inputs map[string]interface{}
 	if execOptions != nil {
 		logger.Debugf("Applying Exec Options to instance: %s", inst.ID())
 		instance.ApplyExecOptions(inst, execOptions)
+	}
+
+	tCtx := trace.ExtractTracingContext(ctx)
+	if tCtx != nil {
+		inst.SetTracingContext(tCtx)
 	}
 
 	//todo how do we check if debug is enabled?
