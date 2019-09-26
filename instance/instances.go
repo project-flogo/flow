@@ -485,6 +485,8 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 		taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
 
 		enterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
+		// Increment task instance id counter
+		enterTaskData.id++
 
 		enterResult := taskToEnterBehavior.Enter(enterTaskData)
 

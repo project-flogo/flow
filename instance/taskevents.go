@@ -10,6 +10,7 @@ import (
 
 type taskEvent struct {
 	time                                time.Time
+	id                                  int
 	err                                 error
 	taskIn, taskOut                     map[string]interface{}
 	status                              event.Status
@@ -34,6 +35,11 @@ func (te *taskEvent) FlowID() string {
 // Returns task name
 func (te *taskEvent) TaskName() string {
 	return te.name
+}
+
+// Returns task instance id
+func (te *taskEvent) TaskInstanceId() int {
+	return te.id
 }
 
 // Returns task type
@@ -96,6 +102,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 		te.flowName = taskInstance.flowInst.Name()
 		te.flowId = taskInstance.flowInst.ID()
 		te.typeId = taskInstance.Task().TypeID()
+		te.id = taskInstance.id
 
 		if taskInstance.HasActivity() {
 			te.ref = taskInstance.Task().ActivityConfig().Ref()
