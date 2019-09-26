@@ -3,6 +3,7 @@ package instance
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
@@ -208,6 +209,10 @@ func (inst *IndependentInstance) DoStep() bool {
 func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
 	inst.wiCounter++
+
+	// Increment task instance id counter
+	taskInst.counter++
+	taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
 
 	workItem := NewWorkItem(inst.wiCounter, taskInst)
 	inst.logger.Debugf("Scheduling task '%s'", taskInst.task.ID())
@@ -485,8 +490,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 		taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
 
 		enterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
-		// Increment task instance id counter
-		enterTaskData.id++
 
 		enterResult := taskToEnterBehavior.Enter(enterTaskData)
 

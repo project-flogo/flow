@@ -36,7 +36,7 @@ type FlowEvent interface {
 	// Returns error for failed flow instance
 	FlowError() error
 	// Returns name of activity calling this flow in case of subflow invocation
-	HostName() string
+	HostTask() HostTask
 	// In case of subflow, returns parent flow name
 	ParentFlowName() string
 	// In case of subflow, returns parent flow ID
@@ -45,6 +45,11 @@ type FlowEvent interface {
 	Time() time.Time
 	// Returns tracing context set by the trigger
 	TracingContext() interface{}
+}
+
+type HostTask struct {
+	// In case of subflow invocation, name and instance id of subflow activity
+	TaskName, TaskInstanceId string
 }
 
 // TaskEvent provides access to task instance execution details
@@ -58,7 +63,7 @@ type TaskEvent interface {
 	// Returns task name
 	TaskName() string
 	// Returns task instance id
-	TaskInstanceId() int
+	TaskInstanceId() string
 	// Returns task type
 	TaskType() string
 	// Returns task status

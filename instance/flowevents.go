@@ -9,12 +9,13 @@ import (
 )
 
 type flowEvent struct {
-	time                                     time.Time
-	tContext                                 interface{}
-	err                                      error
-	input, output                            map[string]interface{}
-	status                                   event.Status
-	name, id, parentName, parentId, hostName string
+	time                           time.Time
+	hostTask                       event.HostTask
+	tContext                       interface{}
+	err                            error
+	input, output                  map[string]interface{}
+	status                         event.Status
+	name, id, parentName, parentId string
 }
 
 func (fe *flowEvent) FlowName() string {
@@ -67,8 +68,8 @@ func (fe *flowEvent) FlowError() error {
 }
 
 // Returns name of activity calling this flow in case of subflow invocation
-func (fe *flowEvent) HostName() string {
-	return fe.hostName
+func (fe *flowEvent) HostTask() event.HostTask {
+	return fe.hostTask
 }
 
 func postFlowEvent(inst *Instance) {
@@ -86,7 +87,7 @@ func postFlowEvent(inst *Instance) {
 
 		taskInst, ok := inst.host.(*TaskInst)
 		if ok {
-			fe.hostName = taskInst.Task().Name()
+			fe.hostTask = event.HostTask{TaskName: taskInst.Name(), TaskInstanceId: taskInst.InstanceId()}
 		}
 
 		fe.status = convertFlowStatus(inst.Status())
