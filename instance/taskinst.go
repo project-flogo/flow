@@ -34,6 +34,7 @@ type TaskInst struct {
 	flowInst *Instance
 	task     *definition.Task
 	status   model.TaskStatus
+	id       int
 
 	workingData *WorkingDataScope
 
@@ -58,6 +59,11 @@ func (ti *TaskInst) ActivityHost() activity.Host {
 // Name implements activity.Context.Name method
 func (ti *TaskInst) Name() string {
 	return ti.task.Name()
+}
+
+// Returns task instance id
+func (ti *TaskInst) Id() int {
+	return ti.id
 }
 
 // GetInput implements activity.Context.GetInput
