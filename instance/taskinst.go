@@ -34,7 +34,8 @@ type TaskInst struct {
 	flowInst *Instance
 	task     *definition.Task
 	status   model.TaskStatus
-	id       int
+	id       string
+	counter int
 
 	workingData *WorkingDataScope
 
@@ -62,7 +63,7 @@ func (ti *TaskInst) Name() string {
 }
 
 // Returns task instance id
-func (ti *TaskInst) Id() int {
+func (ti *TaskInst) InstanceId() string {
 	return ti.id
 }
 
