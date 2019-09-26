@@ -57,6 +57,8 @@ type TaskEvent interface {
 	FlowID() string
 	// Returns task name
 	TaskName() string
+	// Returns task instance id
+	TaskInstanceId() int
 	// Returns task type
 	TaskType() string
 	// Returns task status
