@@ -184,6 +184,7 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 type loopCfg struct {
 	doWhile struct {
 		condition expression.Expr
+		interval  int
 	}
 
 	retryOnError struct {
@@ -198,6 +199,10 @@ func (l *loopCfg) DowhileCondition() expression.Expr {
 
 func (l *loopCfg) EnabledDowhile() bool {
 	return l.doWhile.condition != nil
+}
+
+func (l *loopCfg) DoWhileInterval() int {
+	return l.doWhile.interval
 }
 
 func (l *loopCfg) EnabledRetryOnError() bool {
