@@ -113,7 +113,7 @@ func evalActivity(ctx model.TaskContext) (bool, error) {
 			if rerr != nil {
 				return done, rerr
 			}
-			if retryData.Count > 0 {
+			if retryData != nil && retryData.Count > 0 {
 				return retryEval(ctx, retryData)
 			}
 		}
