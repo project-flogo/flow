@@ -422,6 +422,21 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				}
 				loop.doWhile.condition = conditionExpr
 			}
+			interval, exist := dowhileObj["interval"]
+			if exist && interval != nil {
+				strVal, ok := interval.(string)
+				if ok && len(strVal) > 0 && strVal[0] == '=' {
+					interval, err = resolve.Resolve(strVal[1:], nil)
+					if err != nil {
+						return nil, err
+					}
+				}
+				intervalInt, err := coerce.ToInt(interval)
+				if err != nil {
+					return nil, fmt.Errorf("doWhile interval must be int")
+				}
+				loop.doWhile.interval = intervalInt
+			}
 		}
 
 		retryOnError, ok := settings["retryOnError"]

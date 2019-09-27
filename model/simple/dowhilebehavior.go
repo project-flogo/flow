@@ -1,6 +1,8 @@
 package simple
 
 import (
+	"time"
+
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/expression"
@@ -22,7 +24,7 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 	}
 
 	if logger.DebugEnabled() {
-		logger.Debugf("Eval do-while Task '%s'", ctx.Task().ID())
+		logger.Debugf("Eval doWhile Task '%s'", ctx.Task().ID())
 	}
 
 	done, err := evalActivity(ctx)
@@ -42,7 +44,7 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 
 // PostEval implements model.TaskBehavior.PostEval
 func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
-	ctx.FlowLogger().Debugf("PostEval do-while Task '%s'", ctx.Task().ID())
+	ctx.FlowLogger().Debugf("PostEval doWhile Task '%s'", ctx.Task().ID())
 
 	_, err = ctx.PostEvalActivity()
 
@@ -81,10 +83,15 @@ func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, conditio
 			return model.EvalFail, err
 		}
 		if result.(bool) {
-			ctx.FlowLogger().Debugf("Task[%s] repeating as do-while condition evaluated to true", ctx.Task().ID())
+			ctx.FlowLogger().Debugf("Task[%s] repeating as doWhile condition evaluated to true", ctx.Task().ID())
+			interval := ctx.Task().LoopConfig().DoWhileInterval()
+			if interval > 0 {
+				ctx.FlowLogger().Debugf("Task[%s] sleeping for %d milliseconds...", ctx.Task().ID(), interval)
+				time.Sleep(time.Duration(interval) * time.Millisecond)
+			}
 			return model.EvalRepeat, nil
 		}
-		ctx.FlowLogger().Debugf("Task[%s] do-while condition evaluated to false", ctx.Task().ID())
+		ctx.FlowLogger().Debugf("Task[%s] doWhile condition evaluated to false", ctx.Task().ID())
 	}
 	return model.EvalDone, nil
 }
