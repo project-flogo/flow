@@ -117,9 +117,6 @@ func evalActivity(ctx model.TaskContext) (bool, error) {
 				return retryEval(ctx, retryData)
 			}
 		}
-		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
-		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
-		ctx.SetStatus(model.TaskStatusFailed)
 		return done, err
 	}
 	return done, nil
