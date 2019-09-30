@@ -3,13 +3,12 @@ package instance
 import (
 	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	flowsupport "github.com/project-flogo/flow/support"
+	"strconv"
 )
 
 type IndependentInstance struct {
@@ -270,9 +269,9 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
 	case model.EvalRepeat:
-		taskInst.SetStatus(model.TaskStatusReady)
 		taskInst.counter++
 		taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
+		taskInst.SetStatus(model.TaskStatusReady)
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
 	}
