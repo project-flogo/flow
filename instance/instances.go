@@ -210,10 +210,6 @@ func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
 	inst.wiCounter++
 
-	// Increment task instance id counter
-	taskInst.counter++
-	taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
-
 	workItem := NewWorkItem(inst.wiCounter, taskInst)
 	inst.logger.Debugf("Scheduling task '%s'", taskInst.task.ID())
 
@@ -275,6 +271,8 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 		taskInst.SetStatus(model.TaskStatusFailed)
 	case model.EvalRepeat:
 		taskInst.SetStatus(model.TaskStatusReady)
+		taskInst.counter++
+		taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
 	}
@@ -491,6 +489,7 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 
 		enterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
 
+		enterTaskData.id = enterTaskData.taskID
 		enterResult := taskToEnterBehavior.Enter(enterTaskData)
 
 		if enterResult == model.EnterEval {
