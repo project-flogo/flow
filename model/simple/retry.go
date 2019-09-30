@@ -22,14 +22,13 @@ type RetryData struct {
 func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
 	if _, ok := ctx.GetWorkingData(retryOnErrorAttr); !ok {
 		// first attempt - build retry data
+		retryData := &RetryData{}
 		if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().EnabledRetryOnError() {
-			retryData := &RetryData{
-				Count:    ctx.Task().LoopConfig().RetryOnErrorCount(),
-				Interval: ctx.Task().LoopConfig().RetryOnErrorInterval(),
-			}
+			retryData.Count = ctx.Task().LoopConfig().RetryOnErrorCount()
+			retryData.Interval = ctx.Task().LoopConfig().RetryOnErrorInterval()
 			ctx.SetWorkingData(retryOnErrorAttr, retryData)
-			return retryData, nil
 		}
+		return retryData, nil
 	}
 	// should be set by now
 	rd, _ := ctx.GetWorkingData(retryOnErrorAttr)

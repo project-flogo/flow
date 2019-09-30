@@ -10,7 +10,7 @@ import (
 
 type taskEvent struct {
 	time                                time.Time
-	id                                  int
+	id                                  string
 	err                                 error
 	taskIn, taskOut                     map[string]interface{}
 	status                              event.Status
@@ -38,7 +38,7 @@ func (te *taskEvent) TaskName() string {
 }
 
 // Returns task instance id
-func (te *taskEvent) TaskInstanceId() int {
+func (te *taskEvent) TaskInstanceId() string {
 	return te.id
 }
 
