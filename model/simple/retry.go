@@ -54,16 +54,16 @@ func retryEval(ctx model.TaskContext, retryData *RetryData) (bool, error) {
 }
 
 // retryPostEval retries current task from PostEval
-func retryPostEval(ctx model.TaskContext, retryData *RetryData) model.EvalResult {
-	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
-
-	if retryData.Interval > 0 {
-		ctx.FlowLogger().Debugf("Task[%s] sleeping for %d milliseconds...", ctx.Task().ID(), retryData.Interval)
-		time.Sleep(time.Duration(retryData.Interval) * time.Millisecond)
-	}
-
-	// update retry count
-	retryData.Count = retryData.Count - 1
-	ctx.SetWorkingData(retryOnErrorAttr, retryData)
-	return model.EvalRepeat
-}
+//func retryPostEval(ctx model.TaskContext, retryData *RetryData) (bool, error) {
+//	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
+//
+//	if retryData.Interval > 0 {
+//		ctx.FlowLogger().Debugf("Task[%s] sleeping for %d milliseconds...", ctx.Task().ID(), retryData.Interval)
+//		time.Sleep(time.Duration(retryData.Interval) * time.Millisecond)
+//	}
+//
+//	// update retry count
+//	retryData.Count = retryData.Count - 1
+//	ctx.SetWorkingData(retryOnErrorAttr, retryData)
+//	return evalActivity(ctx)
+//}
