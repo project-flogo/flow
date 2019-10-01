@@ -271,7 +271,6 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	case model.EvalRepeat:
 		taskInst.counter++
 		taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
-		taskInst.SetStatus(model.TaskStatusReady)
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
 	}
@@ -496,6 +495,7 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			if err != nil {
 				return err
 			}
+			enterTaskData.SetStatus(model.TaskStatusReady)
 			inst.scheduleEval(enterTaskData)
 		} else if enterResult == model.EnterSkip {
 			//todo optimize skip, just keep skipping and don't schedule eval
