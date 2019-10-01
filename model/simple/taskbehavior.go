@@ -127,17 +127,17 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 	ctx.FlowLogger().Debugf("PostEval Task '%s'", ctx.Task().ID())
 	_, err = ctx.PostEvalActivity()
 	if err != nil {
-		// check if error returned is retriable
-		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-			// check if task is configured to retry on error
-			retryData, rerr := getRetryData(ctx)
-			if rerr != nil {
-				return model.EvalFail, rerr
-			}
-			if retryData.Count > 0 {
-				return retryPostEval(ctx, retryData), nil
-			}
-		}
+		//// check if error returned is retriable
+		//if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+		//	// check if task is configured to retry on error
+		//	retryData, rerr := getRetryData(ctx)
+		//	if rerr != nil {
+		//		return model.EvalFail, rerr
+		//	}
+		//	if retryData.Count > 0 {
+		//		return retryPostEval(ctx, retryData), nil
+		//	}
+		//}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		ctx.SetStatus(model.TaskStatusFailed)
