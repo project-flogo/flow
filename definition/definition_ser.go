@@ -368,8 +368,8 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			link.linkType = LtLabel
 		case "error", "3":
 			link.linkType = LtError
-		case "otherwise", "4":
-			link.linkType = LtOtherwise
+		case "exprOtherwise", "4":
+			link.linkType = LtExprOtherwise
 		default:
 			//todo get the flow logger
 			log.RootLogger().Warnf("Unsupported link type '%s', using default link")

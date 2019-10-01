@@ -299,8 +299,8 @@ const (
 	// LtError denotes an error link
 	LtError LinkType = 3
 
-	// LtOtherwise denotes an otherwise link
-	LtOtherwise = 4
+	// LtExprOtherwise denotes an expression otherwise link
+	LtExprOtherwise = 4
 )
 
 // LinkOld is the object that describes the definition of
