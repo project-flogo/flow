@@ -3,13 +3,12 @@ package instance
 import (
 	"errors"
 	"fmt"
-	"strconv"
-
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	flowsupport "github.com/project-flogo/flow/support"
+	"strconv"
 )
 
 type IndependentInstance struct {
@@ -210,10 +209,6 @@ func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
 	inst.wiCounter++
 
-	// Increment task instance id counter
-	taskInst.counter++
-	taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
-
 	workItem := NewWorkItem(inst.wiCounter, taskInst)
 	inst.logger.Debugf("Scheduling task '%s'", taskInst.task.ID())
 
@@ -274,6 +269,8 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
 	case model.EvalRepeat:
+		taskInst.counter++
+		taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
 		taskInst.SetStatus(model.TaskStatusReady)
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
@@ -491,6 +488,7 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 
 		enterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
 
+		enterTaskData.id = enterTaskData.taskID
 		enterResult := taskToEnterBehavior.Enter(enterTaskData)
 
 		if enterResult == model.EnterEval {
