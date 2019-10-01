@@ -169,8 +169,8 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			logger.Debugf("Task '%s' has %d outgoing links", ctx.Task().ID(), numLinks)
 		}
 
-		var linkFollowed bool
-		var otherwiseLinkInst model.LinkInstance
+		var exprLinkFollowed, hasExprLink bool
+		var exprOtherwiseLinkInst model.LinkInstance
 		for _, linkInst := range linkInsts {
 
 			follow := true
@@ -180,27 +180,26 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				continue
 			}
 
-			if linkInst.Link().Type() == definition.LtOtherwise {
-				otherwiseLinkInst = linkInst
+			if linkInst.Link().Type() == definition.LtExprOtherwise {
+				exprOtherwiseLinkInst = linkInst
 				continue
 			}
 
 			if linkInst.Link().Type() == definition.LtExpression {
+				hasExprLink = true
 				//todo handle error
 				if logger.DebugEnabled() {
 					logger.Debugf("Task '%s': Evaluating Outgoing Expression Link to Task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
 				}
 				follow, err = ctx.EvalLink(linkInst.Link())
-
 				if err != nil {
 					return false, nil, err
 				}
+				exprLinkFollowed = follow
 			}
 
 			if follow {
-				linkFollowed = true
 				linkInst.SetStatus(model.LinkStatusTrue)
-
 				if logger.DebugEnabled() {
 					logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
 				}
@@ -215,12 +214,12 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		}
 
 		//Otherwise branch while no link to follow
-		if !linkFollowed && otherwiseLinkInst != nil {
-			otherwiseLinkInst.SetStatus(model.LinkStatusTrue)
+		if hasExprLink && !exprLinkFollowed && exprOtherwiseLinkInst != nil {
+			exprOtherwiseLinkInst.SetStatus(model.LinkStatusTrue)
 			if logger.DebugEnabled() {
-				logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), otherwiseLinkInst.Link().ToTask().ID())
+				logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
 			}
-			taskEntry := &model.TaskEntry{Task: otherwiseLinkInst.Link().ToTask()}
+			taskEntry := &model.TaskEntry{Task: exprOtherwiseLinkInst.Link().ToTask()}
 			taskEntries = append(taskEntries, taskEntry)
 		}
 
