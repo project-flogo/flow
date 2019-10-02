@@ -15,6 +15,11 @@ type DoWhileTaskBehavior struct {
 	TaskBehavior
 }
 
+// DoWhile struct
+type DoWhile struct {
+	index int
+}
+
 // Eval implements model.TaskBehavior.Eval
 func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 	logger := ctx.FlowLogger()
@@ -39,6 +44,7 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 		ctx.SetStatus(model.TaskStatusWaiting)
 		return model.EvalWait, nil
 	}
+	dw.updateDoWhileCount(ctx)
 	return dw.checkDoWhileCondition(ctx)
 }
 
@@ -54,6 +60,7 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
+	dw.updateDoWhileCount(ctx)
 	return dw.checkDoWhileCondition(ctx)
 }
 
@@ -67,20 +74,39 @@ func (dw *DoWhileTaskBehavior) checkDoWhileCondition(ctx model.TaskContext) (eva
 // Evaluates condition set for do while task
 func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, condition expression.Expr) (evalResult model.EvalResult, err error) {
 	if t, ok := ctx.(*instance.TaskInst); ok {
-		result, err := condition.Eval(t.ActivityHost().(data.Scope))
+		result, err := condition.Eval(getScope(ctx, t))
 		if err != nil {
 			return model.EvalFail, err
 		}
 		if result.(bool) {
-			ctx.FlowLogger().Debugf("Task[%s] repeating as doWhile condition evaluated to true", ctx.Task().ID())
-			interval := ctx.Task().LoopConfig().DoWhileInterval()
-			if interval > 0 {
-				ctx.FlowLogger().Debugf("Task[%s] sleeping for %d milliseconds...", ctx.Task().ID(), interval)
-				time.Sleep(time.Duration(interval) * time.Millisecond)
+			delay := ctx.Task().LoopConfig().DoWhileDelay()
+			if delay > 0 {
+				ctx.FlowLogger().Infof("Task[%s] execution delaying for %d milliseconds...", ctx.Task().ID(), delay)
+				time.Sleep(time.Duration(delay) * time.Millisecond)
 			}
+			ctx.FlowLogger().Infof("Task[%s] repeating as doWhile condition evaluated to true", ctx.Task().ID())
 			return model.EvalRepeat, nil
 		}
-		ctx.FlowLogger().Debugf("Task[%s] doWhile condition evaluated to false", ctx.Task().ID())
+		ctx.FlowLogger().Infof("Task[%s] doWhile condition evaluated to false", ctx.Task().ID())
 	}
 	return model.EvalDone, nil
+}
+
+func getScope(ctx model.TaskContext, t *instance.TaskInst) data.Scope {
+	// add dowhile count scope to task instance scope
+	val, _ := ctx.GetWorkingData("dowhile")
+	dowhileObj := val.(*DoWhile)
+	countMap := make(map[string]interface{})
+	countMap["index"] = dowhileObj.index
+	return data.NewSimpleScope(countMap, t.ActivityHost().(data.Scope))
+}
+
+func (dw *DoWhileTaskBehavior) updateDoWhileCount(ctx model.TaskContext) {
+	dowhileObj, ok := ctx.GetWorkingData("dowhile")
+	if !ok {
+		dowhileObj = &DoWhile{}
+	} else {
+		dowhileObj.(*DoWhile).index++
+	}
+	ctx.SetWorkingData("dowhile", dowhileObj)
 }

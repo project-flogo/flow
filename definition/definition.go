@@ -184,7 +184,7 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 type loopCfg struct {
 	doWhile struct {
 		condition expression.Expr
-		interval  int
+		delay     int
 	}
 
 	retryOnError struct {
@@ -201,8 +201,8 @@ func (l *loopCfg) EnabledDowhile() bool {
 	return l.doWhile.condition != nil
 }
 
-func (l *loopCfg) DoWhileInterval() int {
-	return l.doWhile.interval
+func (l *loopCfg) DoWhileDelay() int {
+	return l.doWhile.delay
 }
 
 func (l *loopCfg) EnabledRetryOnError() bool {

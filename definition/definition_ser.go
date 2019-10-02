@@ -422,20 +422,20 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				}
 				loop.doWhile.condition = conditionExpr
 			}
-			interval, exist := dowhileObj["interval"]
-			if exist && interval != nil {
-				strVal, ok := interval.(string)
+			delay, exist := dowhileObj["delay"]
+			if exist && delay != nil {
+				strVal, ok := delay.(string)
 				if ok && len(strVal) > 0 && strVal[0] == '=' {
-					interval, err = resolve.Resolve(strVal[1:], nil)
+					delay, err = resolve.Resolve(strVal[1:], nil)
 					if err != nil {
 						return nil, err
 					}
 				}
-				intervalInt, err := coerce.ToInt(interval)
+				delayInt, err := coerce.ToInt(delay)
 				if err != nil {
-					return nil, fmt.Errorf("doWhile interval must be int")
+					return nil, fmt.Errorf("doWhile delay must be int")
 				}
-				loop.doWhile.interval = intervalInt
+				loop.doWhile.delay = delayInt
 			}
 		}
 
