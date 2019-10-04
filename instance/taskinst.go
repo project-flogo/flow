@@ -108,6 +108,11 @@ func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
 	return nil
 }
 
+// GetInputObject implements activity.Context.GetInputObject
+func (ti *TaskInst) GetTracingContext() trace.TracingContext {
+	return ti.traceContext
+}
+
 func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
 	//todo implement
 	return nil
@@ -569,6 +574,10 @@ func (l *LegacyCtx) GetInputObject(input data.StructValue) error {
 
 func (l *LegacyCtx) SetOutputObject(output data.StructValue) error {
 	return l.task.SetOutputObject(output)
+}
+
+func (l *LegacyCtx) GetTracingContext() trace.TracingContext {
+	return l.task.traceContext
 }
 
 func (l *LegacyCtx) GetSharedTempData() map[string]interface{} {
