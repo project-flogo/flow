@@ -9,6 +9,7 @@ import (
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 )
@@ -35,7 +36,7 @@ type TaskInst struct {
 	task     *definition.Task
 	status   model.TaskStatus
 	id       string
-	counter int
+	counter  int
 
 	workingData *WorkingDataScope
 
@@ -43,8 +44,9 @@ type TaskInst struct {
 	outputs  map[string]interface{}
 	settings map[string]interface{}
 
-	logger      log.Logger
-	returnError error
+	logger       log.Logger
+	returnError  error
+	traceContext trace.TracingContext
 
 	//needed for serialization
 	taskID string
@@ -511,6 +513,16 @@ func (ti *TaskInst) copyOutputs() map[string]interface{} {
 		targetMap[key] = value
 	}
 	return targetMap
+}
+
+func (ti *TaskInst) SpanConfig() trace.Config {
+	config := trace.Config{}
+	config.Operation = ti.flowInst.Name()
+	config.Tags = make(map[string]interface{})
+	config.Tags["flow_id"] = ti.flowInst.ID()
+	config.Tags["task_name"] = ti.task.Name()
+	config.Tags["task_instance_id"] = ti.id
+	return config
 }
 
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
