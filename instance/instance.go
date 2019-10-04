@@ -38,7 +38,6 @@ type Instance struct {
 
 	logger log.Logger
 
-	parentTracingCtx trace.TracingContext
 	tracingCtx       trace.TracingContext
 }
 

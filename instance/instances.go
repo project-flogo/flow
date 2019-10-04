@@ -72,7 +72,9 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.linkInsts = make(map[int]*LinkInst)
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
-	embeddedInst.parentTracingCtx = inst.tracingCtx
+
+	tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), inst.tracingCtx) //TODO handle error
+	embeddedInst.tracingCtx = tc
 
 	if inst.subFlows == nil {
 		inst.subFlows = make(map[int]*Instance)
@@ -468,13 +470,6 @@ func (inst *IndependentInstance) startInstance(toStart *Instance) bool {
 
 	toStart.SetStatus(model.FlowStatusActive)
 
-	tContext, err := trace.GetTracer().StartTrace(toStart.SpanConfig(), inst.parentTracingCtx)
-	if err != nil {
-		log.RootLogger().Errorf("failed to create tracing span: %v", err)
-		return false
-	}
-	toStart.tracingCtx = tContext
-
 	//if pi.Attrs == nil {
 	//	pi.Attrs = make(map[string]*data.Attribute)
 	//}
@@ -623,9 +618,6 @@ func (inst *IndependentInstance) init(flowInst *Instance) {
 	}
 }
 
-func (inst *IndependentInstance) SetParentTracingContext(tracingCtx trace.TracingContext) {
-	inst.parentTracingCtx = tracingCtx
-}
 
 func (inst *IndependentInstance) SetTracingContext(tracingCtx trace.TracingContext) {
 	inst.tracingCtx = tracingCtx
