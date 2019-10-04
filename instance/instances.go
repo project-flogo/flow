@@ -229,7 +229,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
 			inst.logger.Error(err)
-			_ = trace.GetTracer().FinishSpan(taskInst.traceContext, err)
+			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 
 			// todo: useful for debugging
 			//logger.Debugf("StackTrace: %s", debug.Stack())
@@ -247,7 +247,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	var evalResult model.EvalResult
 
-	tCtx, err := trace.GetTracer().StartSpan(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
+	tCtx, err := trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
 	if err != nil {
 		inst.handleTaskError(behavior, taskInst, err)
 		return
@@ -280,10 +280,10 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 		taskInst.SetStatus(model.TaskStatusWaiting)
 	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
-		_ = trace.GetTracer().FinishSpan(taskInst.traceContext, taskInst.returnError)
+		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
 	case model.EvalRepeat:
 		// Finish previous span
-		_ = trace.GetTracer().FinishSpan(taskInst.traceContext, nil)
+		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 		taskInst.counter++
 		taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
 		//task needs to iterate or retry
@@ -327,7 +327,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		flowBehavior.Done(containerInst)
 		flowDone = true
 		containerInst.SetStatus(model.FlowStatusCompleted)
-		_ = trace.GetTracer().FinishSpan(taskInst.traceContext, nil)
+		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
@@ -468,7 +468,7 @@ func (inst *IndependentInstance) startInstance(toStart *Instance) bool {
 
 	toStart.SetStatus(model.FlowStatusActive)
 
-	tContext, err := trace.GetTracer().StartSpan(toStart.SpanConfig(), inst.parentTracingCtx)
+	tContext, err := trace.GetTracer().StartTrace(toStart.SpanConfig(), inst.parentTracingCtx)
 	if err != nil {
 		log.RootLogger().Errorf("failed to create tracing span: %v", err)
 		return false
