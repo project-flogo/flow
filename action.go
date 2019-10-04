@@ -301,10 +301,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 		if inst.Status() == model.FlowStatusCompleted {
 			returnData, err := inst.GetReturnData()
-			_ = trace.GetTracer().FinishSpan(inst.TracingContext(), nil)
+			_ = trace.GetTracer().FinishTrace(inst.TracingContext(), nil)
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
-			_ = trace.GetTracer().FinishSpan(inst.TracingContext(), inst.GetError())
+			_ = trace.GetTracer().FinishTrace(inst.TracingContext(), inst.GetError())
 			handler.HandleResult(nil, inst.GetError())
 		}
 
