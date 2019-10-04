@@ -11,7 +11,6 @@ import (
 type flowEvent struct {
 	time                           time.Time
 	hostTask                       event.HostTask
-	tContext                       interface{}
 	err                            error
 	input, output                  map[string]interface{}
 	status                         event.Status
@@ -40,11 +39,6 @@ func (fe *flowEvent) ParentFlowID() string {
 // Returns event time
 func (fe *flowEvent) Time() time.Time {
 	return fe.time
-}
-
-// Returns tracing context set by trigger
-func (fe *flowEvent) TracingContext() interface{} {
-	return fe.tContext
 }
 
 // Returns current flow status
@@ -91,7 +85,6 @@ func postFlowEvent(inst *Instance) {
 		}
 
 		fe.status = convertFlowStatus(inst.Status())
-		fe.tContext = inst.TracingContext()
 
 		fe.input = make(map[string]interface{})
 		fe.output = make(map[string]interface{})

@@ -43,8 +43,6 @@ type FlowEvent interface {
 	ParentFlowID() string
 	// Returns event time
 	Time() time.Time
-	// Returns tracing context set by the trigger
-	TracingContext() interface{}
 }
 
 type HostTask struct {

@@ -3,12 +3,14 @@ package instance
 import (
 	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	flowsupport "github.com/project-flogo/flow/support"
-	"strconv"
 )
 
 type IndependentInstance struct {
@@ -70,6 +72,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.linkInsts = make(map[int]*LinkInst)
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
+	embeddedInst.parentTracingCtx = inst.tracingCtx
 
 	if inst.subFlows == nil {
 		inst.subFlows = make(map[int]*Instance)
@@ -226,6 +229,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
 			inst.logger.Error(err)
+			_ = trace.GetTracer().FinishSpan(taskInst.traceContext, err)
 
 			// todo: useful for debugging
 			//logger.Debugf("StackTrace: %s", debug.Stack())
@@ -242,6 +246,14 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	var err error
 
 	var evalResult model.EvalResult
+
+	tCtx, err := trace.GetTracer().StartSpan(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
+	if err != nil {
+		inst.handleTaskError(behavior, taskInst, err)
+		return
+	}
+
+	taskInst.traceContext = tCtx
 
 	if taskInst.status == model.TaskStatusWaiting {
 
@@ -268,7 +280,10 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 		taskInst.SetStatus(model.TaskStatusWaiting)
 	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
+		_ = trace.GetTracer().FinishSpan(taskInst.traceContext, taskInst.returnError)
 	case model.EvalRepeat:
+		// Finish previous span
+		_ = trace.GetTracer().FinishSpan(taskInst.traceContext, nil)
 		taskInst.counter++
 		taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
 		//task needs to iterate or retry
@@ -312,6 +327,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		flowBehavior.Done(containerInst)
 		flowDone = true
 		containerInst.SetStatus(model.FlowStatusCompleted)
+		_ = trace.GetTracer().FinishSpan(taskInst.traceContext, nil)
 
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
@@ -451,6 +467,13 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 func (inst *IndependentInstance) startInstance(toStart *Instance) bool {
 
 	toStart.SetStatus(model.FlowStatusActive)
+
+	tContext, err := trace.GetTracer().StartSpan(toStart.SpanConfig(), inst.parentTracingCtx)
+	if err != nil {
+		log.RootLogger().Errorf("failed to create tracing span: %v", err)
+		return false
+	}
+	toStart.tracingCtx = tContext
 
 	//if pi.Attrs == nil {
 	//	pi.Attrs = make(map[string]*data.Attribute)
@@ -600,6 +623,18 @@ func (inst *IndependentInstance) init(flowInst *Instance) {
 	}
 }
 
-func (inst *IndependentInstance) SetTracingContext(tracingCtx interface{}) {
+func (inst *IndependentInstance) SetParentTracingContext(tracingCtx trace.TracingContext) {
+	inst.parentTracingCtx = tracingCtx
+}
+
+func (inst *IndependentInstance) SetTracingContext(tracingCtx trace.TracingContext) {
 	inst.tracingCtx = tracingCtx
+}
+
+func (inst *Instance) SpanConfig() trace.Config {
+	config := trace.Config{}
+	config.Operation = inst.Name()
+	config.Tags = make(map[string]interface{})
+	config.Tags["flow_id"] = inst.ID()
+	return config
 }

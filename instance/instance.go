@@ -7,6 +7,7 @@ import (
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 )
@@ -37,7 +38,8 @@ type Instance struct {
 
 	logger log.Logger
 
-	tracingCtx interface{}
+	parentTracingCtx trace.TracingContext
+	tracingCtx       trace.TracingContext
 }
 
 func (inst *Instance) FlowURI() string {
@@ -56,11 +58,7 @@ func (inst *Instance) ID() string {
 	return inst.master.id
 }
 
-func (inst *Instance) TracingContext() interface{} {
-
-	if inst.master != nil {
-		return inst.master.tracingCtx
-	}
+func (inst *Instance) TracingContext() trace.TracingContext {
 
 	return inst.tracingCtx
 }
