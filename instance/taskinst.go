@@ -525,6 +525,7 @@ func (ti *TaskInst) SpanConfig() trace.Config {
 	config.Operation = ti.flowInst.Name()
 	config.Tags = make(map[string]interface{})
 	config.Tags["flow_id"] = ti.flowInst.ID()
+	config.Tags["flow_name"] = ti.flowInst.Name()
 	config.Tags["task_name"] = ti.task.Name()
 	config.Tags["task_instance_id"] = ti.id
 	return config

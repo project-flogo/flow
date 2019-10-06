@@ -296,7 +296,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 // handleTaskDone handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
 
-	_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
+
 	notifyFlow := false
 	var taskEntries []*model.TaskEntry
 	var err error
@@ -316,6 +316,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		return
 	}
 
+	_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 	flowDone := false
 	task := taskInst.Task()
 
@@ -415,6 +416,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 // HandleGlobalError handles instance errors
 func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err error) {
 
+
 	if containerInst.isHandlingError {
 		//todo: log error information
 		containerInst.SetStatus(model.FlowStatusFailed)
@@ -445,6 +447,9 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 		containerInst.SetStatus(model.FlowStatusFailed)
 
 		if containerInst != inst.Instance {
+
+			// Complete Subflow trace
+			_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)
@@ -629,5 +634,10 @@ func (inst *Instance) SpanConfig() trace.Config {
 	config.Operation = inst.Name()
 	config.Tags = make(map[string]interface{})
 	config.Tags["flow_id"] = inst.ID()
+	config.Tags["flow_name"] = inst.Name()
+	if inst.master != nil &&  inst.master.id != inst.ID() {
+		config.Tags["parent_flow_id"] = inst.master.ID()
+		config.Tags["parent_flow_name"] = inst.master.Name()
+	}
 	return config
 }
