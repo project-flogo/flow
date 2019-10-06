@@ -73,7 +73,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
 
-	tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), inst.tracingCtx) //TODO handle error
+	tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), taskInst.traceContext) //TODO handle error
 	embeddedInst.tracingCtx = tc
 
 	if inst.subFlows == nil {
@@ -296,6 +296,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 // handleTaskDone handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
 
+	_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 	notifyFlow := false
 	var taskEntries []*model.TaskEntry
 	var err error
@@ -329,7 +330,6 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		flowBehavior.Done(containerInst)
 		flowDone = true
 		containerInst.SetStatus(model.FlowStatusCompleted)
-		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
@@ -382,6 +382,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
 
+	_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 	handled, taskEntries := taskBehavior.Error(taskInst, err)
 
 	containerInst := taskInst.flowInst
