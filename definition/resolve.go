@@ -14,7 +14,6 @@ var defResolver = resolve.NewCompositeResolver(map[string]resolve.Resolver{
 	"property":  &resolve.PropertyResolver{},
 	"loop":      &resolve.LoopResolver{},
 	"iteration": &IteratorResolver{}, //todo should we create a separate resolver to use in iterations?
-	"dowhile":   &DoWhileResolver{},
 	"activity":  &ActivityResolver{},
 	"error":     &ErrorResolver{},
 	"flow":      &FlowResolver{}})
@@ -117,24 +116,4 @@ func (*IteratorResolver) Resolve(scope data.Scope, item string, field string) (i
 	} else {
 		return path.GetValue(value, "."+item)
 	}
-}
-
-// DoWhileResolver struct
-type DoWhileResolver struct {
-}
-
-func (*DoWhileResolver) GetResolverInfo() *resolve.ResolverInfo {
-	return dynamicItemResolver
-}
-
-// Resolve dowhile value using the following syntax:  $dowhile[count]
-func (*DoWhileResolver) Resolve(scope data.Scope, item string, field string) (interface{}, error) {
-	value, exists := scope.GetValue(item)
-	if !exists {
-		return nil, fmt.Errorf("failed to resolve dowhile")
-	}
-	if len(field) > 0 {
-		return path.GetValue(value, "."+item+"."+field)
-	}
-	return value, nil
 }
