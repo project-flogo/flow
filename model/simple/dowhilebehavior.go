@@ -17,7 +17,7 @@ type DoWhileTaskBehavior struct {
 
 // DoWhile struct
 type DoWhile struct {
-	index int
+	Index int `json:"index"`
 }
 
 // Eval implements model.TaskBehavior.Eval
@@ -93,20 +93,18 @@ func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, conditio
 }
 
 func getScope(ctx model.TaskContext, t *instance.TaskInst) data.Scope {
-	// add dowhile count scope to task instance scope
-	val, _ := ctx.GetWorkingData("dowhile")
-	dowhileObj := val.(*DoWhile)
-	countMap := make(map[string]interface{})
-	countMap["index"] = dowhileObj.index
-	return data.NewSimpleScope(countMap, t.ActivityHost().(data.Scope))
+	if t.GetWorkingDataScope() != nil {
+		return t.GetWorkingDataScope()
+	}
+	return t.ActivityHost().(data.Scope)
 }
 
 func (dw *DoWhileTaskBehavior) updateDoWhileCount(ctx model.TaskContext) {
-	dowhileObj, ok := ctx.GetWorkingData("dowhile")
+	dowhileObj, ok := ctx.GetWorkingData("iteration")
 	if !ok {
-		dowhileObj = &DoWhile{}
+		dowhileObj = &DoWhile{Index: 1}
 	} else {
-		dowhileObj.(*DoWhile).index++
+		dowhileObj.(*DoWhile).Index++
 	}
-	ctx.SetWorkingData("dowhile", dowhileObj)
+	ctx.SetWorkingData("iteration", dowhileObj)
 }

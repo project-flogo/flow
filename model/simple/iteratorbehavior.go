@@ -84,6 +84,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		iteration := map[string]interface{}{
 			"key":   nil,
 			"value": nil,
+			"index": 0,
 		}
 
 		iterationAttr = iteration
@@ -100,6 +101,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		iteration, _ := iterationAttr.(map[string]interface{})
 		iteration["key"] = itx.Key()
 		iteration["value"] = itx.Value()
+		iteration["index"] = itx.Index()
 
 		done, err := evalActivity(ctx)
 		if err != nil {
@@ -172,6 +174,7 @@ type Iterator interface {
 	Value() interface{}
 	next() bool
 	HasNext() bool
+	Index() int
 }
 
 type ArrayIterator struct {
@@ -192,6 +195,10 @@ func (itx *ArrayIterator) HasNext() bool {
 		return false
 	}
 	return true
+}
+
+func (itx *ArrayIterator) Index() int {
+	return itx.current
 }
 
 func (itx *ArrayIterator) next() bool {
@@ -224,6 +231,10 @@ func (itx *IntIterator) HasNext() bool {
 		return false
 	}
 	return true
+}
+
+func (itx *IntIterator) Index() int {
+	return itx.current
 }
 
 func (itx *IntIterator) next() bool {
@@ -268,6 +279,10 @@ func (itx *ObjectIterator) next() bool {
 	return true
 }
 
+func (itx *ObjectIterator) Index() int {
+	return itx.current
+}
+
 func NewObjectIterator(data map[string]interface{}) *ObjectIterator {
 	keyMap := make(map[int]string, len(data))
 	i := 0
@@ -306,6 +321,10 @@ func (itx *ReflectIterator) next() bool {
 		return false
 	}
 	return true
+}
+
+func (itx *ReflectIterator) Index() int {
+	return itx.current
 }
 
 func NewReflectIterator(val reflect.Value) *ReflectIterator {

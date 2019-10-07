@@ -153,6 +153,10 @@ func (ti *TaskInst) GetWorkingData(key string) (interface{}, bool) {
 	return ti.workingData.GetWorkingValue(key)
 }
 
+func (ti *TaskInst) GetWorkingDataScope() *WorkingDataScope {
+	return ti.workingData
+}
+
 // Task implements model.TaskContext.Task, by returning the Task associated with this
 // TaskInst object
 func (ti *TaskInst) Task() *definition.Task {
