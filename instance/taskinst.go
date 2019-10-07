@@ -35,7 +35,7 @@ type TaskInst struct {
 	task     *definition.Task
 	status   model.TaskStatus
 	id       string
-	counter int
+	counter  int
 
 	workingData *WorkingDataScope
 
@@ -144,6 +144,10 @@ func (ti *TaskInst) GetWorkingData(key string) (interface{}, bool) {
 	}
 
 	return ti.workingData.GetWorkingValue(key)
+}
+
+func (ti *TaskInst) GetWorkingDataScope() *WorkingDataScope {
+	return ti.workingData
 }
 
 // Task implements model.TaskContext.Task, by returning the Task associated with this
