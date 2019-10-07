@@ -249,19 +249,18 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	var evalResult model.EvalResult
 
-	tCtx, err := trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
-	if err != nil {
-		inst.handleTaskError(behavior, taskInst, err)
-		return
-	}
-
-	taskInst.traceContext = tCtx
 
 	if taskInst.status == model.TaskStatusWaiting {
 
 		evalResult, err = behavior.PostEval(taskInst)
 
 	} else {
+		tCtx, err := trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
+		if err != nil {
+			inst.handleTaskError(behavior, taskInst, err)
+			return
+		}
+		taskInst.traceContext = tCtx
 		evalResult, err = behavior.Eval(taskInst)
 	}
 
