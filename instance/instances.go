@@ -249,19 +249,18 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	var evalResult model.EvalResult
 
-	tCtx, err := trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
-	if err != nil {
-		inst.handleTaskError(behavior, taskInst, err)
-		return
-	}
-
-	taskInst.traceContext = tCtx
 
 	if taskInst.status == model.TaskStatusWaiting {
 
 		evalResult, err = behavior.PostEval(taskInst)
 
 	} else {
+		tCtx, err := trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
+		if err != nil {
+			inst.handleTaskError(behavior, taskInst, err)
+			return
+		}
+		taskInst.traceContext = tCtx
 		evalResult, err = behavior.Eval(taskInst)
 	}
 
@@ -334,6 +333,8 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
+			// Complete subflow trace
+			_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, nil)
 
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)
