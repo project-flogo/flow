@@ -334,6 +334,8 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
+			// Complete subflow trace
+			_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, nil)
 
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)
