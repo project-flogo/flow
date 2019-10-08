@@ -32,6 +32,8 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 		logger.Debugf("Eval doWhile Task '%s'", ctx.Task().ID())
 	}
 
+	//Firs time, set index to 0
+	initIndex(ctx)
 	done, err := evalActivity(ctx)
 	if err != nil {
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
@@ -52,6 +54,7 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 	ctx.FlowLogger().Debugf("PostEval doWhile Task '%s'", ctx.Task().ID())
 
+	initIndex(ctx)
 	_, err = ctx.PostEvalActivity()
 
 	if err != nil {
@@ -105,6 +108,14 @@ func (dw *DoWhileTaskBehavior) updateDoWhileCount(ctx model.TaskContext) {
 		dowhileObj = &DoWhile{Index: 1}
 	} else {
 		dowhileObj.(*DoWhile).Index++
+	}
+	ctx.SetWorkingData("iteration", dowhileObj)
+}
+
+func initIndex(ctx model.TaskContext) {
+	dowhileObj, ok := ctx.GetWorkingData("iteration")
+	if !ok {
+		dowhileObj = &DoWhile{Index: 0}
 	}
 	ctx.SetWorkingData("iteration", dowhileObj)
 }
