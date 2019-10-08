@@ -255,13 +255,10 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 		evalResult, err = behavior.PostEval(taskInst)
 
 	} else {
-		tCtx, err := trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
-		if err != nil {
-			inst.handleTaskError(behavior, taskInst, err)
-			return
+		taskInst.traceContext, err = trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
+		if err == nil {
+			evalResult, err = behavior.Eval(taskInst)
 		}
-		taskInst.traceContext = tCtx
-		evalResult, err = behavior.Eval(taskInst)
 	}
 
 	if err != nil {
