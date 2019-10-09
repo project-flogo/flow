@@ -138,7 +138,6 @@ func (ac *ActivityConfig) GetInputSchema(name string) schema.Schema {
 	return nil
 }
 
-//Deprecated
 func (ac *ActivityConfig) GetOutput(name string) interface{} {
 	if ac.outputs != nil {
 		return ac.outputs[name]

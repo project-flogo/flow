@@ -293,9 +293,9 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			activityCfg.outputs = output
+
 		}
+		activityCfg.outputs = output
 	}
 
 	//If outputMapper is null, use default output mapper

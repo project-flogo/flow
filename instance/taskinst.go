@@ -80,6 +80,19 @@ func (ti *TaskInst) GetInput(name string) interface{} {
 	return nil
 }
 
+// GetOutput implements activity.Context.GetOutput
+func (ti *TaskInst) GetOutput(name string) interface{} {
+	val, found := ti.outputs[name]
+	if found {
+		return val
+	}
+	if len(ti.task.ActivityConfig().Ref()) > 0 {
+		return ti.task.ActivityConfig().GetOutput(name)
+	}
+
+	return nil
+}
+
 // SetOutput implements activity.Context.SetOutput
 func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 
@@ -99,6 +112,13 @@ func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 // GetInputObject implements activity.Context.GetInputObject
 func (ti *TaskInst) GetInputObject(input data.StructValue) error {
 	err := input.FromMap(ti.inputs)
+	return err
+}
+
+// GetOutputObject implements activity.Context.GetOutputObject
+func (ti *TaskInst) GetOutputObject(output data.StructValue) error {
+	//TODO handle output from activity config
+	err := output.FromMap(ti.outputs)
 	return err
 }
 
@@ -579,6 +599,10 @@ func (l *LegacyCtx) GetInputObject(input data.StructValue) error {
 
 func (l *LegacyCtx) SetOutputObject(output data.StructValue) error {
 	return l.task.SetOutputObject(output)
+}
+
+func (l *LegacyCtx) GetOutputObject(output data.StructValue) error {
+	return l.task.GetOutputObject(output)
 }
 
 func (l *LegacyCtx) GetTracingContext() trace.TracingContext {
