@@ -354,23 +354,35 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
-		} else if actCfg.OutputMapper() != nil {
-
-			appliedMapper, err := applyOutputMapper(ti)
-
-			if err != nil {
-				evalErr = NewActivityEvalError(ti.task.Name(), "mapper", err.Error())
-				return done, evalErr
+			//For dowhile condition case, we need add activity output to scope
+			if ti.Task().LoopConfig() != nil && ti.Task().LoopConfig().EnabledDowhile() {
+				err = ti.applyOutputMapper()
+				if err != nil {
+					return done, err
+				}
 			}
-
-			if !appliedMapper && !ti.task.IsScope() {
-
-				ti.logger.Debug("Mapper not applied")
+		} else {
+			err = ti.applyOutputMapper()
+			if err != nil {
+				return done, err
 			}
 		}
 	}
 
 	return done, nil
+}
+
+func (ti *TaskInst) applyOutputMapper() error {
+	if ti.task.ActivityConfig().OutputMapper() != nil {
+		appliedMapper, err := applyOutputMapper(ti)
+		if err != nil {
+			return NewActivityEvalError(ti.task.Name(), "mapper", err.Error())
+		}
+		if !appliedMapper && !ti.task.IsScope() {
+			ti.logger.Debug("Mapper not applied")
+		}
+	}
+	return nil
 }
 
 // EvalActivity implements activity.ActivityContext.EvalActivity method
