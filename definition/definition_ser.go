@@ -289,10 +289,12 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 
 	if len(rep.Output) > 0 {
 		if !activityCfg.IsLegacy {
-			activityCfg.outputMapper, err = mf.NewMapper(output)
-			if err != nil {
-				return nil, err
-			}
+			//TODO comment out for now. we can reconsider for custom outpout mapper in the future.
+			//activityCfg.outputMapper, err = mf.NewMapper(output)
+			//if err != nil {
+			//	return nil, err
+			//}
+			activityCfg.outputs = output
 		} else {
 			activityCfg.outputs = output
 		}
