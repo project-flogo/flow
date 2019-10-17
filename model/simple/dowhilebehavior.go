@@ -46,7 +46,7 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 		ctx.SetStatus(model.TaskStatusWaiting)
 		return model.EvalWait, nil
 	}
-	dw.updateDoWhileCount(ctx)
+	defer dw.updateDoWhileIndex(ctx)
 	return dw.checkDoWhileCondition(ctx)
 }
 
@@ -63,7 +63,7 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
-	dw.updateDoWhileCount(ctx)
+	defer dw.updateDoWhileIndex(ctx)
 	return dw.checkDoWhileCondition(ctx)
 }
 
@@ -102,7 +102,7 @@ func getScope(ctx model.TaskContext, t *instance.TaskInst) data.Scope {
 	return t.ActivityHost().(data.Scope)
 }
 
-func (dw *DoWhileTaskBehavior) updateDoWhileCount(ctx model.TaskContext) {
+func (dw *DoWhileTaskBehavior) updateDoWhileIndex(ctx model.TaskContext) {
 	dowhileObj, ok := ctx.GetWorkingData("iteration")
 	if !ok {
 		dowhileObj = &DoWhile{Index: 1}
