@@ -135,6 +135,7 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 		ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
+	ctx.SetStatus(model.TaskStatusDone)
 
 	itxAttr, _ := ctx.GetWorkingData("_iterator")
 	itx := itxAttr.(Iterator)
