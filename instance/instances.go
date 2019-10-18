@@ -231,7 +231,9 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
 			inst.logger.Error(err)
-			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
+			if taskInst.traceContext != nil {
+				_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
+			}
 
 			// todo: useful for debugging
 			//logger.Debugf("StackTrace: %s", debug.Stack())
@@ -250,18 +252,9 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	var evalResult model.EvalResult
 
 	if taskInst.status == model.TaskStatusWaiting {
-
 		evalResult, err = behavior.PostEval(taskInst)
-
-	} else if taskInst.status == model.TaskStatusSkipped {
-
-		evalResult = model.EvalSkip
-
 	} else {
-		taskInst.traceContext, err = trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
-		if err == nil {
-			evalResult, err = behavior.Eval(taskInst)
-		}
+		evalResult, err = behavior.Eval(taskInst)
 	}
 
 	if err != nil {
@@ -281,12 +274,18 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 		taskInst.SetStatus(model.TaskStatusWaiting)
 	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
-		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
+		if taskInst.traceContext != nil {
+			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
+		}
 	case model.EvalRepeat:
-		// Finish previous span
-		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
-		taskInst.counter++
-		taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
+		if taskInst.traceContext != nil {
+			// Finish previous span
+			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
+			taskInst.counter++
+			taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
+			// Reset span
+			taskInst.traceContext = nil
+		}
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
 	}
@@ -304,7 +303,9 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 	} else {
 		notifyFlow, taskEntries, err = taskBehavior.Done(taskInst)
-		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
+		if taskInst.traceContext != nil {
+			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
+		}
 	}
 
 	containerInst := taskInst.flowInst
@@ -333,7 +334,9 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
 			// Complete subflow trace
-			_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, nil)
+			if containerInst.tracingCtx != nil {
+				_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, nil)
+			}
 
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)
@@ -383,7 +386,9 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
 
-	_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
+	if taskInst.traceContext != nil {
+		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
+	}
 	handled, taskEntries := taskBehavior.Error(taskInst, err)
 
 	containerInst := taskInst.flowInst
@@ -448,7 +453,9 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 		if containerInst != inst.Instance {
 
 			// Complete Subflow trace
-			_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
+			if containerInst.tracingCtx != nil {
+				_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
+			}
 
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)

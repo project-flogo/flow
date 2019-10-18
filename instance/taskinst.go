@@ -276,6 +276,9 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 
 	eval := true
 
+	// Start Trace
+	ti.traceContext, _ = trace.GetTracer().StartTrace(ti.SpanConfig(), ti.flowInst.tracingCtx)
+
 	if actCfg.InputMapper() != nil {
 
 		err := applyInputMapper(ti)
