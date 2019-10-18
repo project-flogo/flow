@@ -249,10 +249,13 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	var evalResult model.EvalResult
 
-
 	if taskInst.status == model.TaskStatusWaiting {
 
 		evalResult, err = behavior.PostEval(taskInst)
+
+	} else if taskInst.status == model.TaskStatusSkipped {
+
+		evalResult = model.EvalSkip
 
 	} else {
 		taskInst.traceContext, err = trace.GetTracer().StartTrace(taskInst.SpanConfig(), taskInst.flowInst.tracingCtx)
@@ -292,7 +295,6 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 // handleTaskDone handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
 
-
 	notifyFlow := false
 	var taskEntries []*model.TaskEntry
 	var err error
@@ -302,6 +304,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 	} else {
 		notifyFlow, taskEntries, err = taskBehavior.Done(taskInst)
+		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 	}
 
 	containerInst := taskInst.flowInst
@@ -312,7 +315,6 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		return
 	}
 
-	_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 	flowDone := false
 	task := taskInst.Task()
 
@@ -413,7 +415,6 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 // HandleGlobalError handles instance errors
 func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err error) {
-
 
 	if containerInst.isHandlingError {
 		//todo: log error information
@@ -622,7 +623,6 @@ func (inst *IndependentInstance) init(flowInst *Instance) {
 	}
 }
 
-
 func (inst *IndependentInstance) SetTracingContext(tracingCtx trace.TracingContext) {
 	inst.tracingCtx = tracingCtx
 }
@@ -633,7 +633,7 @@ func (inst *Instance) SpanConfig() trace.Config {
 	config.Tags = make(map[string]interface{})
 	config.Tags["flow_id"] = inst.ID()
 	config.Tags["flow_name"] = inst.Name()
-	if inst.master != nil &&  inst.master.id != inst.ID() {
+	if inst.master != nil && inst.master.id != inst.ID() {
 		config.Tags["parent_flow_id"] = inst.master.ID()
 		config.Tags["parent_flow_name"] = inst.master.Name()
 	}
