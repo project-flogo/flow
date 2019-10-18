@@ -2,7 +2,9 @@ package simple
 
 import (
 	"github.com/project-flogo/core/activity"
+	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
+	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
 )
 
@@ -108,11 +110,25 @@ func evalActivity(ctx model.TaskContext) (bool, error) {
 	if err != nil {
 		// check if error returned is retriable
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
+
 			// check if task is configured to retry on error
 			retryData, rerr := getRetryData(ctx)
 			if rerr != nil {
 				return done, rerr
 			}
+
+			if t, ok := ctx.(*instance.TaskInst); ok  {
+				if t.GetTracingContext() != nil {
+					t.GetTracingContext().SetTag("retry_enabled", true)
+					t.GetTracingContext().SetTag("retries_remaining", retryData.Count)
+					t.GetTracingContext().SetTag("retry_interval_ms", retryData.Interval)
+					// Complete previous trace except last. Last trace will completed in the caller.
+					if retryData.Count > 0 {
+						_ = trace.GetTracer().FinishTrace(t.GetTracingContext(), err)
+					}
+				}
+			}
+
 			if retryData != nil && retryData.Count > 0 {
 				return retryEval(ctx, retryData)
 			}
