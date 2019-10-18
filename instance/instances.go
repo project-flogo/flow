@@ -73,8 +73,10 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
 
-	tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), taskInst.traceContext) //TODO handle error
-	embeddedInst.tracingCtx = tc
+    if trace.Enabled() {
+		tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), taskInst.traceContext) //TODO handle error
+		embeddedInst.tracingCtx = tc
+	}
 
 	if inst.subFlows == nil {
 		inst.subFlows = make(map[int]*Instance)
