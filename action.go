@@ -253,11 +253,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		instance.ApplyExecOptions(inst, execOptions)
 	}
 
-	tc, err := trace.GetTracer().StartTrace(inst.SpanConfig(),trace.ExtractTracingContext(ctx) )
-	if err != nil {
-		return err
+	if trace.Enabled() {
+		tc, err := trace.GetTracer().StartTrace(inst.SpanConfig(), trace.ExtractTracingContext(ctx))
+		if err != nil {
+			return err
+		}
+		inst.SetTracingContext(tc)
 	}
-	inst.SetTracingContext(tc)
 
 
 	//todo how do we check if debug is enabled?
