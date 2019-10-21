@@ -410,7 +410,26 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 	} else {
 		if containerInst.isHandlingError {
 			//fail
-			inst.SetStatus(model.FlowStatusFailed)
+			containerInst.SetStatus(model.FlowStatusFailed)
+
+			if containerInst != inst.Instance {
+				// Complete Subflow trace
+				if containerInst.tracingCtx != nil {
+					_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
+				}
+
+				// spawned from task instance
+				host, ok := containerInst.host.(*TaskInst)
+
+				if ok {
+					behavior := inst.flowModel.GetDefaultTaskBehavior()
+					if typeID := host.task.TypeID(); typeID != "" {
+						behavior = inst.flowModel.GetTaskBehavior(typeID)
+					}
+					inst.handleTaskError(behavior, host, err)
+				}
+			}
+
 		} else {
 			taskInst.appendErrorData(err)
 			inst.HandleGlobalError(containerInst, err)
