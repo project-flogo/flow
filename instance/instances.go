@@ -3,7 +3,6 @@ package instance
 import (
 	"errors"
 	"fmt"
-
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
@@ -382,7 +381,20 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 	} else {
 		if containerInst.isHandlingError {
 			//fail
-			inst.SetStatus(model.FlowStatusFailed)
+			containerInst.SetStatus(model.FlowStatusFailed)
+			if containerInst != inst.Instance {
+				// spawned from task instance
+				host, ok := containerInst.host.(*TaskInst)
+
+				if ok {
+					behavior := inst.flowModel.GetDefaultTaskBehavior()
+					if typeID := host.task.TypeID(); typeID != "" {
+						behavior = inst.flowModel.GetTaskBehavior(typeID)
+					}
+					inst.handleTaskError(behavior, host, err)
+				}
+			}
+
 		} else {
 			taskInst.appendErrorData(err)
 			inst.HandleGlobalError(containerInst, err)
