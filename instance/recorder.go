@@ -122,7 +122,7 @@ func (sr *RemoteStateRecorder) RecordStep(instance *IndependentInstance) {
 		ID:       instance.StepID(),
 		FlowID:   instance.ID(),
 		Status:   int(instance.Status()),
-		StepData: instance.ChangeTracker,
+		StepData: instance.changeTracker,
 		FlowURI:  instance.flowURI,
 	}
 
@@ -174,7 +174,7 @@ type RecordStepReq struct {
 	//todo we should have initial "init" to associate flowURI with flowID, instead of at every step
 	FlowURI string `json:"flowURI"`
 
-	StepData *InstanceChangeTracker `json:"stepData"`
+	StepData ChangeTracker `json:"stepData"`
 }
 
 func DefaultConfig() *support.ServiceConfig {

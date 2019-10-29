@@ -22,7 +22,7 @@ type IndependentInstance struct {
 	wiCounter     int
 
 	trackingChanges bool
-	ChangeTracker   *InstanceChangeTracker
+	changeTracker   ChangeTracker
 
 	subFlowCtr  int
 	flowModel   *model.FlowModel
@@ -50,7 +50,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
-	inst.ChangeTracker = NewInstanceChangeTracker()
+	inst.changeTracker = NewInstanceChangeTracker()
 
 	inst.taskInsts = make(map[string]*TaskInst)
 	inst.linkInsts = make(map[int]*LinkInst)
@@ -83,7 +83,8 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	}
 	inst.subFlows[embeddedInst.subFlowId] = embeddedInst
 
-	inst.ChangeTracker.SubFlowChange(taskInst.flowInst.subFlowId, CtAdd, embeddedInst.subFlowId, "")
+	inst.changeTracker.SubFlowCreated(embeddedInst)
+	//inst.ChangeTracker.SubFlowChange(taskInst.flowInst.subFlowId, CtAdd, embeddedInst.subFlowId, "")
 
 	return embeddedInst
 }
@@ -152,19 +153,19 @@ func (inst *IndependentInstance) ApplyInterceptor(interceptor *flowsupport.Inter
 }
 
 // GetChanges returns the Change Tracker object
-func (inst *IndependentInstance) GetChanges() *InstanceChangeTracker {
-	return inst.ChangeTracker
+func (inst *IndependentInstance) GetChanges() ChangeTracker {
+	return inst.changeTracker
 }
 
 // ResetChanges resets an changes that were being tracked
 func (inst *IndependentInstance) ResetChanges() {
 
-	if inst.ChangeTracker != nil {
-		inst.ChangeTracker.ResetChanges()
+	if inst.changeTracker != nil {
+		inst.changeTracker.ResetChanges()
 	}
 
 	//todo: can we reuse this to avoid gc
-	inst.ChangeTracker = NewInstanceChangeTracker()
+	inst.changeTracker = NewInstanceChangeTracker()
 }
 
 // StepID returns the current step ID of the Flow Instance
@@ -198,7 +199,7 @@ func (inst *IndependentInstance) DoStep() bool {
 			}
 
 			// track the fact that the work item was removed from the queue
-			inst.ChangeTracker.trackWorkItem(&WorkItemQueueChange{ChgType: CtDel, ID: workItem.ID, WorkItem: workItem})
+			inst.changeTracker.WorkItemRemoved(workItem)
 
 			inst.execTask(behavior, workItem.taskInst)
 
@@ -222,7 +223,7 @@ func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 	inst.workItemQueue.Push(workItem)
 
 	// track the fact that the work item was added to the queue
-	inst.ChangeTracker.trackWorkItem(&WorkItemQueueChange{ChgType: CtAdd, ID: workItem.ID, WorkItem: workItem})
+	inst.changeTracker.WorkItemAdded(workItem)
 }
 
 // execTask executes the specified Work Item of the Flow Instance

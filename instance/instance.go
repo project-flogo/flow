@@ -36,9 +36,8 @@ type Instance struct {
 
 	resultHandler action.ResultHandler
 
-	logger log.Logger
-
-	tracingCtx       trace.TracingContext
+	logger     log.Logger
+	tracingCtx trace.TracingContext
 }
 
 func (inst *Instance) FlowURI() string {
@@ -78,8 +77,7 @@ func (inst *Instance) FindOrCreateTaskData(task *definition.Task) (taskInst *Tas
 	if !ok {
 		taskInst = NewTaskInst(inst, task)
 		inst.taskInsts[task.ID()] = taskInst
-		inst.master.ChangeTracker.trackTaskData(inst.subFlowId, &TaskInstChange{ChgType: CtAdd, ID: task.ID(), TaskInst: taskInst})
-
+		inst.master.changeTracker.TaskAdded(inst.subFlowId, taskInst)
 		created = true
 	}
 
@@ -96,7 +94,8 @@ func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *Lin
 	if !ok {
 		linkInst = NewLinkInst(inst, link)
 		inst.linkInsts[link.ID()] = linkInst
-		inst.master.ChangeTracker.trackLinkData(inst.subFlowId, &LinkInstChange{ChgType: CtAdd, ID: link.ID(), LinkInst: linkInst})
+		inst.master.changeTracker.LinkAdded(inst.subFlowId, linkInst)
+		//inst.master.ChangeTracker.trackLinkData(inst.subFlowId, &LinkInstChange{ChgType: CtAdd, ID: link.ID(), LinkInst: linkInst})
 		created = true
 	}
 
@@ -105,12 +104,13 @@ func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *Lin
 
 func (inst *Instance) releaseTask(task *definition.Task) {
 	delete(inst.taskInsts, task.ID())
-	inst.master.ChangeTracker.trackTaskData(inst.subFlowId, &TaskInstChange{ChgType: CtDel, ID: task.ID()})
+	inst.master.changeTracker.TaskRemoved(inst.subFlowId, task.ID())
 	links := task.FromLinks()
 
 	for _, link := range links {
 		delete(inst.linkInsts, link.ID())
-		inst.master.ChangeTracker.trackLinkData(inst.subFlowId, &LinkInstChange{ChgType: CtDel, ID: link.ID()})
+		inst.master.changeTracker.LinkRemoved(inst.subFlowId, link.ID())
+		//inst.master.ChangeTracker.trackLinkData(inst.subFlowId, &LinkInstChange{ChgType: CtDel, ID: link.ID()})
 	}
 }
 
@@ -178,7 +178,7 @@ func (inst *Instance) Status() model.FlowStatus {
 func (inst *Instance) SetStatus(status model.FlowStatus) {
 
 	inst.status = status
-	inst.master.ChangeTracker.SetStatus(inst.subFlowId, status)
+	inst.master.changeTracker.SetStatus(inst.subFlowId, status)
 	postFlowEvent(inst)
 }
 
@@ -230,7 +230,7 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 	inst.attrs[name] = value
 
 	if inst.master.trackingChanges {
-		inst.master.ChangeTracker.AttrChange(inst.subFlowId, CtUpd, data.NewAttribute(name, data.TypeAny, value))
+		inst.master.changeTracker.AttrChange(inst.subFlowId, name, value)
 	}
 
 	return nil

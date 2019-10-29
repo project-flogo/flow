@@ -27,17 +27,18 @@ func NewLinkInst(inst *Instance, link *definition.Link) *LinkInst {
 }
 
 // Status returns the current state indicator for the LinkInst
-func (ld *LinkInst) Status() model.LinkStatus {
-	return ld.status
+func (li *LinkInst) Status() model.LinkStatus {
+	return li.status
 }
 
 // SetStatus sets the current state indicator for the LinkInst
-func (ld *LinkInst) SetStatus(status model.LinkStatus) {
-	ld.status = status
-	ld.flowInst.master.ChangeTracker.trackLinkData(ld.flowInst.subFlowId, &LinkInstChange{ChgType: CtUpd, ID: ld.link.ID(), LinkInst: ld})
+func (li *LinkInst) SetStatus(status model.LinkStatus) {
+	li.status = status
+	li.flowInst.master.changeTracker.LinkUpdated(li.flowInst.subFlowId, li)
+	//ld.flowInst.master.ChangeTracker.trackLinkData(ld.flowInst.subFlowId, &LinkInstChange{ChgType: CtUpd, ID: ld.link.ID(), LinkInst: ld})
 }
 
 // Link returns the Link associated with ld context
-func (ld *LinkInst) Link() *definition.Link {
-	return ld.link
+func (li *LinkInst) Link() *definition.Link {
+	return li.link
 }
