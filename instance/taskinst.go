@@ -133,8 +133,7 @@ func (ti *TaskInst) Status() model.TaskStatus {
 // SetStatus implements flow.TaskContext.SetStatus
 func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	ti.status = status
-	ti.flowInst.master.ChangeTracker.trackTaskData(ti.flowInst.subFlowId, &TaskInstChange{ChgType: CtUpd, ID: ti.task.ID(), TaskInst: ti})
-	//log.RootLogger().Info("Status.............", status, ti.task.ID())
+	ti.flowInst.master.changeTracker.TaskUpdated(ti.flowInst.subFlowId, ti)
 	postTaskEvent(ti)
 }
 
