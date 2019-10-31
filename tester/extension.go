@@ -7,9 +7,9 @@ import (
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/flow/definition"
-	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/model/simple"
+	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
 )
 
@@ -23,7 +23,7 @@ const (
 type TesterProvider struct {
 	flowProvider  definition.Provider
 	flowModel     *model.FlowModel
-	stateRecorder instance.StateRecorder
+	stateRecorder state.Recorder
 	flowTester    *RestEngineTester
 }
 
@@ -47,7 +47,7 @@ func (fp *TesterProvider) GetDefaultFlowModel() *model.FlowModel {
 	return fp.flowModel
 }
 
-func (fp *TesterProvider) GetStateRecorder() instance.StateRecorder {
+func (fp *TesterProvider) GetStateRecorder() state.Recorder {
 
 	if fp.stateRecorder == nil {
 		config := &support.ServiceConfig{Enabled: true}
@@ -73,7 +73,8 @@ func (fp *TesterProvider) GetStateRecorder() instance.StateRecorder {
 			config.Enabled = false
 		}
 
-		fp.stateRecorder = instance.NewRemoteStateRecorder(config)
+		//todo needs to be loaded externally
+		//fp.stateRecorder = instance.NewRemoteStateRecorder(config)
 	}
 
 	return fp.stateRecorder

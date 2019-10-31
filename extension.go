@@ -3,16 +3,16 @@ package flow
 import (
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/flow/definition"
-	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/model/simple"
+	"github.com/project-flogo/flow/state"
 	"github.com/project-flogo/flow/support"
 	"github.com/project-flogo/flow/tester"
 )
 
 // Provides the different extension points to the FlowBehavior Action
 type ExtensionProvider interface {
-	GetStateRecorder() instance.StateRecorder
+	GetStateRecorder() state.Recorder
 	GetFlowTester() *tester.RestEngineTester
 
 	GetDefaultFlowModel() *model.FlowModel
@@ -47,7 +47,7 @@ func (fp *DefaultExtensionProvider) GetDefaultFlowModel() *model.FlowModel {
 	return fp.flowModel
 }
 
-func (fp *DefaultExtensionProvider) GetStateRecorder() instance.StateRecorder {
+func (fp *DefaultExtensionProvider) GetStateRecorder() state.Recorder {
 	return nil
 }
 

@@ -104,6 +104,8 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 	return evalResult, nil
 }
 
+//todo this shouldn't be accessing instance
+
 func evalActivity(ctx model.TaskContext) (bool, error) {
 	done, err := ctx.EvalActivity()
 

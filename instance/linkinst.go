@@ -11,8 +11,8 @@ type LinkInst struct {
 	link     *definition.Link
 	status   model.LinkStatus
 
-	changes int
-	linkID  int //needed for serialization
+	//changes int
+	id      int //needed for serialization
 }
 
 // NewLinkInst creates a LinkInst for the specified link in the specified task
@@ -34,7 +34,7 @@ func (li *LinkInst) Status() model.LinkStatus {
 // SetStatus sets the current state indicator for the LinkInst
 func (li *LinkInst) SetStatus(status model.LinkStatus) {
 	li.status = status
-	li.flowInst.master.changeTracker.LinkUpdated(li.flowInst.subFlowId, li)
+	li.flowInst.master.changeTracker.LinkUpdated(li)
 	//ld.flowInst.master.ChangeTracker.trackLinkData(ld.flowInst.subFlowId, &LinkInstChange{ChgType: CtUpd, ID: ld.link.ID(), LinkInst: ld})
 }
 
