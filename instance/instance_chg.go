@@ -1,271 +1,264 @@
 package instance
 
 import (
-	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/flow/model"
+	"github.com/project-flogo/flow/state"
+	"github.com/project-flogo/flow/state/change"
 )
+
+var defaultChgTracker = &NoopChangeTracker{}
+var chgTrackerFactory = &SimpleChangeTrackerFactory{}
+var chgTrackingEnabled = false
 
 type ChangeTracker interface {
 	// SetStatus is called to track a status change on an instance
-	SetStatus(subFlowId int, status model.FlowStatus)
+	SetStatus(subflowId int, status model.FlowStatus)
 	// AttrChange is called to track when Attribute changes
-	AttrChange(subFlowId int, name string, value interface{})
-	// SubFlowCreated is called to track a when a subflow is created
-	SubFlowCreated(subFlow *Instance)
+	AttrChange(subflowId int, name string, value interface{})
+	// SubflowCreated is called to track a when a subflow is created
+	SubflowCreated(subflow *Instance)
 	// WorkItemAdded records when an item is added to the WorkQueue
 	WorkItemAdded(wi *WorkItem)
 	// WorkItemRemoved records when an item is removed from the WorkQueue
 	WorkItemRemoved(wi *WorkItem)
 	// TaskAdded records when a Task is added
-	TaskAdded(subFlowId int, taskInst *TaskInst)
+	TaskAdded(taskInst *TaskInst)
 	// TaskUpdated records when a Task is updated
-	TaskUpdated(subFlowId int, taskInst *TaskInst)
+	TaskUpdated(taskInst *TaskInst)
 	// TaskRemoved records when a Task is removed
-	TaskRemoved(subFlowId int, taskId string)
+	TaskRemoved(subflowId int, taskId string)
 	// LinkAdded records a Link is added
-	LinkAdded(subFlowId int, linkInst *LinkInst)
+	LinkAdded(linkInst *LinkInst)
 	// LinkUpdated records a Link is updated
-	LinkUpdated(subFlowId int, linkInst *LinkInst)
+	LinkUpdated(linkInst *LinkInst)
 	// LinkRemoved records when a Link is removed
-	LinkRemoved(subFlowId int, linkId int)
-	// ResetChanges is used to reset any tracking data stored on instance objects
-	ResetChanges()
+	LinkRemoved(subflowId int, linkId int)
+	// ExtractStep extracts the step object and resets the tracker
+	ExtractStep(reset bool) *state.Step
 }
 
-// ChgType denotes the type of change for an object in an instance
-type ChgType int
+//type ChangeTrackerFactory interface {
+//	NewChangeTracker(flowId string) ChangeTracker
+//}
 
-const (
-	// CtAdd denotes an addition
-	CtAdd ChgType = 1
-	// CtUpd denotes an update
-	CtUpd ChgType = 2
-	// CtDel denotes an deletion
-	CtDel ChgType = 3
-)
-
-// WorkItemQueueChange represents a change in the WorkItem Queue
-type WorkItemQueueChange struct {
-	ChgType  ChgType
-	ID       int
-	WorkItem *WorkItem
+func NewInstanceChangeTracker(flowId string) ChangeTracker {
+	if chgTrackingEnabled {
+		return chgTrackerFactory.NewChangeTracker(flowId)
+	}
+	return defaultChgTracker
 }
 
-// TaskInstChange represents a change to a TaskInst
-type TaskInstChange struct {
-	ChgType  ChgType
-	ID       string
-	TaskInst *TaskInst
+func EnableChangeTracking(enable bool) {
+	chgTrackingEnabled = enable
 }
 
-// LinkInstChange represents a change to a LinkInst
-type LinkInstChange struct {
-	ChgType  ChgType
-	ID       int
-	LinkInst *LinkInst
+type NoopChangeTracker struct {
 }
 
-// InstanceChange represents a change to the instance
-type InstanceChange struct {
-	SubFlowID   int
-	Status      model.FlowStatus
-	AttrChanges []*AttributeChange
-	tiChanges   map[string]*TaskInstChange
-	liChanges   map[int]*LinkInstChange
-	SubFlowChg  *SubFlowChange
-
-	//State int
+func (nct *NoopChangeTracker) SetStatus(subflowId int, status model.FlowStatus) {
 }
 
-// InstanceChange represents a change to the instance
-type SubFlowChange struct {
-	SubFlowID int
-	TaskID    string
-	ChgType   ChgType
+func (nct *NoopChangeTracker) AttrChange(subflowId int, name string, value interface{}) {
 }
 
-// AttributeChange represents a change to an Attribute
-type AttributeChange struct {
-	SubFlowID int
-	ChgType   ChgType
-	Attribute *data.Attribute
+func (nct *NoopChangeTracker) SubflowCreated(subflow *Instance) {
 }
 
-// InstanceChangeTracker is used to track all changes to an instance
-type InstanceChangeTracker struct {
-	wiqChanges  map[int]*WorkItemQueueChange
-	instChanges map[int]*InstanceChange //at most 2
+func (nct *NoopChangeTracker) WorkItemAdded(wi *WorkItem) {
 }
 
-// NewInstanceChangeTracker creates an InstanceChangeTracker
-func NewInstanceChangeTracker() *InstanceChangeTracker {
-	return &InstanceChangeTracker{instChanges: make(map[int]*InstanceChange)}
+func (nct *NoopChangeTracker) WorkItemRemoved(wi *WorkItem) {
 }
 
-func (ict *InstanceChangeTracker) getInstChange(flowId int) *InstanceChange {
+func (nct *NoopChangeTracker) TaskAdded(taskInst *TaskInst) {
+}
 
-	change, exists := ict.instChanges[flowId]
+func (nct *NoopChangeTracker) TaskUpdated(taskInst *TaskInst) {
+}
+
+func (nct *NoopChangeTracker) TaskRemoved(subflowId int, taskId string) {
+}
+
+func (nct *NoopChangeTracker) LinkAdded(linkInst *LinkInst) {
+}
+
+func (nct *NoopChangeTracker) LinkUpdated(linkInst *LinkInst) {
+}
+
+func (nct *NoopChangeTracker) LinkRemoved(subflowId int, linkId int) {
+}
+
+func (nct *NoopChangeTracker) ExtractStep(reset bool) *state.Step {
+	return nil
+}
+
+type SimpleChangeTrackerFactory struct {
+}
+
+func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string) ChangeTracker {
+
+	ct := &SimpleChangeTracker{flowId: flowId}
+	ct.currentStep = &state.Step{
+		FlowId:      flowId,
+		FlowChanges: make(map[int]*change.Flow),
+	}
+
+	return ct
+}
+
+type SimpleChangeTracker struct {
+	flowId      string
+	stepCtr     int
+	currentStep *state.Step
+}
+
+func (sct *SimpleChangeTracker) SetStatus(subflowId int, status model.FlowStatus) {
+
+	fc, exists := sct.currentStep.FlowChanges[subflowId]
 	if !exists {
-		change = &InstanceChange{}
-		ict.instChanges[flowId] = change
+		fc = &change.Flow{}
+		sct.currentStep.FlowChanges[subflowId] = fc
 	}
 
-	return change
+	fc.Status = int(status)
 }
 
-// SetStatus is called to track a status change on an instance
-func (ict *InstanceChangeTracker) SetStatus(subFlowId int, status model.FlowStatus) {
-	ic := ict.getInstChange(subFlowId)
-	ic.Status = status
-}
-
-// AttrChange is called to track when Attribute changes
-func (ict *InstanceChangeTracker) AttrChange(subFlowId int, name string, value interface{}) {
-
-	attribute := data.NewAttribute(name, data.TypeAny, value)
-
-	ic := ict.getInstChange(subFlowId)
-
-	var attrChange AttributeChange
-	attrChange.ChgType = CtUpd
-	attrChange.Attribute = attribute
-	ic.AttrChanges = append(ic.AttrChanges, &attrChange)
-}
-
-// SubFlowCreated is called to track a when a subflow is created
-func (ict *InstanceChangeTracker) SubFlowCreated(subFlow *Instance) {
-
-	taskInst := subFlow.host.(*TaskInst)
-	ic := ict.getInstChange(taskInst.flowInst.subFlowId)
-
-	var change SubFlowChange
-	change.ChgType = CtAdd
-	change.SubFlowID = subFlow.subFlowId
-	change.TaskID = taskInst.task.ID()
-
-	ic.SubFlowChg = &change
-}
-
-// WorkItemAdded records when an item is added to the WorkQueue
-func (ict *InstanceChangeTracker) WorkItemAdded(wi *WorkItem) {
-
-	wiChange := &WorkItemQueueChange{ChgType: CtAdd, ID: wi.ID, WorkItem: wi}
-	if ict.wiqChanges == nil {
-		ict.wiqChanges = make(map[int]*WorkItemQueueChange)
-	}
-	ict.wiqChanges[wiChange.ID] = wiChange
-}
-
-// WorkItemRemoved records when an item is removed from the WorkQueue
-func (ict *InstanceChangeTracker) WorkItemRemoved(wi *WorkItem) {
-
-	wiChange := &WorkItemQueueChange{ChgType: CtDel, ID: wi.ID, WorkItem: wi}
-	if ict.wiqChanges == nil {
-		ict.wiqChanges = make(map[int]*WorkItemQueueChange)
-	}
-	ict.wiqChanges[wiChange.ID] = wiChange
-}
-
-// TaskAdded records when a Task is added
-func (ict *InstanceChangeTracker) TaskAdded(subFlowId int, taskInst *TaskInst) {
-
-	tdChange := &TaskInstChange{ChgType: CtAdd, ID: taskInst.task.ID(), TaskInst: taskInst}
-
-	ic := ict.getInstChange(subFlowId)
-
-	if ic.tiChanges == nil {
-		ic.tiChanges = make(map[string]*TaskInstChange)
+func (sct *SimpleChangeTracker) AttrChange(subflowId int, name string, value interface{}) {
+	fc, exists := sct.currentStep.FlowChanges[subflowId]
+	if !exists {
+		fc = &change.Flow{}
+		sct.currentStep.FlowChanges[subflowId] = fc
 	}
 
-	ic.tiChanges[tdChange.ID] = tdChange
-}
-
-// TaskUpdated records when a Task is updated
-func (ict *InstanceChangeTracker) TaskUpdated(subFlowId int, taskInst *TaskInst) {
-
-	tdChange := &TaskInstChange{ChgType: CtUpd, ID: taskInst.task.ID(), TaskInst: taskInst}
-
-	ic := ict.getInstChange(subFlowId)
-
-	if ic.tiChanges == nil {
-		ic.tiChanges = make(map[string]*TaskInstChange)
+	if fc.Attrs == nil {
+		fc.Attrs = make(map[string]interface{})
 	}
 
-	ic.tiChanges[tdChange.ID] = tdChange
+	fc.Attrs[name] = value
 }
 
-// TaskRemoved records when a Task is removed
-func (ict *InstanceChangeTracker) TaskRemoved(subFlowId int, taskId string) {
+func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
 
-	tdChange := &TaskInstChange{ChgType: CtDel, ID: taskId}
+	host := subflow.host.(*TaskInst)
 
-	ic := ict.getInstChange(subFlowId)
+	fc := &change.Flow{
+		NewFlow:   true,
+		FlowURI:   subflow.flowURI,
+		SubflowId: subflow.subflowId,
+		TaskId:    host.taskID,
+		Status:    int(subflow.status),
+	}
+	sct.currentStep.FlowChanges[subflow.subflowId] = fc
+}
 
-	if ic.tiChanges == nil {
-		ic.tiChanges = make(map[string]*TaskInstChange)
+func (sct *SimpleChangeTracker) WorkItemAdded(wi *WorkItem) {
+	qc := getQueueChange(sct.currentStep, wi.ID)
+	qc.TaskId = wi.TaskID
+}
+
+func (sct *SimpleChangeTracker) WorkItemRemoved(wi *WorkItem) {
+	qc := getQueueChange(sct.currentStep, wi.ID)
+	qc.ChgType = change.Delete
+}
+
+func (sct *SimpleChangeTracker) TaskAdded(taskInst *TaskInst) {
+	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID)
+	task.Status = int(taskInst.status)
+}
+
+func (sct *SimpleChangeTracker) TaskUpdated(taskInst *TaskInst) {
+	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID)
+	task.ChgType = change.Update
+	task.Status = int(taskInst.status)
+}
+
+func (sct *SimpleChangeTracker) TaskRemoved(subflowId int, taskId string) {
+	task := getTaskChange(sct.currentStep, subflowId, taskId)
+	task.ChgType = change.Delete
+}
+
+func (sct *SimpleChangeTracker) LinkAdded(linkInst *LinkInst) {
+	link := getLinkChange(sct.currentStep, linkInst.flowInst.subflowId, linkInst.id)
+	link.Status = int(linkInst.status)
+}
+
+func (sct *SimpleChangeTracker) LinkUpdated(linkInst *LinkInst) {
+	link := getLinkChange(sct.currentStep, linkInst.flowInst.subflowId, linkInst.id)
+	link.ChgType = change.Update
+	link.Status = int(linkInst.status)
+}
+
+func (sct *SimpleChangeTracker) LinkRemoved(subflowId int, linkId int) {
+	link := getLinkChange(sct.currentStep, subflowId, linkId)
+	link.ChgType = change.Delete
+}
+
+func (sct *SimpleChangeTracker) ExtractStep(reset bool) *state.Step {
+
+	step := sct.currentStep
+
+	if reset {
+		sct.stepCtr++
+		sct.currentStep = &state.Step{
+			Id:          sct.stepCtr,
+			FlowId:      sct.flowId,
+			FlowChanges: make(map[int]*change.Flow),
+		}
 	}
 
-	ic.tiChanges[tdChange.ID] = tdChange
+	return step
 }
 
-// LinkAdded records a Link is added
-func (ict *InstanceChangeTracker) LinkAdded(subFlowId int, linkInst *LinkInst) {
+func getQueueChange(step *state.Step, workItemId int) *change.Queue {
 
-	ldChange := &LinkInstChange{ChgType: CtAdd, ID: linkInst.link.ID(), LinkInst: linkInst}
-
-	ic := ict.getInstChange(subFlowId)
-
-	if ic.liChanges == nil {
-		ic.liChanges = make(map[int]*LinkInstChange)
+	if step.QueueChanges == nil {
+		step.QueueChanges = make(map[int]*change.Queue, 2)
 	}
 
-	ic.liChanges[ldChange.ID] = ldChange
-}
-
-// LinkUpdated records a Link is updated
-func (ict *InstanceChangeTracker) LinkUpdated(subFlowId int, linkInst *LinkInst) {
-
-	ldChange := &LinkInstChange{ChgType: CtUpd, ID: linkInst.link.ID(), LinkInst: linkInst}
-
-	ic := ict.getInstChange(subFlowId)
-
-	if ic.liChanges == nil {
-		ic.liChanges = make(map[int]*LinkInstChange)
+	wc, exists := step.QueueChanges[workItemId]
+	if !exists {
+		wc = &change.Queue{}
 	}
-	ic.liChanges[ldChange.ID] = ldChange
+
+	return wc
 }
 
-// LinkRemoved records when a Link is removed
-func (ict *InstanceChangeTracker) LinkRemoved(subFlowId int, linkId int) {
+func getTaskChange(step *state.Step, subflowId int, taskId string) *change.Task {
 
-	ldChange := &LinkInstChange{ChgType: CtDel, ID: linkId}
-
-	ic := ict.getInstChange(subFlowId)
-
-	if ic.liChanges == nil {
-		ic.liChanges = make(map[int]*LinkInstChange)
+	fc, exists := step.FlowChanges[subflowId]
+	if !exists {
+		fc = &change.Flow{}
+		step.FlowChanges[subflowId] = fc
 	}
-	ic.liChanges[ldChange.ID] = ldChange
+
+	if fc.Tasks == nil {
+		fc.Tasks = make(map[string]*change.Task, 2)
+	}
+
+	tc, exists := fc.Tasks[taskId]
+	if !exists {
+		fc.Tasks[taskId] = &change.Task{}
+	}
+
+	return tc
 }
 
-// ResetChanges is used to reset any tracking data stored on instance objects
-func (ict *InstanceChangeTracker) ResetChanges() {
+func getLinkChange(step *state.Step, subflowId int, linkId int) *change.Link {
 
-	//// reset TaskInst objects
-	//if ict.tdChanges != nil {
-	//	for _, v := range ict.tdChanges {
-	//		if v.TaskInst != nil {
-	//			//v.TaskInst.ResetChanges()
-	//		}
-	//	}
-	//}
-	//
-	//// reset LinkInst objects
-	//if ict.ldChanges != nil {
-	//	for _, v := range ict.ldChanges {
-	//		if v.LinkInst != nil {
-	//			//v.LinkInst.ResetChanges()
-	//		}
-	//	}
-	//}
+	fc, exists := step.FlowChanges[subflowId]
+	if !exists {
+		fc = &change.Flow{}
+		step.FlowChanges[subflowId] = fc
+	}
+
+	if fc.Links == nil {
+		fc.Links = make(map[int]*change.Link, 2)
+	}
+
+	lc, exists := fc.Links[linkId]
+	if !exists {
+		fc.Links[linkId] = &change.Link{}
+	}
+
+	return lc
 }

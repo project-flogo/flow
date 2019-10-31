@@ -298,9 +298,17 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			logger.Debugf("Step: %d", stepCount)
 			hasWork = inst.DoStep()
 
-			if record {
-				ep.GetStateRecorder().RecordSnapshot(inst)
-				ep.GetStateRecorder().RecordStep(inst)
+			if record &&  ep.GetStateRecorder() != nil {
+
+				//todo add ability to control what to record
+				err = ep.GetStateRecorder().RecordSnapshot(inst.Snapshot())
+				if err != nil {
+					logger.Warnf("unable to record snapshot: %v", err)
+				}
+				err = ep.GetStateRecorder().RecordStep(inst.CurrentStep(true))
+				if err != nil {
+					logger.Warnf("unable to record step: %v", err)
+				}
 			}
 		}
 

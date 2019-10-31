@@ -1,15 +1,8 @@
 package instance
 
 import (
-	"encoding/json"
 	"os"
 	"testing"
-
-	"github.com/project-flogo/core/support/log"
-	"github.com/project-flogo/flow/definition"
-	"github.com/project-flogo/flow/model"
-	_ "github.com/project-flogo/flow/support/test"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
@@ -59,30 +52,31 @@ const defJSON = `
   }
 `
 
-func TestFullSerialization(t *testing.T) {
-
-	defRep := &definition.DefinitionRep{}
-	err := json.Unmarshal([]byte(defJSON), defRep)
-	assert.Nil(t, err)
-
-	log.RootLogger().Infof("Def Rep: %v", defRep)
-
-	def, _ := definition.NewDefinition(defRep)
-	assert.NotNil(t, def)
-
-	instance, err := NewIndependentInstance("12345", "uri", def, log.RootLogger())
-	assert.Nil(t, err)
-	instance.Start(nil)
-
-	hasWork := true
-
-	for hasWork && instance.Status() < model.FlowStatusCompleted {
-		hasWork = instance.DoStep()
-
-		jsonRep, _ := json.Marshal(instance)
-		log.RootLogger().Debugf("Snapshot: %s\n", string(jsonRep))
-	}
-}
+//
+//func TestFullSerialization(t *testing.T) {
+//
+//	defRep := &definition.DefinitionRep{}
+//	err := json.Unmarshal([]byte(defJSON), defRep)
+//	assert.Nil(t, err)
+//
+//	log.RootLogger().Infof("Def Rep: %v", defRep)
+//
+//	def, _ := definition.NewDefinition(defRep)
+//	assert.NotNil(t, def)
+//
+//	instance, err := NewIndependentInstance("12345", "uri", def, log.RootLogger())
+//	assert.Nil(t, err)
+//	instance.Start(nil)
+//
+//	hasWork := true
+//
+//	for hasWork && instance.Status() < model.FlowStatusCompleted {
+//		hasWork = instance.DoStep()
+//
+//		jsonRep, _ := json.Marshal(instance)
+//		log.RootLogger().Debugf("Snapshot: %s\n", string(jsonRep))
+//	}
+//}
 
 /*
 func TestChangeSerialization(t *testing.T) {

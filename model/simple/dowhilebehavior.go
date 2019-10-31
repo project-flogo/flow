@@ -75,6 +75,8 @@ func (dw *DoWhileTaskBehavior) checkDoWhileCondition(ctx model.TaskContext) (eva
 	return model.EvalDone, nil
 }
 
+//todo this shouldn't be accessing the impls
+
 // Evaluates condition set for do while task
 func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, condition expression.Expr) (evalResult model.EvalResult, err error) {
 	if t, ok := ctx.(*instance.TaskInst); ok {

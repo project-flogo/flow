@@ -45,8 +45,8 @@ func (inst *IndependentInstance) MarshalJSON() ([]byte, error) {
 		lis = append(lis, linkInst)
 	}
 
-	sfs := make([]*Instance, 0, len(inst.subFlows))
-	for _, value := range inst.subFlows {
+	sfs := make([]*Instance, 0, len(inst.subflows))
+	for _, value := range inst.subflows {
 		sfs = append(sfs, value)
 	}
 
@@ -81,7 +81,7 @@ func (inst *IndependentInstance) UnmarshalJSON(d []byte) error {
 		inst.attrs[attrs.Name()] = attrs.Value()
 	}
 
-	inst.changeTracker = NewInstanceChangeTracker()
+	inst.changeTracker = NewInstanceChangeTracker(inst.id)
 
 	inst.taskInsts = make(map[string]*TaskInst, len(ser.TaskInsts))
 
@@ -92,24 +92,24 @@ func (inst *IndependentInstance) UnmarshalJSON(d []byte) error {
 	inst.linkInsts = make(map[int]*LinkInst, len(ser.LinkInsts))
 
 	for _, linkInst := range ser.LinkInsts {
-		inst.linkInsts[linkInst.linkID] = linkInst
+		inst.linkInsts[linkInst.id] = linkInst
 	}
 
 	subFlowCtr := 0
 
 	if len(ser.SubFlows) > 0 {
 
-		inst.subFlows = make(map[int]*Instance, len(ser.SubFlows))
+		inst.subflows = make(map[int]*Instance, len(ser.SubFlows))
 
 		for _, value := range ser.SubFlows {
-			inst.subFlows[value.subFlowId] = value
+			inst.subflows[value.subflowId] = value
 
-			if value.subFlowId > subFlowCtr {
-				subFlowCtr = value.subFlowId
+			if value.subflowId > subFlowCtr {
+				subFlowCtr = value.subflowId
 			}
 		}
 
-		inst.subFlowCtr = subFlowCtr
+		inst.subflowCtr = subFlowCtr
 	}
 
 	inst.workItemQueue = support.NewSyncQueue()
@@ -119,7 +119,7 @@ func (inst *IndependentInstance) UnmarshalJSON(d []byte) error {
 		taskInsts := inst.taskInsts
 
 		if workItem.SubFlowID > 0 {
-			taskInsts = inst.subFlows[workItem.SubFlowID].taskInsts
+			taskInsts = inst.subflows[workItem.SubFlowID].taskInsts
 		}
 
 		workItem.taskInst = taskInsts[workItem.TaskID]
@@ -163,7 +163,7 @@ func (inst *Instance) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(&serInstance{
-		SubFlowId: inst.subFlowId,
+		SubFlowId: inst.subflowId,
 		Status:    inst.status,
 		Attrs:     attrs,
 		FlowURI:   inst.flowURI,
@@ -180,7 +180,7 @@ func (inst *Instance) UnmarshalJSON(d []byte) error {
 		return err
 	}
 
-	inst.subFlowId = ser.SubFlowId
+	inst.subflowId = ser.SubFlowId
 	inst.status = ser.Status
 	inst.flowURI = ser.FlowURI
 
@@ -199,7 +199,7 @@ func (inst *Instance) UnmarshalJSON(d []byte) error {
 	inst.linkInsts = make(map[int]*LinkInst, len(ser.LinkInsts))
 
 	for _, linkInst := range ser.LinkInsts {
-		inst.linkInsts[linkInst.linkID] = linkInst
+		inst.linkInsts[linkInst.id] = linkInst
 	}
 
 	return nil
@@ -212,7 +212,7 @@ func (inst *Instance) UnmarshalJSON(d []byte) error {
 func (ti *TaskInst) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(&struct {
-		TaskID string `json:"taskId"`
+		TaskID string `json:"id"`
 		Status int    `json:"status"`
 	}{
 		TaskID: ti.task.ID(),
@@ -223,7 +223,7 @@ func (ti *TaskInst) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON overrides the default UnmarshalJSON for TaskInst
 func (ti *TaskInst) UnmarshalJSON(d []byte) error {
 	ser := &struct {
-		TaskID string `json:"taskId"`
+		TaskID string `json:"id"`
 		Status int    `json:"status"`
 	}{}
 
@@ -245,71 +245,71 @@ func (ti *TaskInst) UnmarshalJSON(d []byte) error {
 //}
 //
 
-type taskData struct {
-	State  int    `json:"state"`
-	TaskID string `json:"taskId"`
-}
+//type taskData struct {
+//	State  int    `json:"state"`
+//	TaskID string `json:"taskId"`
+//}
+//
+//type linkData struct {
+//	State  int `json:"state"`
+//	LinkID int `json:"linkId"`
+//}
 
-type linkData struct {
-	State  int `json:"state"`
-	LinkID int `json:"linkId"`
-}
-
-// MarshalJSON overrides the default MarshalJSON for TaskInst
-func (ti *TaskInstChange) MarshalJSON() ([]byte, error) {
-
-	var td *taskData
-
-	if ti.TaskInst != nil {
-		td = &taskData{State: int(ti.TaskInst.status), TaskID: ti.TaskInst.task.ID()}
-	}
-
-	return json.Marshal(&struct {
-		ChgType  ChgType   `json:"ct"`
-		ID       string    `json:"id"`
-		TaskInst *TaskInst `json:"task,omitempty"`
-
-		ChgTypeOld ChgType   `json:"ChgType"`
-		IDOld      string    `json:"ID"`
-		TaskData   *taskData `json:"TaskData"`
-	}{
-		ChgType:  ti.ChgType,
-		ID:       ti.ID,
-		TaskInst: ti.TaskInst,
-
-		ChgTypeOld: ti.ChgType,
-		IDOld:      ti.ID,
-		TaskData:   td,
-	})
-}
-
-// MarshalJSON overrides the default MarshalJSON for TaskInst
-func (li *LinkInstChange) MarshalJSON() ([]byte, error) {
-
-	var ld *linkData
-
-	if li.LinkInst != nil {
-		ld = &linkData{State: int(li.LinkInst.status), LinkID: li.LinkInst.link.ID()}
-	}
-
-	return json.Marshal(&struct {
-		ChgType  ChgType   `json:"ct"`
-		ID       int       `json:"id"`
-		LinkInst *LinkInst `json:"link,omitempty"`
-
-		ChgTypeOld ChgType   `json:"ChgType"`
-		IDOld      int       `json:"ID"`
-		LinkData   *linkData `json:"LinkData"`
-	}{
-		ChgType:  li.ChgType,
-		ID:       li.ID,
-		LinkInst: li.LinkInst,
-
-		ChgTypeOld: li.ChgType,
-		IDOld:      li.ID,
-		LinkData:   ld,
-	})
-}
+//// MarshalJSON overrides the default MarshalJSON for TaskInst
+//func (ti *TaskInstChange) MarshalJSON() ([]byte, error) {
+//
+//	var td *taskData
+//
+//	if ti.TaskInst != nil {
+//		td = &taskData{State: int(ti.TaskInst.status), TaskID: ti.TaskInst.task.ID()}
+//	}
+//
+//	return json.Marshal(&struct {
+//		ChgType  ChgType   `json:"ct"`
+//		ID       string    `json:"id"`
+//		TaskInst *TaskInst `json:"task,omitempty"`
+//
+//		ChgTypeOld ChgType   `json:"ChgType"`
+//		IDOld      string    `json:"ID"`
+//		TaskData   *taskData `json:"TaskData"`
+//	}{
+//		ChgType:  ti.ChgType,
+//		ID:       ti.ID,
+//		TaskInst: ti.TaskInst,
+//
+//		ChgTypeOld: ti.ChgType,
+//		IDOld:      ti.ID,
+//		TaskData:   td,
+//	})
+//}
+//
+//// MarshalJSON overrides the default MarshalJSON for TaskInst
+//func (li *LinkInstChange) MarshalJSON() ([]byte, error) {
+//
+//	var ld *linkData
+//
+//	if li.LinkInst != nil {
+//		ld = &linkData{State: int(li.LinkInst.status), LinkID: li.LinkInst.link.ID()}
+//	}
+//
+//	return json.Marshal(&struct {
+//		ChgType  ChgType   `json:"ct"`
+//		ID       int       `json:"id"`
+//		LinkInst *LinkInst `json:"link,omitempty"`
+//
+//		ChgTypeOld ChgType   `json:"ChgType"`
+//		IDOld      int       `json:"ID"`
+//		LinkData   *linkData `json:"LinkData"`
+//	}{
+//		ChgType:  li.ChgType,
+//		ID:       li.ID,
+//		LinkInst: li.LinkInst,
+//
+//		ChgTypeOld: li.ChgType,
+//		IDOld:      li.ID,
+//		LinkData:   ld,
+//	})
+//}
 
 //// LinkInstChange represents a change to a LinkInst
 //type LinkInstChange struct {
@@ -345,151 +345,151 @@ func (li *LinkInst) UnmarshalJSON(d []byte) error {
 	}
 
 	li.status = model.LinkStatus(ser.Status)
-	li.linkID = ser.LinkID
+	li.id = ser.LinkID
 
 	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Flow Instance Changes Serialization
-
-// MarshalJSON overrides the default MarshalJSON for InstanceChangeTracker
-func (ict *InstanceChangeTracker) MarshalJSON() ([]byte, error) {
-
-	var wqc []*WorkItemQueueChange
-
-	if ict.wiqChanges != nil {
-		wqc = make([]*WorkItemQueueChange, 0, len(ict.wiqChanges))
-
-		for _, value := range ict.wiqChanges {
-			wqc = append(wqc, value)
-		}
-
-	} else {
-		wqc = nil
-	}
-
-	// for backwards compatibility //
-	var tdc []*TaskInstChange
-	var ldc []*LinkInstChange
-	var attrs []*AttributeChange
-	var status model.FlowStatus
-	/////////////////////////////////
-
-	var instChanges []*InstanceChange
-
-	if ict.instChanges != nil {
-		instChanges = make([]*InstanceChange, 0, len(ict.instChanges))
-
-		for _, value := range ict.instChanges {
-			instChanges = append(instChanges, value)
-		}
-
-		// for backwards compatibility
-		masterChg, ok := ict.instChanges[0]
-		if ok {
-			status = masterChg.Status
-			attrs = masterChg.AttrChanges
-		}
-
-		if masterChg.tiChanges != nil {
-			tdc = make([]*TaskInstChange, 0, len(masterChg.tiChanges))
-
-			for _, value := range masterChg.tiChanges {
-				tdc = append(tdc, value)
-			}
-		} else {
-			tdc = nil
-		}
-
-		if masterChg.liChanges != nil {
-			ldc = make([]*LinkInstChange, 0, len(masterChg.liChanges))
-
-			for _, value := range masterChg.liChanges {
-				ldc = append(ldc, value)
-			}
-		} else {
-			ldc = nil
-		}
-	} else {
-		instChanges = nil
-	}
-
-	//backwards compatibility
-	return json.Marshal(&struct {
-		Status      model.FlowStatus       `json:"status,omitempty"`
-		AttrChanges []*AttributeChange     `json:"attrs,omitempty"`
-		WqChanges   []*WorkItemQueueChange `json:"wqChanges,omitempty"`
-		TdChanges   []*TaskInstChange      `json:"tdChanges,omitempty"`
-		LdChanges   []*LinkInstChange      `json:"ldChanges,omitempty"`
-		InstChanges []*InstanceChange      `json:"instChanges,omitempty"`
-	}{
-		Status:      status,
-		AttrChanges: attrs,
-		WqChanges:   wqc,
-		TdChanges:   tdc,
-		LdChanges:   ldc,
-		InstChanges: instChanges,
-	})
-}
-
-// MarshalJSON overrides the default MarshalJSON for InstanceChangeTracker
-func (ic *InstanceChange) MarshalJSON() ([]byte, error) {
-
-	var tdc []*TaskInstChange
-
-	if ic.tiChanges != nil {
-		tdc = make([]*TaskInstChange, 0, len(ic.tiChanges))
-
-		for _, value := range ic.tiChanges {
-			tdc = append(tdc, value)
-		}
-	} else {
-		tdc = nil
-	}
-
-	var ldc []*LinkInstChange
-
-	if ic.liChanges != nil {
-		ldc = make([]*LinkInstChange, 0, len(ic.liChanges))
-
-		for _, value := range ic.liChanges {
-			ldc = append(ldc, value)
-		}
-	} else {
-		ldc = nil
-	}
-
-	if ic.Status > -1 {
-		//backwards compatibility
-		return json.Marshal(&struct {
-			FlowID      int                `json:"flowId"`
-			Status      model.FlowStatus   `json:"status"`
-			AttrChanges []*AttributeChange `json:"attrs,omitempty"`
-			TdChanges   []*TaskInstChange  `json:"tasks,omitempty"`
-			LdChanges   []*LinkInstChange  `json:"links,omitempty"`
-			SfChange    *SubFlowChange     `json:"subFlow,omitempty"`
-		}{
-			FlowID:      ic.SubFlowID,
-			Status:      ic.Status,
-			AttrChanges: ic.AttrChanges,
-			TdChanges:   tdc,
-			LdChanges:   ldc,
-			SfChange:    ic.SubFlowChg,
-		})
-	}
-
-	return json.Marshal(&struct {
-		FlowID      int                `json:"flowId"`
-		AttrChanges []*AttributeChange `json:"attrs,omitempty"`
-		TdChanges   []*TaskInstChange  `json:"tasks,omitempty"`
-		LdChanges   []*LinkInstChange  `json:"links,omitempty"`
-		SfChange    *SubFlowChange     `json:"subFlow,omitempty"`
-	}{
-		FlowID:      ic.SubFlowID,
-		AttrChanges: ic.AttrChanges,
-		TdChanges:   tdc,
-		LdChanges:   ldc,
-		SfChange:    ic.SubFlowChg,
-	})
-}
+//
+//// MarshalJSON overrides the default MarshalJSON for InstanceChangeTracker
+//func (ict *InstanceChangeTracker) MarshalJSON() ([]byte, error) {
+//
+//	var wqc []*WorkItemQueueChange
+//
+//	if ict.wiqChanges != nil {
+//		wqc = make([]*WorkItemQueueChange, 0, len(ict.wiqChanges))
+//
+//		for _, value := range ict.wiqChanges {
+//			wqc = append(wqc, value)
+//		}
+//
+//	} else {
+//		wqc = nil
+//	}
+//
+//	// for backwards compatibility //
+//	var tdc []*TaskInstChange
+//	var ldc []*LinkInstChange
+//	var attrs []*AttributeChange
+//	var status model.FlowStatus
+//	/////////////////////////////////
+//
+//	var instChanges []*InstanceChange
+//
+//	if ict.instChanges != nil {
+//		instChanges = make([]*InstanceChange, 0, len(ict.instChanges))
+//
+//		for _, value := range ict.instChanges {
+//			instChanges = append(instChanges, value)
+//		}
+//
+//		// for backwards compatibility
+//		masterChg, ok := ict.instChanges[0]
+//		if ok {
+//			status = masterChg.Status
+//			attrs = masterChg.AttrChanges
+//		}
+//
+//		if masterChg.tiChanges != nil {
+//			tdc = make([]*TaskInstChange, 0, len(masterChg.tiChanges))
+//
+//			for _, value := range masterChg.tiChanges {
+//				tdc = append(tdc, value)
+//			}
+//		} else {
+//			tdc = nil
+//		}
+//
+//		if masterChg.liChanges != nil {
+//			ldc = make([]*LinkInstChange, 0, len(masterChg.liChanges))
+//
+//			for _, value := range masterChg.liChanges {
+//				ldc = append(ldc, value)
+//			}
+//		} else {
+//			ldc = nil
+//		}
+//	} else {
+//		instChanges = nil
+//	}
+//
+//	//backwards compatibility
+//	return json.Marshal(&struct {
+//		Status      model.FlowStatus       `json:"status,omitempty"`
+//		AttrChanges []*AttributeChange     `json:"attrs,omitempty"`
+//		WqChanges   []*WorkItemQueueChange `json:"wqChanges,omitempty"`
+//		TdChanges   []*TaskInstChange      `json:"tdChanges,omitempty"`
+//		LdChanges   []*LinkInstChange      `json:"ldChanges,omitempty"`
+//		InstChanges []*InstanceChange      `json:"instChanges,omitempty"`
+//	}{
+//		Status:      status,
+//		AttrChanges: attrs,
+//		WqChanges:   wqc,
+//		TdChanges:   tdc,
+//		LdChanges:   ldc,
+//		InstChanges: instChanges,
+//	})
+//}
+//
+//// MarshalJSON overrides the default MarshalJSON for InstanceChangeTracker
+//func (ic *InstanceChange) MarshalJSON() ([]byte, error) {
+//
+//	var tdc []*TaskInstChange
+//
+//	if ic.tiChanges != nil {
+//		tdc = make([]*TaskInstChange, 0, len(ic.tiChanges))
+//
+//		for _, value := range ic.tiChanges {
+//			tdc = append(tdc, value)
+//		}
+//	} else {
+//		tdc = nil
+//	}
+//
+//	var ldc []*LinkInstChange
+//
+//	if ic.liChanges != nil {
+//		ldc = make([]*LinkInstChange, 0, len(ic.liChanges))
+//
+//		for _, value := range ic.liChanges {
+//			ldc = append(ldc, value)
+//		}
+//	} else {
+//		ldc = nil
+//	}
+//
+//	if ic.Status > -1 {
+//		//backwards compatibility
+//		return json.Marshal(&struct {
+//			FlowID      int                `json:"flowId"`
+//			Status      model.FlowStatus   `json:"status"`
+//			AttrChanges []*AttributeChange `json:"attrs,omitempty"`
+//			TdChanges   []*TaskInstChange  `json:"tasks,omitempty"`
+//			LdChanges   []*LinkInstChange  `json:"links,omitempty"`
+//			SfChange    *SubFlowChange     `json:"subFlow,omitempty"`
+//		}{
+//			FlowID:      ic.SubFlowID,
+//			Status:      ic.Status,
+//			AttrChanges: ic.AttrChanges,
+//			TdChanges:   tdc,
+//			LdChanges:   ldc,
+//			SfChange:    ic.SubFlowChg,
+//		})
+//	}
+//
+//	return json.Marshal(&struct {
+//		FlowID      int                `json:"flowId"`
+//		AttrChanges []*AttributeChange `json:"attrs,omitempty"`
+//		TdChanges   []*TaskInstChange  `json:"tasks,omitempty"`
+//		LdChanges   []*LinkInstChange  `json:"links,omitempty"`
+//		SfChange    *SubFlowChange     `json:"subFlow,omitempty"`
+//	}{
+//		FlowID:      ic.SubFlowID,
+//		AttrChanges: ic.AttrChanges,
+//		TdChanges:   tdc,
+//		LdChanges:   ldc,
+//		SfChange:    ic.SubFlowChg,
+//	})
+//}

@@ -3,6 +3,7 @@ package instance
 import (
 	"errors"
 	"fmt"
+	"github.com/project-flogo/flow/state"
 	"strconv"
 
 	"github.com/project-flogo/core/support"
@@ -24,12 +25,12 @@ type IndependentInstance struct {
 	trackingChanges bool
 	changeTracker   ChangeTracker
 
-	subFlowCtr  int
 	flowModel   *model.FlowModel
 	patch       *flowsupport.Patch
 	interceptor *flowsupport.Interceptor
 
-	subFlows map[int]*Instance
+	subflowCtr  int
+	subflows map[int]*Instance
 }
 
 // New creates a new Flow Instance from the specified Flow
@@ -50,7 +51,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
-	inst.changeTracker = NewInstanceChangeTracker()
+	inst.changeTracker = NewInstanceChangeTracker(inst.id)
 
 	inst.taskInsts = make(map[string]*TaskInst)
 	inst.linkInsts = make(map[int]*LinkInst)
@@ -60,10 +61,10 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
 
-	inst.subFlowCtr++
+	inst.subflowCtr++
 
 	embeddedInst := &Instance{}
-	embeddedInst.subFlowId = inst.subFlowCtr
+	embeddedInst.subflowId = inst.subflowCtr
 	embeddedInst.master = inst
 	embeddedInst.host = taskInst
 	embeddedInst.flowDef = flow
@@ -78,12 +79,12 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 		embeddedInst.tracingCtx = tc
 	}
 
-	if inst.subFlows == nil {
-		inst.subFlows = make(map[int]*Instance)
+	if inst.subflows == nil {
+		inst.subflows = make(map[int]*Instance)
 	}
-	inst.subFlows[embeddedInst.subFlowId] = embeddedInst
+	inst.subflows[embeddedInst.subflowId] = embeddedInst
 
-	inst.changeTracker.SubFlowCreated(embeddedInst)
+	inst.changeTracker.SubflowCreated(embeddedInst)
 	//inst.ChangeTracker.SubFlowChange(taskInst.flowInst.subFlowId, CtAdd, embeddedInst.subFlowId, "")
 
 	return embeddedInst
@@ -160,12 +161,6 @@ func (inst *IndependentInstance) GetChanges() ChangeTracker {
 // ResetChanges resets an changes that were being tracked
 func (inst *IndependentInstance) ResetChanges() {
 
-	if inst.changeTracker != nil {
-		inst.changeTracker.ResetChanges()
-	}
-
-	//todo: can we reuse this to avoid gc
-	inst.changeTracker = NewInstanceChangeTracker()
 }
 
 // StepID returns the current step ID of the Flow Instance
@@ -370,7 +365,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 			//}
 
 			// flow has completed so remove it
-			delete(inst.subFlows, containerInst.subFlowId)
+			delete(inst.subflows, containerInst.subflowId)
 		}
 
 	} else {
@@ -414,7 +409,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 			containerInst.SetStatus(model.FlowStatusFailed)
 
 			if containerInst != inst.Instance {
-				// Complete Subflow trace
+				// Complete SubflowCreated trace
 				if containerInst.tracingCtx != nil {
 					_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 				}
@@ -474,7 +469,7 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 
 		if containerInst != inst.Instance {
 
-			// Complete Subflow trace
+			// Complete SubflowCreated trace
 			if containerInst.tracingCtx != nil {
 				_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 			}
@@ -577,7 +572,7 @@ func NewWorkItem(id int, taskInst *TaskInst) *WorkItem {
 	workItem.ID = id
 	workItem.taskInst = taskInst
 	workItem.TaskID = taskInst.task.ID()
-	workItem.SubFlowID = taskInst.flowInst.subFlowId
+	workItem.SubFlowID = taskInst.flowInst.subflowId
 
 	return &workItem
 }
@@ -648,7 +643,7 @@ func (inst *IndependentInstance) init(flowInst *Instance) {
 
 	for _, v := range flowInst.linkInsts {
 		v.flowInst = flowInst
-		v.link = flowInst.flowDef.GetLink(v.linkID)
+		v.link = flowInst.flowDef.GetLink(v.id)
 	}
 }
 
@@ -667,4 +662,58 @@ func (inst *Instance) SpanConfig() trace.Config {
 		config.Tags["parent_flow_name"] = inst.master.Name()
 	}
 	return config
+}
+
+func (inst *IndependentInstance) CurrentStep(reset bool) *state.Step {
+	return inst.changeTracker.ExtractStep(reset)
+}
+
+func (inst *IndependentInstance) Snapshot() *state.Snapshot {
+	fs := &state.Snapshot{
+		SnapshotBase: &state.SnapshotBase{},
+		Id:   inst.id,
+	}
+
+	populateBaseSnapshot(inst.Instance, fs.SnapshotBase)
+
+	if len(inst.subflows) > 0 {
+		fs.Subflows = make([]*state.Subflow, 0, len(inst.subflows))
+		for id, subflow := range inst.subflows {
+			sfs := state.Subflow{
+				SnapshotBase:   &state.SnapshotBase{},
+				Id:     id,
+				TaskId: inst.host.(TaskInst).taskID,
+			}
+			populateBaseSnapshot(subflow, sfs.SnapshotBase)
+		}
+	}
+
+	return fs
+}
+
+func populateBaseSnapshot(inst *Instance, base *state.SnapshotBase) {
+
+	base.FlowURI = inst.flowURI
+	base.Status = int(inst.status)
+
+	if len(inst.attrs) > 0 {
+		base.Attrs = make(map[string]interface{}, len(inst.attrs))
+		for name, value := range inst.attrs {
+			base.Attrs[name] = value
+		}
+	}
+
+	if len(inst.taskInsts) > 0 {
+		base.Tasks = make([]*state.Task, 0, len(inst.taskInsts))
+		for id, task := range inst.taskInsts {
+			base.Tasks = append(base.Tasks, &state.Task{Id: id,Status:int(task.status)})
+		}
+	}
+
+	if len(inst.linkInsts) > 0 {
+		base.Links = make([]*state.Link, 0, len(inst.linkInsts))
+		for id, link := range inst.linkInsts {
+			base.Links = append(base.Links, &state.Link{Id: id,Status:int(link.status)})
+		}
+	}
 }
