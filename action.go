@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
@@ -15,17 +12,14 @@ import (
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/service"
 	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
-	_ "github.com/project-flogo/flow/model/simple"
+	"github.com/project-flogo/flow/model/simple"
+	"github.com/project-flogo/flow/state"
 	flowSupport "github.com/project-flogo/flow/support"
-	"github.com/project-flogo/flow/tester"
-)
-
-const (
-	EnvFlowRecord = "FLOGO_FLOW_RECORD"
 )
 
 func init() {
@@ -33,18 +27,14 @@ func init() {
 	_ = resource.RegisterLoader(flowSupport.ResTypeFlow, &flowSupport.FlowLoader{})
 }
 
-var ep ExtensionProvider
 var idGenerator *support.Generator
-var record bool
 var maxStepCount = 1000000
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
-
 var flowManager *flowSupport.FlowManager
-
-func SetExtensionProvider(provider ExtensionProvider) {
-	ep = provider
-}
+var stateRecorder state.Recorder
+var recordSnapshot bool //todo switch to "mode"
+var recordSteps bool    //todo switch to "mode"
 
 type ActionFactory struct {
 	resManager *resource.Manager
@@ -59,20 +49,18 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		return nil
 	}
 
-	if ep == nil {
-		testerEnabled := os.Getenv(tester.EnvEnabled)
-		if strings.ToLower(testerEnabled) == "true" {
-			ep = tester.NewExtensionProvider()
+	sm := ctx.ServiceManager()
 
-			sm := support.GetDefaultServiceManager()
-			err := sm.RegisterService(ep.GetFlowTester())
-			if err != nil {
-				return err
-			}
-			record = true
-		} else {
-			ep = NewDefaultExtensionProvider()
-			record = recordFlows()
+	srService := sm.FindService(func(s service.Service) bool {
+		_, ok := s.(state.Recorder)
+		return ok
+	})
+
+	if srService != nil {
+		stateRecorder = srService.(state.Recorder)
+
+		if recordSteps {
+			instance.EnableChangeTracking(true)
 		}
 	}
 
@@ -86,21 +74,14 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		idGenerator, _ = support.NewGenerator()
 	}
 
-	model.RegisterDefault(ep.GetDefaultFlowModel())
-	flowManager = flowSupport.NewFlowManager(ep.GetFlowProvider())
+	//todo fix the following
+	model.RegisterDefault(simple.New())
+	flowManager = flowSupport.NewFlowManager(&flowSupport.BasicRemoteFlowProvider{})
 	flowSupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
 
 	return nil
 }
 
-func recordFlows() bool {
-	recordFlows := os.Getenv(EnvFlowRecord)
-	if len(recordFlows) == 0 {
-		return false
-	}
-	b, _ := strconv.ParseBool(recordFlows)
-	return b
-}
 
 func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
@@ -261,7 +242,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		inst.SetTracingContext(tc)
 	}
 
-
 	//todo how do we check if debug is enabled?
 	//logInputs(inputs)
 
@@ -298,16 +278,20 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			logger.Debugf("Step: %d", stepCount)
 			hasWork = inst.DoStep()
 
-			if record &&  ep.GetStateRecorder() != nil {
+			if stateRecorder != nil {
 
-				//todo add ability to control what to record
-				err = ep.GetStateRecorder().RecordSnapshot(inst.Snapshot())
-				if err != nil {
-					logger.Warnf("unable to record snapshot: %v", err)
+				if recordSnapshot {
+					err := stateRecorder.RecordSnapshot(inst.Snapshot())
+					if err != nil {
+						logger.Warnf("unable to record snapshot: %v", err)
+					}
 				}
-				err = ep.GetStateRecorder().RecordStep(inst.CurrentStep(true))
-				if err != nil {
-					logger.Warnf("unable to record step: %v", err)
+
+				if recordSteps {
+					err := stateRecorder.RecordStep(inst.CurrentStep(true))
+					if err != nil {
+						logger.Warnf("unable to record step: %v", err)
+					}
 				}
 			}
 		}
