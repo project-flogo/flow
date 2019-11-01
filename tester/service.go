@@ -3,70 +3,88 @@ package tester
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/project-flogo/core/support"
+	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/service"
 	"github.com/project-flogo/flow/instance"
-	"github.com/project-flogo/flow/service"
 )
 
-// RestEngineTester is default REST implementation of the EngineTester
-type RestEngineTester struct {
+func init() {
+	_ = service.RegisterFactory(&FlowTesterFactory{})
+}
+
+type FlowTesterFactory struct {
+}
+
+func (s *FlowTesterFactory) NewService(config *service.Config) (service.Service, error) {
+	ft := &RestFlowTester{}
+	err := ft.init(config.Settings)
+	if err != nil {
+		return nil, err
+	}
+
+	ft.reqProcessor = NewRequestProcessor()
+
+	//todo switch this logger
+	ft.logger = log.RootLogger()
+
+	return ft, nil
+}
+
+// RestFlowTester is default REST implementation of the EngineTester
+type RestFlowTester struct {
 	reqProcessor *RequestProcessor
 	server       *Server
-	enabled      bool
 	logger       log.Logger
 }
 
-// NewRestEngineTester creates a new REST EngineTester
-func NewRestEngineTester(config *support.ServiceConfig) *RestEngineTester {
-	et := &RestEngineTester{enabled: config.Enabled}
-	et.init(config.Settings)
-	et.reqProcessor = NewRequestProcessor()
-
-	//todo what logger should this use?
-	et.logger = log.RootLogger()
-
-	return et
-}
-
-func (et *RestEngineTester) Name() string {
-	return service.ServiceEngineTester
-}
-
-func (et *RestEngineTester) Enabled() bool {
-	return et.enabled
+func (ft *RestFlowTester) Name() string {
+	return "FlowTester"
 }
 
 // Start implements engine.EngineTester.Start
-func (et *RestEngineTester) Start() error {
-	return et.server.Start()
+func (ft *RestFlowTester) Start() error {
+	return ft.server.Start()
 }
 
 // Stop implements engine.EngineTester.Stop
-func (et *RestEngineTester) Stop() error {
-	return et.server.Stop()
+func (ft *RestFlowTester) Stop() error {
+	return ft.server.Stop()
 }
 
 // Init implements engine.EngineTester.Init
-func (et *RestEngineTester) init(settings map[string]string) {
+func (ft *RestFlowTester) init(settings map[string]interface{}) error {
 
 	router := httprouter.New()
 	router.OPTIONS("/flow/start", handleOption)
-	router.POST("/flow/start", et.StartFlow)
+	router.POST("/flow/start", ft.StartFlow)
 
 	router.OPTIONS("/flow/restart", handleOption)
-	router.POST("/flow/restart", et.RestartFlow)
+	router.POST("/flow/restart", ft.RestartFlow)
 
 	router.OPTIONS("/flow/resume", handleOption)
-	router.POST("/flow/resume", et.ResumeFlow)
+	router.POST("/flow/resume", ft.ResumeFlow)
 
 	router.OPTIONS("/status", handleOption)
-	router.GET("/status", et.Status)
+	router.GET("/status", ft.Status)
 
-	addr := ":" + settings["port"]
-	et.server = NewServer(addr, router)
+	port := 8080
+	var err error
+	sPort, set := settings["port"]
+	if set {
+		port, err = coerce.ToInt(sPort)
+		if err != nil {
+			return err
+		}
+	}
+
+	addr := ":" + strconv.Itoa(port)
+	ft.server = NewServer(addr, router)
+
+	return nil
 }
 
 func handleOption(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -84,9 +102,9 @@ func handleOption(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 //
 // To post a start flow, try this at a shell:
 // $ curl -H "Content-Type: application/json" -X POST -d '{"flowUri":"base"}' http://localhost:8080/flow/start
-func (et *RestEngineTester) StartFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (ft *RestFlowTester) StartFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	logger := et.logger
+	logger := ft.logger
 
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
@@ -97,7 +115,7 @@ func (et *RestEngineTester) StartFlow(w http.ResponseWriter, r *http.Request, _ 
 		return
 	}
 
-	results, err := et.reqProcessor.StartFlow(req)
+	results, err := ft.reqProcessor.StartFlow(req)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -132,9 +150,9 @@ func (et *RestEngineTester) StartFlow(w http.ResponseWriter, r *http.Request, _ 
 //
 // To post a restart flow, try this at a shell:
 // $ curl -H "Content-Type: application/json" -X POST -d '{...}' http://localhost:8080/flow/restart
-func (et *RestEngineTester) RestartFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (ft *RestFlowTester) RestartFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	logger := et.logger
+	logger := ft.logger
 
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
@@ -151,7 +169,7 @@ func (et *RestEngineTester) RestartFlow(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	results, err := et.reqProcessor.RestartFlow(req)
+	results, err := ft.reqProcessor.RestartFlow(req)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -180,9 +198,9 @@ func (et *RestEngineTester) RestartFlow(w http.ResponseWriter, r *http.Request, 
 //
 // To post a resume flow, try this at a shell:
 // $ curl -H "Content-Type: application/json" -X POST -d '{...}' http://localhost:8080/flow/resume
-func (et *RestEngineTester) ResumeFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (ft *RestFlowTester) ResumeFlow(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
-	logger := et.logger
+	logger := ft.logger
 
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
@@ -199,7 +217,7 @@ func (et *RestEngineTester) ResumeFlow(w http.ResponseWriter, r *http.Request, _
 		return
 	}
 
-	results, err := et.reqProcessor.ResumeFlow(req)
+	results, err := ft.reqProcessor.ResumeFlow(req)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -225,14 +243,10 @@ func (et *RestEngineTester) ResumeFlow(w http.ResponseWriter, r *http.Request, _
 }
 
 // Status is a basic health check for the server to determine if it is up
-func (et *RestEngineTester) Status(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (ft *RestFlowTester) Status(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 	//w.WriteHeader(http.StatusOK)
-}
-
-func DefaultConfig() *support.ServiceConfig {
-	return &support.ServiceConfig{Name: service.ServiceEngineTester, Enabled: true, Settings: map[string]string{"port": "8080"}}
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/data/coerce"
+	"strings"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
@@ -26,6 +28,11 @@ func init() {
 	_ = action.Register(&FlowAction{}, &ActionFactory{})
 	_ = resource.RegisterLoader(flowSupport.ResTypeFlow, &flowSupport.FlowLoader{})
 }
+
+const (
+	RtSettingStepMode = "stepRecordingMode"
+	RtSettingSnapshotMode = "snapshotRecordingMode"
+)
 
 var idGenerator *support.Generator
 var maxStepCount = 1000000
@@ -55,6 +62,21 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		_, ok := s.(state.Recorder)
 		return ok
 	})
+
+	stepMode := ""
+	snapshotMode := ""
+
+	if len(ctx.RuntimeSettings()) > 0 {
+		sStepMode := ctx.RuntimeSettings()[RtSettingStepMode]
+		sSnapshotMode := ctx.RuntimeSettings()[RtSettingSnapshotMode]
+
+		stepMode, _ = coerce.ToString(sStepMode)
+		snapshotMode, _ = coerce.ToString(sSnapshotMode)
+	}
+
+	//todo only support "full" for now, until we come up with other modes
+	recordSteps = strings.EqualFold("full", stepMode)
+	recordSnapshot = strings.EqualFold("full", snapshotMode)
 
 	if srService != nil {
 		stateRecorder = srService.(state.Recorder)
