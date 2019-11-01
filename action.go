@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/project-flogo/core/data/coerce"
 	"strings"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
+	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
@@ -30,7 +30,7 @@ func init() {
 }
 
 const (
-	RtSettingStepMode = "stepRecordingMode"
+	RtSettingStepMode     = "stepRecordingMode"
 	RtSettingSnapshotMode = "snapshotRecordingMode"
 )
 
@@ -103,7 +103,6 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 
 	return nil
 }
-
 
 func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
