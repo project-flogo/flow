@@ -2,6 +2,12 @@ package state
 
 import "github.com/project-flogo/flow/state/change"
 
+type FlowInfo struct {
+	Id      string `json:"id"`
+	FlowURI string `json:"flowURI"`
+	Status  int    `json:"status"`
+}
+
 func StepsToSnapshot(flowId string, steps []*Step) *Snapshot {
 
 	fs := &Snapshot{Id: flowId, SnapshotBase: &SnapshotBase{}}
