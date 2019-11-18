@@ -70,6 +70,8 @@ func (r *ActivityResolver) Resolve(scope data.Scope, itemName, valueName string)
 
 var errorResolverInfo = resolve.NewImplicitResolverInfo(false, true)
 
+//var errorResolverInfo = resolve.NewResolverInfoWithOptions(resolve.OptImplicit)
+
 type ErrorResolver struct {
 }
 
@@ -93,6 +95,10 @@ func (r *ErrorResolver) Resolve(scope data.Scope, itemName, valueName string) (i
 
 		}
 		value = v
+	}
+
+	if valueName == "" {
+		return value, nil
 	}
 
 	return path.GetValue(value, "."+valueName)

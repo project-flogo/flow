@@ -470,16 +470,15 @@ func (ti *TaskInst) GetSetting(name string) (value interface{}, exists bool) {
 func (ti *TaskInst) appendErrorData(err error) {
 	//For global handle only
 	errObj := ti.getErrorObject(err)
+	_ = ti.flowInst.SetValue("_E", errObj)
 	ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
-	ti.flowInst.SetValue("_E", errObj)
-
 }
 
 func (ti *TaskInst) setTaskError(err error) {
 	//For error branch handle.
 	errObj := ti.getErrorObject(err)
-	ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
-
+	_ = ti.flowInst.SetValue("_E."+ti.Task().ID(), errObj)
+	//ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
 }
 
 func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
