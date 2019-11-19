@@ -31,10 +31,10 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 	//todo make sure we are part of a flow, since this only works in a flow
 
 	//minimal uri check
-	_, err = url.ParseRequestURI(s.FlowURI)
-	if err != nil {
-		return nil, err
-	}
+	//_, err = url.ParseRequestURI(s.FlowURI)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	activityMd := activity.ToMetadata(&Settings{})
 	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd}
