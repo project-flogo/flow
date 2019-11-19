@@ -2,7 +2,6 @@ package subflow
 
 import (
 	"github.com/project-flogo/core/support/log"
-	"net/url"
 	"sync"
 	"sync/atomic"
 
