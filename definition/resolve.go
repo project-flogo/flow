@@ -5,13 +5,14 @@ import (
 
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/path"
+	"github.com/project-flogo/core/data/property"
 	"github.com/project-flogo/core/data/resolve"
 )
 
 var defResolver = resolve.NewCompositeResolver(map[string]resolve.Resolver{
 	".":         &resolve.ScopeResolver{},
 	"env":       &resolve.EnvResolver{},
-	"property":  &resolve.PropertyResolver{},
+	"property":  &property.Resolver{},
 	"loop":      &resolve.LoopResolver{},
 	"iteration": &IteratorResolver{}, //todo should we create a separate resolver to use in iterations?
 	"activity":  &ActivityResolver{},
