@@ -98,7 +98,7 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 
 	//todo fix the following
 	model.RegisterDefault(simple.New())
-	flowManager = flowSupport.NewFlowManager(&flowSupport.BasicRemoteFlowProvider{})
+	flowManager = flowSupport.NewFlowManager(nil)
 	flowSupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
 
 	return nil
@@ -181,6 +181,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	if flowURI == "" {
 		flowURI = fa.flowURI
+	}
+
+	if flowURI == "" {
+		return fmt.Errorf("cannot run flow, flowURI not specified")
 	}
 
 	logger.Debugf("Running FlowAction for URI: '%s'", flowURI)
