@@ -119,7 +119,7 @@ func evalActivity(ctx model.TaskContext) (bool, error) {
 				return done, rerr
 			}
 
-			if t, ok := ctx.(*instance.TaskInst); ok  {
+			if t, ok := ctx.(*instance.TaskInst); ok {
 				if t.GetTracingContext() != nil {
 					t.GetTracingContext().SetTag("retry_enabled", true)
 					t.GetTracingContext().SetTag("retries_remaining", retryData.Count)
@@ -213,7 +213,9 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				if err != nil {
 					return false, nil, err
 				}
-				exprLinkFollowed = follow
+				if follow {
+					exprLinkFollowed = true
+				}
 			}
 
 			if follow {
