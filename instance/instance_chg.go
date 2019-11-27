@@ -237,7 +237,8 @@ func getTaskChange(step *state.Step, subflowId int, taskId string) *change.Task 
 
 	tc, exists := fc.Tasks[taskId]
 	if !exists {
-		fc.Tasks[taskId] = &change.Task{}
+		tc = &change.Task{}
+		fc.Tasks[taskId] = tc
 	}
 
 	return tc
@@ -257,7 +258,8 @@ func getLinkChange(step *state.Step, subflowId int, linkId int) *change.Link {
 
 	lc, exists := fc.Links[linkId]
 	if !exists {
-		fc.Links[linkId] = &change.Link{}
+		lc = &change.Link{}
+		fc.Links[linkId] = lc
 	}
 
 	return lc
