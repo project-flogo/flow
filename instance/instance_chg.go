@@ -11,6 +11,8 @@ var chgTrackerFactory = &SimpleChangeTrackerFactory{}
 var chgTrackingEnabled = false
 
 type ChangeTracker interface {
+
+	FlowCreated(flow *IndependentInstance)
 	// SetStatus is called to track a status change on an instance
 	SetStatus(subflowId int, status model.FlowStatus)
 	// AttrChange is called to track when Attribute changes
@@ -53,6 +55,9 @@ func EnableChangeTracking(enable bool) {
 }
 
 type NoopChangeTracker struct {
+}
+
+func (nct *NoopChangeTracker) FlowCreated(flow *IndependentInstance) {
 }
 
 func (nct *NoopChangeTracker) SetStatus(subflowId int, status model.FlowStatus) {
@@ -136,6 +141,17 @@ func (sct *SimpleChangeTracker) AttrChange(subflowId int, name string, value int
 
 	fc.Attrs[name] = value
 }
+
+func (sct *SimpleChangeTracker) FlowCreated(flow *IndependentInstance) {
+
+	fc := &change.Flow{
+		NewFlow:   true,
+		FlowURI:   flow.flowURI,
+		Status:    int(flow.status),
+	}
+	sct.currentStep.FlowChanges[0] = fc
+}
+
 
 func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
 

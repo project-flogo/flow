@@ -15,7 +15,7 @@ const (
 type Flow struct {
 	NewFlow   bool                   `json:"newFlow,omitEmpty"`
 	FlowURI   string                 `json:"flowURI,omitEmpty"`
-	SubflowId int                    `json:"subflowId"`
+	SubflowId int                    `json:"subflowId,omitEmpty"`
 	TaskId    string                 `json:"taskId,omitEmpty"`
 	Status    int                    `json:"status,omitEmpty"`
 	Attrs     map[string]interface{} `json:"attrs,omitEmpty"`
