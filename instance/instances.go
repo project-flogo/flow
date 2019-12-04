@@ -52,6 +52,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 
 	inst.status = model.FlowStatusNotStarted
 	inst.changeTracker = NewInstanceChangeTracker(inst.id)
+	inst.changeTracker.FlowCreated(inst)
 
 	inst.taskInsts = make(map[string]*TaskInst)
 	inst.linkInsts = make(map[int]*LinkInst)
@@ -134,6 +135,7 @@ func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
 
 	for name, value := range startAttrs {
 		inst.attrs[name] = value
+		inst.changeTracker.AttrChange(0, name, value)
 	}
 
 	return inst.startInstance(inst.Instance)
