@@ -22,15 +22,15 @@ type IndependentInstance struct {
 	workItemQueue *support.SyncQueue //todo: change to faster non-threadsafe queue
 	wiCounter     int
 
-	trackingChanges bool
-	changeTracker   ChangeTracker
+	//trackingChanges bool
+	changeTracker ChangeTracker
 
 	flowModel   *model.FlowModel
 	patch       *flowsupport.Patch
 	interceptor *flowsupport.Interceptor
 
-	subflowCtr  int
-	subflows map[int]*Instance
+	subflowCtr int
+	subflows   map[int]*Instance
 }
 
 // New creates a new Flow Instance from the specified Flow
@@ -75,7 +75,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
 
-    if trace.Enabled() {
+	if trace.Enabled() {
 		tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), taskInst.traceContext) //TODO handle error
 		embeddedInst.tracingCtx = tc
 	}
@@ -673,7 +673,7 @@ func (inst *IndependentInstance) CurrentStep(reset bool) *state.Step {
 func (inst *IndependentInstance) Snapshot() *state.Snapshot {
 	fs := &state.Snapshot{
 		SnapshotBase: &state.SnapshotBase{},
-		Id:   inst.id,
+		Id:           inst.id,
 	}
 
 	populateBaseSnapshot(inst.Instance, fs.SnapshotBase)
@@ -682,9 +682,9 @@ func (inst *IndependentInstance) Snapshot() *state.Snapshot {
 		fs.Subflows = make([]*state.Subflow, 0, len(inst.subflows))
 		for id, subflow := range inst.subflows {
 			sfs := state.Subflow{
-				SnapshotBase:   &state.SnapshotBase{},
-				Id:     id,
-				TaskId: inst.host.(TaskInst).taskID,
+				SnapshotBase: &state.SnapshotBase{},
+				Id:           id,
+				TaskId:       inst.host.(TaskInst).taskID,
 			}
 			populateBaseSnapshot(subflow, sfs.SnapshotBase)
 		}
@@ -708,14 +708,14 @@ func populateBaseSnapshot(inst *Instance, base *state.SnapshotBase) {
 	if len(inst.taskInsts) > 0 {
 		base.Tasks = make([]*state.Task, 0, len(inst.taskInsts))
 		for id, task := range inst.taskInsts {
-			base.Tasks = append(base.Tasks, &state.Task{Id: id,Status:int(task.status)})
+			base.Tasks = append(base.Tasks, &state.Task{Id: id, Status: int(task.status)})
 		}
 	}
 
 	if len(inst.linkInsts) > 0 {
 		base.Links = make([]*state.Link, 0, len(inst.linkInsts))
 		for id, link := range inst.linkInsts {
-			base.Links = append(base.Links, &state.Link{Id: id,Status:int(link.status)})
+			base.Links = append(base.Links, &state.Link{Id: id, Status: int(link.status)})
 		}
 	}
 }

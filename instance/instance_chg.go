@@ -11,7 +11,7 @@ var chgTrackerFactory = &SimpleChangeTrackerFactory{}
 var chgTrackingEnabled = false
 
 type ChangeTracker interface {
-
+	// FlowCreated is called to track a when a flow is created
 	FlowCreated(flow *IndependentInstance)
 	// SetStatus is called to track a status change on an instance
 	SetStatus(subflowId int, status model.FlowStatus)
@@ -38,10 +38,6 @@ type ChangeTracker interface {
 	// ExtractStep extracts the step object and resets the tracker
 	ExtractStep(reset bool) *state.Step
 }
-
-//type ChangeTrackerFactory interface {
-//	NewChangeTracker(flowId string) ChangeTracker
-//}
 
 func NewInstanceChangeTracker(flowId string) ChangeTracker {
 	if chgTrackingEnabled {
@@ -145,13 +141,12 @@ func (sct *SimpleChangeTracker) AttrChange(subflowId int, name string, value int
 func (sct *SimpleChangeTracker) FlowCreated(flow *IndependentInstance) {
 
 	fc := &change.Flow{
-		NewFlow:   true,
-		FlowURI:   flow.flowURI,
-		Status:    int(flow.status),
+		NewFlow: true,
+		FlowURI: flow.flowURI,
+		Status:  int(flow.status),
 	}
 	sct.currentStep.FlowChanges[0] = fc
 }
-
 
 func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
 
