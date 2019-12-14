@@ -218,10 +218,6 @@ func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
 
 func (inst *Instance) SetValue(name string, value interface{}) error {
 
-	if inst.attrs == nil {
-		inst.attrs = make(map[string]interface{})
-	}
-
 	if inst.logger.DebugEnabled() {
 		inst.logger.Debugf("SetAttr - name: %s, value:%v\n", name, value)
 	}
@@ -241,15 +237,8 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 func (inst *Instance) UpdateAttrs(attrs map[string]interface{}) {
 
 	if attrs != nil {
-
-		inst.logger.Debugf("Updating flow attrs: %v", attrs)
-
-		if inst.attrs == nil {
-			inst.attrs = make(map[string]interface{}, len(attrs))
-		}
-
-		for name, attr := range attrs {
-			inst.attrs[name] = attr
+		for name, value := range attrs {
+			_ = inst.SetValue(name, value)
 		}
 	}
 }

@@ -170,10 +170,11 @@ func applyOutputMapper(taskInst *TaskInst) (bool, error) {
 		values, err := outputMapper.Apply(data.NewSimpleScope(taskInst.outputs, nil))
 
 		for name, value := range values {
-			if taskInst.flowInst.attrs == nil {
-				taskInst.flowInst.attrs = make(map[string]interface{})
-			}
-			taskInst.flowInst.attrs[name] = value //data.ToTypedValue(value)
+			_ = taskInst.flowInst.SetValue(name, value)
+			//if taskInst.flowInst.attrs == nil {
+			//	taskInst.flowInst.attrs = make(map[string]interface{})
+			//}
+			//taskInst.flowInst.attrs[name] = value //data.ToTypedValue(value)
 		}
 
 		return true, err
