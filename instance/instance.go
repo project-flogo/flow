@@ -16,7 +16,7 @@ type Instance struct {
 	subflowId int
 
 	master *IndependentInstance //needed for change tracker
-	host   interface{} //todo change to TaskInst?
+	host   interface{}          //todo change to TaskInst?
 
 	isHandlingError bool
 
@@ -31,8 +31,8 @@ type Instance struct {
 	returnData      map[string]interface{}
 	returnError     error
 
-	attrs         map[string]interface{}
-	activityAttrs map[string]map[string]data.TypedValue
+	attrs map[string]interface{}
+	//activityAttrs map[string]map[string]data.TypedValue
 
 	resultHandler action.ResultHandler
 
@@ -228,9 +228,9 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 
 	inst.attrs[name] = value
 
-	if inst.master.trackingChanges {
-		inst.master.changeTracker.AttrChange(inst.subflowId, name, value)
-	}
+	//if inst.master.trackingChanges {
+	inst.master.changeTracker.AttrChange(inst.subflowId, name, value)
+	//}
 
 	return nil
 }
