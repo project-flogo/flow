@@ -520,7 +520,7 @@ func (ti *TaskInst) handleAccumulation() error {
 		var err error
 		outputs, err = coerce.ToArray(attr)
 		if err != nil {
-			return fmt.Errorf("accumuate outputs must be array")
+			return fmt.Errorf("accumulate outputs must be array")
 		}
 		outputs = append(outputs, ti.copyOutputs())
 	} else {
