@@ -471,7 +471,8 @@ func (ti *TaskInst) appendErrorData(err error) {
 	//For global handle only
 	errObj := ti.getErrorObject(err)
 	_ = ti.flowInst.SetValue("_E", errObj)
-	ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
+	_ = ti.flowInst.SetValue("_E."+ti.Task().ID(), errObj)
+	//ti.flowInst.attrs["_E."+ti.Task().ID()] = errObj
 }
 
 func (ti *TaskInst) setTaskError(err error) {
@@ -511,23 +512,23 @@ func (ti *TaskInst) Accumulated() bool {
 }
 
 func (ti *TaskInst) handleAccumulation() error {
-	if ti.flowInst.attrs == nil {
-		ti.flowInst.attrs = make(map[string]interface{})
-	}
 
 	attrName := "_A." + ti.Task().ID()
 	var outputs []interface{}
+
 	if attr, ok := ti.flowInst.attrs[attrName]; ok {
 		var err error
 		outputs, err = coerce.ToArray(attr)
 		if err != nil {
-			return fmt.Errorf("Accumuate outputs must be array")
+			return fmt.Errorf("accumulate outputs must be array")
 		}
 		outputs = append(outputs, ti.copyOutputs())
 	} else {
 		outputs = append(outputs, ti.copyOutputs())
 	}
-	ti.flowInst.attrs[attrName] = outputs
+
+	_ = ti.flowInst.SetValue(attrName, outputs)
+	//ti.flowInst.attrs[attrName] = outputs
 	return nil
 }
 

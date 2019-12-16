@@ -38,6 +38,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	var err error
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}
+	inst.attrs = make(map[string]interface{})
 	inst.master = inst
 	inst.id = instanceID
 	inst.stepID = 0
@@ -65,6 +66,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	inst.subflowCtr++
 
 	embeddedInst := &Instance{}
+	embeddedInst.attrs = make(map[string]interface{})
 	embeddedInst.subflowId = inst.subflowCtr
 	embeddedInst.master = inst
 	embeddedInst.host = taskInst
@@ -91,54 +93,59 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	return embeddedInst
 }
 
+func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
+	return inst.startInstance(inst.Instance, startAttrs)
+}
+
 func (inst *IndependentInstance) startEmbedded(embedded *Instance, startAttrs map[string]interface{}) error {
 
 	if embedded.master != inst {
 		return errors.New("embedded instance is not from this independent instance")
 	}
 
-	//attrs := make(map[string]data.TypedValue, len(startAttrs))
-	//
-	//inputMd := embedded.flowDef.Metadata().Input
-	//
-	//for name, value := range startAttrs {
-	//
-	//	if tv, exists := inputMd[name]; exists {
-	//		attrs[name] = data.NewTypedValue(tv.Type(), value)
-	//	}
-	//}
-
-	embedded.attrs = startAttrs
-
-	inst.startInstance(embedded)
+	inst.startInstance(embedded, startAttrs)
 	return nil
 }
 
-func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
+func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map[string]interface{}) bool {
 
-	md := inst.flowDef.Metadata()
+	md := toStart.flowDef.Metadata()
 
 	if md != nil && md.Input != nil {
 
-		inst.attrs = make(map[string]interface{}, len(md.Input))
+		toStart.attrs = make(map[string]interface{}, len(md.Input))
 
 		for name, value := range md.Input {
 			if value != nil {
-				inst.attrs[name] = value.Value()
+				toStart.attrs[name] = value.Value()
+				inst.changeTracker.AttrChange(toStart.subflowId, name, value)
 			} else {
-				inst.attrs[name] = nil
+				toStart.attrs[name] = nil
 			}
 		}
 	} else {
-		inst.attrs = make(map[string]interface{}, len(startAttrs))
+		toStart.attrs = make(map[string]interface{}, len(startAttrs))
 	}
 
 	for name, value := range startAttrs {
-		inst.attrs[name] = value
-		inst.changeTracker.AttrChange(0, name, value)
+		toStart.attrs[name] = value
+		inst.changeTracker.AttrChange(toStart.subflowId, name, value)
 	}
 
-	return inst.startInstance(inst.Instance)
+	toStart.SetStatus(model.FlowStatusActive)
+
+	flowBehavior := inst.flowModel.GetFlowBehavior()
+	ok, taskEntries := flowBehavior.Start(toStart)
+
+	if ok {
+		err := inst.enterTasks(toStart, taskEntries)
+		if err != nil {
+			//todo review how we should handle an error encountered here
+			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+		}
+	}
+
+	return ok
 }
 
 func (inst *IndependentInstance) ApplyPatch(patch *flowsupport.Patch) {
@@ -495,36 +502,6 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 			inst.returnError = err
 		}
 	}
-}
-
-func (inst *IndependentInstance) startInstance(toStart *Instance) bool {
-
-	toStart.SetStatus(model.FlowStatusActive)
-
-	//if pi.Attrs == nil {
-	//	pi.Attrs = make(map[string]*data.Attribute)
-	//}
-	//
-	//for _, attr := range startAttrs {
-	//	pi.Attrs[attr.Name()] = attr
-	//}
-
-	//logger.Infof("FlowInstance Flow: %v", pi.FlowModel)
-
-	//need input mappings
-
-	flowBehavior := inst.flowModel.GetFlowBehavior()
-	ok, taskEntries := flowBehavior.Start(toStart)
-
-	if ok {
-		err := inst.enterTasks(toStart, taskEntries)
-		if err != nil {
-			//todo review how we should handle an error encountered here
-			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
-		}
-	}
-
-	return ok
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {

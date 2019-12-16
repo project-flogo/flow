@@ -273,7 +273,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	logger.Debugf("Executing Flow Instance: %s", inst.ID())
 
 	if op == instance.OpStart {
-
 		inst.Start(inputs)
 	} else {
 		inst.UpdateAttrs(inputs)
