@@ -57,6 +57,7 @@ The `tasks` section allows one to define the tasks that are part of the flow. Ta
   ...
 ]
 ```
+
 #### Iterator Task
 There are also special types of tasks that can be part of a flow.  An `iterator` lets you iterate for a specified count or over an array, map or object. 
 
@@ -81,6 +82,7 @@ Count Example:
     }
   }
 ```
+
 Object Example:  
  
 ```json
@@ -99,10 +101,11 @@ Object Example:
     }
   }
 ```
+
 *Note:  `$iteration[index]` is also available to get the index of the current iteration.*
 
 #### DoWhile Task
-A `doWhile` task lets you loop over an activity using a conditional expression to determine how long to loop.
+A `doWhile` task lets you loop over an activity using a conditional expression to determine how often to loop.
 
 DoWhile tasks take a `condition` setting which is where the conditional expression is specified.  It also takes an optional `delay` setting that can be used to set a delay in millseconds between iterations.
 
@@ -156,7 +159,8 @@ Access Accumlated Values:
     }
   }
 ```
-*Note: Logs the first iteration*
+
+*Note: This logs the output of the first iteration*
 
 #### Retry
 
