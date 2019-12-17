@@ -16,9 +16,9 @@ type Subflow struct {
 type SnapshotBase struct {
 	FlowURI string                 `json:"flowURI"`
 	Status  int                    `json:"status"`
-	Attrs   map[string]interface{} `json:"attrs"`
-	Tasks   []*Task                `json:"tasks"`
-	Links   []*Link                `json:"links"`
+	Attrs   map[string]interface{} `json:"attrs,omitempty"`
+	Tasks   []*Task                `json:"tasks,omitempty"`
+	Links   []*Link                `json:"links,omitempty"`
 }
 
 type WorkItem struct {

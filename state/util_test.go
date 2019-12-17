@@ -65,8 +65,8 @@ func TestStepsToSnapshot(t *testing.T) {
 	snapshot := StepsToSnapshot("blah", steps)
 
 	jSnapshot, err := json.MarshalIndent(&snapshot, "", "  ")
-
 	assert.Nil(t, err)
+
 	if err == nil {
 		fmt.Printf("snapshot: %s\n", string(jSnapshot))
 	}
@@ -74,8 +74,8 @@ func TestStepsToSnapshot(t *testing.T) {
 	snapshot = StepsToSnapshot("blah", steps[:3])
 
 	jSnapshot, err = json.MarshalIndent(&snapshot, "", "  ")
-
 	assert.Nil(t, err)
+
 	if err == nil {
 		fmt.Printf("snapshot: %s\n", string(jSnapshot))
 	}
