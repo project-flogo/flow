@@ -191,6 +191,7 @@ The `links` section allows one to define the links in the flow.  The links are u
     "from": "log_1",
     "to": "log_2"
   }
+]
 ```
 
 #### Conditional/Expression Links
@@ -204,6 +205,7 @@ We can also have conditional links.  These are links that have a conditional exp
     "type": "expression",
     "value": "$flow.amount > 1000"
   }
+]
 ```
 
 #### Otherwise Expression Links
@@ -216,6 +218,7 @@ When using conditional links, you might want to have a link that gets followed o
     "to": "processOrder",
     "type": "exprOtherwise"
   }
+]
 ```
 
 #### Error Links
@@ -228,8 +231,8 @@ Error links can be used to explicitly handle errors from specific tasks.  When a
     "to":"orderError",
     "type":"error"
   }
+]
 ```
-
 
 ## ErrorHandler
 The `errorHandler` section is used to define the global error handler for the flow.  If an error occurs that isn't explicitly handled by a task/error link, the error is escalted to the errorHandler.  The error handler is like a mini "flow", it has both a `tasks` and `links` section.
