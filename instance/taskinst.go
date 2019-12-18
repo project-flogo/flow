@@ -354,12 +354,12 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		}
 
 		//skip apply output mapper while enable accumulate for iterator/dowhile
-		if ti.Accumulated() {
+		if ti.Task().LoopConfig().Accumulated() {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
 			//For dowhile condition case, we need add activity output to scope
-			if ti.Task().LoopConfig() != nil && ti.Task().LoopConfig().EnabledDowhile() {
+			if ti.Task().LoopConfig().DowhileEnabled() {
 				err = ti.applyOutputMapper()
 				if err != nil {
 					return done, err
@@ -435,7 +435,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		if ti.Accumulated() {
+		if ti.Task().LoopConfig().Accumulated() {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
@@ -499,16 +499,6 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 		errorObj["activity"] = e.TaskName()
 	}
 	return errorObj
-}
-
-// Accumulated  return whether task enable accumulation in iterator or dowhile
-func (ti *TaskInst) Accumulated() bool {
-	var accumulate bool
-	accumulateOutput, ok := ti.GetSetting("accumulate")
-	if ok {
-		accumulate, _ = coerce.ToBool(accumulateOutput)
-	}
-	return accumulate
 }
 
 func (ti *TaskInst) handleAccumulation() error {

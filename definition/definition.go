@@ -182,30 +182,41 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 }
 
 type loopCfg struct {
-	doWhile struct {
-		condition expression.Expr
-		delay     int
-	}
-
+	condition    expression.Expr
+	iterate      interface{}
+	delay        int
+	accumulate   bool
 	retryOnError struct {
 		count    int
 		interval int
 	}
 }
 
+func (l *loopCfg) Accumulated() bool {
+	return l.accumulate
+}
+
 func (l *loopCfg) DowhileCondition() expression.Expr {
-	return l.doWhile.condition
+	return l.condition
 }
 
-func (l *loopCfg) EnabledDowhile() bool {
-	return l.doWhile.condition != nil
+func (l *loopCfg) GetIterate() interface{} {
+	return l.iterate
 }
 
-func (l *loopCfg) DoWhileDelay() int {
-	return l.doWhile.delay
+func (l *loopCfg) IterateEnabled() bool {
+	return l.iterate != nil
 }
 
-func (l *loopCfg) EnabledRetryOnError() bool {
+func (l *loopCfg) DowhileEnabled() bool {
+	return l.condition != nil
+}
+
+func (l *loopCfg) Delay() int {
+	return l.delay
+}
+
+func (l *loopCfg) RetryOnErrorEnabled() bool {
 	return l.retryOnError.count > 0
 }
 

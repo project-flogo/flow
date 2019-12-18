@@ -85,9 +85,9 @@ func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, conditio
 			return model.EvalFail, err
 		}
 		if result.(bool) {
-			delay := ctx.Task().LoopConfig().DoWhileDelay()
+			delay := ctx.Task().LoopConfig().Delay()
 			if delay > 0 {
-				ctx.FlowLogger().Infof("Task[%s] execution delaying for %d milliseconds...", ctx.Task().ID(), delay)
+				ctx.FlowLogger().Infof("Dowhile Task[%s] execution delaying for %d milliseconds...", ctx.Task().ID(), delay)
 				time.Sleep(time.Duration(delay) * time.Millisecond)
 			}
 			ctx.FlowLogger().Infof("Task[%s] repeating as doWhile condition evaluated to true", ctx.Task().ID())

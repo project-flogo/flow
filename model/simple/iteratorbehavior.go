@@ -2,7 +2,11 @@ package simple
 
 import (
 	"fmt"
+	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/expression"
+	"github.com/project-flogo/flow/instance"
 	"reflect"
+	"time"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/coerce"
@@ -36,9 +40,19 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		itx = itxAttr.(Iterator)
 	} else {
 
-		iterateOn, ok := ctx.GetSetting("iterate")
+		var iterateOn interface{}
+		iterate := ctx.Task().LoopConfig().GetIterate()
+		switch t := iterate.(type) {
+		case expression.Expr:
+			iterateOn, err = t.Eval(ctx.(*instance.TaskInst).ActivityHost().(data.Scope))
+			if err != nil {
+				return model.EvalFail, err
+			}
+		default:
+			iterateOn = t
+		}
 
-		if !ok {
+		if iterateOn == nil {
 			//todo if iterateOn is not defined, what should we do?
 			//just skip for now
 			return model.EvalDone, nil
@@ -111,6 +125,12 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			return model.EvalFail, err
 		}
 
+		//Wait for deply
+		delay := ctx.Task().LoopConfig().Delay()
+		if delay > 0 {
+			ctx.FlowLogger().Infof("Iterate Task[%s] execution delaying for %d milliseconds...", ctx.Task().ID(), delay)
+			time.Sleep(time.Duration(delay) * time.Millisecond)
+		}
 		if !done {
 			ctx.SetStatus(model.TaskStatusWaiting)
 			return model.EvalWait, nil
