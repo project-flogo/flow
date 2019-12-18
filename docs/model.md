@@ -116,7 +116,7 @@ DoWhile tasks take a `condition` setting which is where the conditional expressi
     "description": "Invokes a REST Service",
     "type": "doWhile",
     "settings": {
-      "condition": "=$iteration[index] < 5",
+      "condition": "$iteration[index] < 5",
       "delay": 5
     },
     "activity": {
