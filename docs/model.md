@@ -137,7 +137,7 @@ To Enable:
     "name": "RESTInvoke",
     "type": "doWhile",
     "settings": {
-      "condition": "=$iteration[index] < 5",
+      "condition": "$iteration[index] < 5",
       "delay": 5,
       "accumulate": true
     },
