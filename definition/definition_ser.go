@@ -76,7 +76,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 			task, err := createTask(def, taskRep, ef)
 
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("create task [%s] error: %s", taskRep.ID, err.Error())
 			}
 			def.tasks[task.id] = task
 		}
@@ -402,10 +402,10 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 }
 
 func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCfg, error) {
+	loop := &loopCfg{}
 	if len(settings) > 0 {
-
-		loop := &loopCfg{}
-
+		var err error
+		//backward compatible
 		dowhile, ok := settings["doWhile"]
 		if ok && dowhile != nil {
 			dowhileObj, err := coerce.ToObject(dowhile)
@@ -422,7 +422,7 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				if err != nil {
 					return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
 				}
-				loop.doWhile.condition = conditionExpr
+				loop.condition = conditionExpr
 			}
 			delay, exist := dowhileObj["delay"]
 			if exist && delay != nil {
@@ -437,8 +437,72 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				if err != nil {
 					return nil, fmt.Errorf("doWhile delay must be int")
 				}
-				loop.doWhile.delay = delayInt
+				loop.delay = delayInt
 			}
+
+			delete(settings, "doWhile")
+		}
+
+		//For new iterator and dowhile which put directtly under settings
+		delay, exist := settings["delay"]
+		if exist && delay != nil {
+			strVal, ok := delay.(string)
+			if ok && len(strVal) > 0 && strVal[0] == '=' {
+				delay, err = resolve.Resolve(strVal[1:], nil)
+				if err != nil {
+					return nil, err
+				}
+			}
+			delayInt, err := coerce.ToInt(delay)
+			if err != nil {
+				return nil, fmt.Errorf("doWhile delay must be int")
+			}
+			loop.delay = delayInt
+			delete(settings, "delay")
+		}
+
+		condition, exist := settings["condition"]
+		if exist && condition != nil {
+			conditionStr, ok := condition.(string)
+			if ok && len(conditionStr) > 0 && conditionStr[0] == '=' {
+				conditionStr = conditionStr[1:]
+			}
+			conditionExpr, err := ef.NewExpr(conditionStr)
+			if err != nil {
+				return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
+			}
+			loop.condition = conditionExpr
+			delete(settings, "condition")
+		}
+
+		iterate, exist := settings["iterate"]
+		if exist && iterate != nil {
+			iterateStr, ok := iterate.(string)
+			if ok && iterateStr[0] == '=' {
+				iterateStr = iterateStr[1:]
+				iterateStrExpr, err := ef.NewExpr(iterateStr)
+				if err != nil {
+					return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
+				}
+				loop.iterate = iterateStrExpr
+			} else {
+				loop.iterate = iterate
+			}
+			delete(settings, "iterate")
+		}
+
+		//Accumuate output for loop
+		accumulateOutput, ok := settings["accumulate"]
+		if ok {
+			accumulated, _ := coerce.ToBool(accumulateOutput)
+			if accumulated {
+				//Make sure in loop otherwise it doesn't make sense to enable accumulate
+				if !loop.DowhileEnabled() && !loop.IterateEnabled() {
+					return nil, fmt.Errorf("accumulate only for iterate and dowhile task")
+				}
+			}
+			loop.accumulate = accumulated
+			delete(settings, "accumulate")
 		}
 
 		retryOnError, ok := settings["retryOnError"]
@@ -479,10 +543,10 @@ func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCf
 				}
 				loop.retryOnError.interval = intervalInt
 			}
+			delete(settings, "retryOnError")
 		}
-		return loop, nil
 	}
-	return nil, nil
+	return loop, nil
 }
 
 type initCtxImpl struct {
