@@ -170,7 +170,14 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 	logger := ctx.FlowLogger()
 
 	linkInsts := ctx.GetToLinkInstances()
-	numLinks := len(linkInsts)
+
+	var noErroLinks []model.LinkInstance
+	for _, link := range linkInsts {
+		if link.Link().Type() != definition.LtError {
+			noErroLinks = append(noErroLinks, link)
+		}
+	}
+	numLinks := len(noErroLinks)
 
 	ctx.SetStatus(model.TaskStatusDone)
 
@@ -184,7 +191,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		taskEntries = make([]*model.TaskEntry, 0, numLinks)
 
 		if logger.DebugEnabled() {
-			logger.Debugf("Task '%s' has %d outgoing links", ctx.Task().ID(), numLinks)
+			logger.Debugf("Task '%s' has %d outgoing links with task id [%s]", ctx.Task().ID(), numLinks, linkInsts)
 		}
 
 		var exprLinkFollowed, hasExprLink bool
@@ -227,8 +234,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				taskEntries = append(taskEntries, taskEntry)
 			} else {
 				linkInst.SetStatus(model.LinkStatusFalse)
-
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
+				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), Status: model.TaskStatusSkipped}
 				taskEntries = append(taskEntries, taskEntry)
 			}
 		}

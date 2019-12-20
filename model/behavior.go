@@ -9,6 +9,7 @@ import (
 type TaskEntry struct {
 	Task      *definition.Task
 	EnterCode int
+	Status    TaskStatus
 }
 
 // FlowBehavior is the execution behavior of the Flow.

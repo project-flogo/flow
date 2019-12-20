@@ -189,7 +189,6 @@ func (inst *IndependentInstance) DoStep() bool {
 
 		// get item to be worked on
 		item, ok := inst.workItemQueue.Pop()
-
 		if ok {
 			//dev logging
 			//logger.Debug("Retrieved item from Flow Instance work queue")
@@ -260,6 +259,8 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	if taskInst.status == model.TaskStatusWaiting {
 		evalResult, err = behavior.PostEval(taskInst)
+	} else if taskInst.status == model.TaskStatusSkipped {
+		return
 	} else {
 		evalResult, err = behavior.Eval(taskInst)
 	}
@@ -504,16 +505,41 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 	}
 }
 
+func (inst *IndependentInstance) skipTasks(status model.EnterResult, enterTaskData *TaskInst, activeInst *Instance) {
+
+	if status == model.EnterSkip {
+		for _, toLink := range enterTaskData.GetToLinkInstances() {
+			toLink.SetStatus(model.LinkStatusSkipped)
+			taskEntry := &model.TaskEntry{Task: toLink.Link().ToTask(), Status: model.TaskStatusSkipped}
+
+			newEnterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
+			newEnterTaskData.id = newEnterTaskData.taskID
+			newEnterTaskData.status = model.TaskStatusSkipped
+			if len(newEnterTaskData.GetFromLinkInstances()) > 1 {
+				taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
+				enterResult := taskToEnterBehavior.Enter(newEnterTaskData)
+				if enterResult == model.EnterSkip {
+					inst.skipTasks(model.EnterSkip, newEnterTaskData, activeInst)
+				} else {
+					return
+				}
+			} else {
+				inst.skipTasks(model.EnterSkip, newEnterTaskData, activeInst)
+			}
+		}
+	}
+}
+
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
 
 	for _, taskEntry := range taskEntries {
 
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
-
 		enterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
 
 		enterTaskData.id = enterTaskData.taskID
+
 		enterResult := taskToEnterBehavior.Enter(enterTaskData)
 
 		if enterResult == model.EnterEval {
@@ -525,7 +551,9 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			inst.scheduleEval(enterTaskData)
 		} else if enterResult == model.EnterSkip {
 			//todo optimize skip, just keep skipping and don't schedule eval
-			inst.scheduleEval(enterTaskData)
+			//TODO we should not update all down stream to skip status bore jion.
+			inst.skipTasks(model.EnterSkip, enterTaskData, activeInst)
+			//inst.scheduleEval(enterTaskData)
 		}
 	}
 
