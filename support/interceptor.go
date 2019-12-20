@@ -1,7 +1,5 @@
 package support
 
-import "github.com/project-flogo/core/data"
-
 // Interceptor contains a set of task interceptor, this can be used to override
 // runtime data of an instance of the corresponding Flow.  This can be used to
 // modify runtime execution of a flow or in test/debug for implementing mocks
@@ -35,8 +33,8 @@ func (pi *Interceptor) GetTaskInterceptor(taskID string) *TaskInterceptor {
 // Also, a 'Skip' flag can be enabled to inform the runtime that the task should not
 // execute.
 type TaskInterceptor struct {
-	ID      string            `json:"id"`
-	Skip    bool              `json:"skip,omitempty"`
-	Inputs  []*data.Attribute `json:"inputs,omitempty"`
-	Outputs []*data.Attribute `json:"outputs,omitempty"`
+	ID      string                 `json:"id"`
+	Skip    bool                   `json:"skip,omitempty"`
+	Inputs  map[string]interface{} `json:"inputs,omitempty"`
+	Outputs map[string]interface{} `json:"outputs,omitempty"`
 }
