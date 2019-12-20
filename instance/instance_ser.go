@@ -2,7 +2,6 @@ package instance
 
 import (
 	"encoding/json"
-	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/flow/model"
 )
@@ -11,14 +10,14 @@ import (
 // Flow Instance Serialization
 
 type serIndependentInstance struct {
-	ID        string            `json:"id"`
-	Status    model.FlowStatus  `json:"status"`
-	FlowURI   string            `json:"flowUri"`
-	Attrs     []*data.Attribute `json:"attrs"`
-	WorkQueue []*WorkItem       `json:"workQueue"`
-	TaskInsts []*TaskInst       `json:"tasks"`
-	LinkInsts []*LinkInst       `json:"links"`
-	SubFlows  []*Instance       `json:"subFlows,omitempty"`
+	ID        string                 `json:"id"`
+	Status    model.FlowStatus       `json:"status"`
+	FlowURI   string                 `json:"flowUri"`
+	Attrs     map[string]interface{} `json:"attrs"`
+	WorkQueue []*WorkItem            `json:"workQueue"`
+	TaskInsts []*TaskInst            `json:"tasks"`
+	LinkInsts []*LinkInst            `json:"links"`
+	SubFlows  []*Instance            `json:"subFlows,omitempty"`
 }
 
 // MarshalJSON overrides the default MarshalJSON for FlowInstance
@@ -30,9 +29,9 @@ func (inst *IndependentInstance) MarshalJSON() ([]byte, error) {
 		queue[i], _ = e.Value.(*WorkItem)
 	}
 
-	attrs := make([]*data.Attribute, 0, len(inst.attrs))
+	attrs := make(map[string]interface{}, len(inst.attrs))
 	for name, value := range inst.attrs {
-		attrs = append(attrs, data.NewAttribute(name, data.TypeAny, value))
+		attrs[name] = value
 	}
 
 	tis := make([]*TaskInst, 0, len(inst.taskInsts))
@@ -51,14 +50,14 @@ func (inst *IndependentInstance) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(&serIndependentInstance{
-		ID:          inst.id,
-		Status:      inst.status,
-		Attrs:       attrs,
-		FlowURI:     inst.flowURI,
-		WorkQueue:   queue,
-		TaskInsts:   tis,
-		LinkInsts:   lis,
-		SubFlows:    sfs,
+		ID:        inst.id,
+		Status:    inst.status,
+		Attrs:     attrs,
+		FlowURI:   inst.flowURI,
+		WorkQueue: queue,
+		TaskInsts: tis,
+		LinkInsts: lis,
+		SubFlows:  sfs,
 	})
 }
 
@@ -75,10 +74,10 @@ func (inst *IndependentInstance) UnmarshalJSON(d []byte) error {
 	inst.status = ser.Status
 	inst.flowURI = ser.FlowURI
 
-	inst.attrs = make(map[string]interface{})
+	inst.attrs = make(map[string]interface{}, len(ser.Attrs))
 
-	for _, attrs := range ser.Attrs {
-		inst.attrs[attrs.Name()] = attrs.Value()
+	for name, value := range ser.Attrs {
+		inst.attrs[name] = value
 	}
 
 	inst.changeTracker = NewInstanceChangeTracker(inst.id)
@@ -133,21 +132,21 @@ func (inst *IndependentInstance) UnmarshalJSON(d []byte) error {
 // Embedded Flow Instance Serialization
 
 type serInstance struct {
-	SubFlowId int               `json:"subFlowId"`
-	Status    model.FlowStatus  `json:"status"`
-	FlowURI   string            `json:"flowUri"`
-	Attrs     []*data.Attribute `json:"attrs"`
-	TaskInsts []*TaskInst       `json:"tasks"`
-	LinkInsts []*LinkInst       `json:"links"`
+	SubFlowId int                    `json:"subFlowId"`
+	Status    model.FlowStatus       `json:"status"`
+	FlowURI   string                 `json:"flowUri"`
+	Attrs     map[string]interface{} `json:"attrs"`
+	TaskInsts []*TaskInst            `json:"tasks"`
+	LinkInsts []*LinkInst            `json:"links"`
 }
 
 // MarshalJSON overrides the default MarshalJSON for FlowInstance
 func (inst *Instance) MarshalJSON() ([]byte, error) {
 
-	attrs := make([]*data.Attribute, 0, len(inst.attrs))
+	attrs := make(map[string]interface{}, len(inst.attrs))
 
 	for name, value := range inst.attrs {
-		attrs = append(attrs, data.NewAttribute(name, data.TypeAny, value))
+		attrs[name] = value
 	}
 
 	tis := make([]*TaskInst, 0, len(inst.taskInsts))
@@ -184,10 +183,10 @@ func (inst *Instance) UnmarshalJSON(d []byte) error {
 	inst.status = ser.Status
 	inst.flowURI = ser.FlowURI
 
-	inst.attrs = make(map[string]interface{})
+	inst.attrs = make(map[string]interface{}, len(ser.Attrs))
 
-	for _, value := range ser.Attrs {
-		inst.attrs[value.Name()] = value.Value()
+	for name, value := range ser.Attrs {
+		inst.attrs[name] = value
 	}
 
 	inst.taskInsts = make(map[string]*TaskInst, len(ser.TaskInsts))
