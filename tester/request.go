@@ -131,7 +131,7 @@ func (rp *RequestProcessor) ResumeFlow(resumeRequest *ResumeRequest) (results ma
 	logger.Debugf("Tester resuming flow")
 
 	//todo share action, for now add flowUri to settings
-	settings := map[string]interface{}{"flowURI":restartRequest.InitialState.FlowURI()}
+	settings := map[string]interface{}{"flowURI":resumeRequest.State.FlowURI()}
 
 	factory := action.GetFactory(RefFlow)
 	act, err := factory.New(&action.Config{Settings:settings})
