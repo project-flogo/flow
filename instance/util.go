@@ -85,19 +85,19 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 				// override input attributes
 				mdInputs := taskInst.task.ActivityConfig().Activity.Metadata().Input
 				var err error
-				for _, attribute := range taskInterceptor.Inputs {
+				for name, value := range taskInterceptor.Inputs {
 
 					if taskInst.logger.DebugEnabled() {
-						taskInst.logger.Debugf("Overriding Input Attr: %s = %s", attribute.Name(), attribute.Value())
+						taskInst.logger.Debugf("Overriding Input Attr: %s = %s", name, value)
 					}
 
-					if mdAttr, ok := mdInputs[attribute.Name()]; ok {
-						taskInst.inputs[attribute.Name()], err = coerce.ToType(attribute.Value(), mdAttr.Type())
+					if mdAttr, ok := mdInputs[name]; ok {
+						taskInst.inputs[name], err = coerce.ToType(value, mdAttr.Type())
 						if err != nil {
 							//handler err
 						}
 					} else {
-						taskInst.inputs[attribute.Name()] = attribute.Value()
+						taskInst.inputs[name] = value
 					}
 				}
 			}
@@ -126,19 +126,19 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 			var err error
 
 			// override output attributes
-			for _, attribute := range taskInterceptor.Outputs {
+			for name, value := range taskInterceptor.Outputs {
 
 				if taskInst.logger.DebugEnabled() {
-					taskInst.logger.Debugf("Overriding Output Attr: %s = %s", attribute.Name(), attribute.Value())
+					taskInst.logger.Debugf("Overriding Output Attr: %s = %s", name, value)
 				}
 
-				if mdAttr, ok := mdOutput[attribute.Name()]; ok {
-					taskInst.outputs[attribute.Name()], err = coerce.ToType(attribute.Value(), mdAttr.Type())
+				if mdAttr, ok := mdOutput[name]; ok {
+					taskInst.outputs[name], err = coerce.ToType(value, mdAttr.Type())
 					if err != nil {
 						return err
 					}
 				} else {
-					taskInst.outputs[attribute.Name()] = attribute.Value()
+					taskInst.outputs[name] = value
 				}
 			}
 		}
