@@ -171,14 +171,14 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 	linkInsts := ctx.GetToLinkInstances()
 
-	var noErroLinks []model.LinkInstance
-	for _, link := range linkInsts {
+	//Error branch already been handled, remove error branch from here
+	for i, link := range linkInsts {
 		if link.Link().Type() != definition.LtError {
-			noErroLinks = append(noErroLinks, link)
+			linkInsts = append(linkInsts[:i], linkInsts[i+1:]...)
 		}
 	}
-	numLinks := len(noErroLinks)
 
+	numLinks := len(linkInsts)
 	ctx.SetStatus(model.TaskStatusDone)
 
 	if logger.DebugEnabled() {
@@ -234,7 +234,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				taskEntries = append(taskEntries, taskEntry)
 			} else {
 				linkInst.SetStatus(model.LinkStatusFalse)
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), Status: model.TaskStatusSkipped}
+				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
 				taskEntries = append(taskEntries, taskEntry)
 			}
 		}

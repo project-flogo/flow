@@ -506,26 +506,25 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) skipTasks(status model.EnterResult, enterTaskData *TaskInst, activeInst *Instance) {
+	for _, toLink := range enterTaskData.GetToLinkInstances() {
+		toLink.SetStatus(model.LinkStatusSkipped)
+		taskEntry := &model.TaskEntry{Task: toLink.Link().ToTask()}
 
-	if status == model.EnterSkip {
-		for _, toLink := range enterTaskData.GetToLinkInstances() {
-			toLink.SetStatus(model.LinkStatusSkipped)
-			taskEntry := &model.TaskEntry{Task: toLink.Link().ToTask(), Status: model.TaskStatusSkipped}
+		newEnterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
+		newEnterTaskData.id = newEnterTaskData.taskID
+		newEnterTaskData.status = model.TaskStatusSkipped
 
-			newEnterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
-			newEnterTaskData.id = newEnterTaskData.taskID
-			newEnterTaskData.status = model.TaskStatusSkipped
-			if len(newEnterTaskData.GetFromLinkInstances()) > 1 {
-				taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
-				enterResult := taskToEnterBehavior.Enter(newEnterTaskData)
-				if enterResult == model.EnterSkip {
-					inst.skipTasks(model.EnterSkip, newEnterTaskData, activeInst)
-				} else {
-					return
-				}
-			} else {
+		if len(newEnterTaskData.GetFromLinkInstances()) > 1 {
+			//There is join, make sure all skipped or return when there is no skipped
+			taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
+			enterResult := taskToEnterBehavior.Enter(newEnterTaskData)
+			if enterResult == model.EnterSkip {
 				inst.skipTasks(model.EnterSkip, newEnterTaskData, activeInst)
+			} else {
+				return
 			}
+		} else {
+			inst.skipTasks(model.EnterSkip, newEnterTaskData, activeInst)
 		}
 	}
 }
@@ -550,10 +549,8 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			enterTaskData.SetStatus(model.TaskStatusReady)
 			inst.scheduleEval(enterTaskData)
 		} else if enterResult == model.EnterSkip {
-			//todo optimize skip, just keep skipping and don't schedule eval
-			//TODO we should not update all down stream to skip status bore jion.
+			//update all down stream to skip status before join
 			inst.skipTasks(model.EnterSkip, enterTaskData, activeInst)
-			//inst.scheduleEval(enterTaskData)
 		}
 	}
 
