@@ -191,7 +191,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		taskEntries = make([]*model.TaskEntry, 0, numLinks)
 
 		if logger.DebugEnabled() {
-			logger.Debugf("Task '%s' has %d outgoing links with task id [%s]", ctx.Task().ID(), numLinks, linkInsts)
+			logger.Debugf("Task '%s' has %d outgoing links", ctx.Task().ID(), numLinks)
 		}
 
 		var exprLinkFollowed, hasExprLink bool
