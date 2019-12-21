@@ -224,33 +224,40 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if err != nil {
 			return err
 		}
-	case instance.OpResume:
-		if initialState != nil {
-			inst = initialState
-			logger.Debug("Resuming Flow Instance: ", inst.ID())
-		} else {
-			return errors.New("unable to resume instance, initial state not provided")
-		}
 	case instance.OpRestart:
 		if initialState != nil {
+
 			inst = initialState
 			instanceID := idGenerator.NextAsString()
-			//flowDef, err := manager.GetFlow(flowURI)
-			//if err != nil {
-			//	return err
-			//}
 
-			//if flowDef.Metadata == nil {
-			//	//flowDef.SetMetadata(fa.config.Metadata)
-			//}
-			err := inst.Restart(instanceID, flowManager)
+			logger.Debug("Restarting Flow Instance: ", instanceID)
+
+			instLogger := logger
+			if log.CtxLoggingEnabled() {
+				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
+			}
+
+			err := inst.Restart(instLogger, instanceID)
 			if err != nil {
 				return err
 			}
 
-			logger.Debug("Restarting Flow Instance: ", instanceID)
 		} else {
 			return errors.New("unable to restart instance, initial state not provided")
+		}
+	case instance.OpResume:
+		if initialState != nil {
+			inst = initialState
+			logger.Debug("Resuming Flow Instance: ", inst.ID())
+
+			//instLogger := logger
+			//
+			//if log.CtxLoggingEnabled() {
+			//	instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
+			//}
+
+		} else {
+			return errors.New("unable to resume instance, initial state not provided")
 		}
 	}
 
