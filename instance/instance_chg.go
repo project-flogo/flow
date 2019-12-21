@@ -169,6 +169,7 @@ func (sct *SimpleChangeTracker) WorkItemAdded(wi *WorkItem) {
 
 func (sct *SimpleChangeTracker) WorkItemRemoved(wi *WorkItem) {
 	qc := getQueueChange(sct.currentStep, wi.ID)
+	qc.TaskId = wi.TaskID
 	qc.ChgType = change.Delete
 }
 
@@ -214,6 +215,7 @@ func (sct *SimpleChangeTracker) ExtractStep(reset bool) *state.Step {
 			Id:          sct.stepCtr,
 			FlowId:      sct.flowId,
 			FlowChanges: make(map[int]*change.Flow),
+			QueueChanges:make(map[int]*change.Queue),
 		}
 	}
 
@@ -229,6 +231,7 @@ func getQueueChange(step *state.Step, workItemId int) *change.Queue {
 	wc, exists := step.QueueChanges[workItemId]
 	if !exists {
 		wc = &change.Queue{}
+		step.QueueChanges[workItemId] = wc
 	}
 
 	return wc

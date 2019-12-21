@@ -616,11 +616,12 @@ func getFlowModel(flow *definition.Definition) (*model.FlowModel, error) {
 }
 
 //// Restart indicates that this FlowInstance was restarted
-func (inst *IndependentInstance) Restart(id string, manager *flowsupport.FlowManager) error {
+func (inst *IndependentInstance) Restart(logger log.Logger, id string,) error {
 	inst.id = id
-	var err error
-	inst.flowDef, err = manager.GetFlow(inst.flowURI)
+	inst.logger = logger
 
+	var err error
+	inst.flowDef, _, err = flowsupport.GetDefinition(inst.flowURI)
 	if err != nil {
 		return err
 	}
