@@ -189,6 +189,7 @@ func (inst *IndependentInstance) DoStep() bool {
 
 		// get item to be worked on
 		item, ok := inst.workItemQueue.Pop()
+
 		if ok {
 			//dev logging
 			//logger.Debug("Retrieved item from Flow Instance work queue")
@@ -303,20 +304,24 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
 
 	notifyFlow := false
+	propagateSkip := false
 	var taskEntries []*model.TaskEntry
 	var err error
 
-	if taskInst.Status() == model.TaskStatusSkipped {
-		notifyFlow, taskEntries = taskBehavior.Skip(taskInst)
+	containerInst := taskInst.flowInst
 
+	if taskInst.Status() == model.TaskStatusSkipped {
+		notifyFlow, taskEntries, propagateSkip = taskBehavior.Skip(taskInst)
+
+		if propagateSkip {
+			notifyFlow = inst.propagateSkip(taskEntries, containerInst)
+		}
 	} else {
 		notifyFlow, taskEntries, err = taskBehavior.Done(taskInst)
 		if taskInst.traceContext != nil {
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 		}
 	}
-
-	containerInst := taskInst.flowInst
 
 	if err != nil {
 		taskInst.appendErrorData(err)
@@ -390,6 +395,35 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 	// task is done, so we can release it
 	containerInst.releaseTask(task)
 }
+
+func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, activeInst *Instance) bool {
+
+	if len(taskEntries) == 0 {
+		return true
+	}
+
+	notify := false
+	for _, entry := range taskEntries {
+		newTaskInst, _ := activeInst.FindOrCreateTaskInst(entry.Task)
+		newTaskInst.id = newTaskInst.taskID
+
+		taskToEnterBehavior := inst.flowModel.GetTaskBehavior(entry.Task.TypeID())
+		enterResult := taskToEnterBehavior.Enter(newTaskInst)
+		if enterResult == model.ERSkip {
+			_, toSkipEntries, _ := taskToEnterBehavior.Skip(newTaskInst)
+			if len(toSkipEntries) > 0 {
+				shouldNotify := inst.propagateSkip(toSkipEntries, activeInst)
+				notify = notify || shouldNotify
+			} else {
+				notify = true
+			}
+		}
+	}
+
+	//no entries, so essentially a notifyFlow
+	return notify
+}
+
 
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
@@ -505,52 +539,27 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 	}
 }
 
-func (inst *IndependentInstance) skipTasks(status model.EnterResult, enterTaskData *TaskInst, activeInst *Instance) {
-	for _, toLink := range enterTaskData.GetToLinkInstances() {
-		toLink.SetStatus(model.LinkStatusSkipped)
-		taskEntry := &model.TaskEntry{Task: toLink.Link().ToTask()}
-
-		newEnterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
-		newEnterTaskData.id = newEnterTaskData.taskID
-		newEnterTaskData.status = model.TaskStatusSkipped
-
-		if len(newEnterTaskData.GetFromLinkInstances()) > 1 {
-			//There is join, make sure all skipped or return when there is no skipped
-			taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
-			enterResult := taskToEnterBehavior.Enter(newEnterTaskData)
-			if enterResult == model.EnterSkip {
-				inst.skipTasks(model.EnterSkip, newEnterTaskData, activeInst)
-			} else {
-				return
-			}
-		} else {
-			inst.skipTasks(model.EnterSkip, newEnterTaskData, activeInst)
-		}
-	}
-}
-
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
 
 	for _, taskEntry := range taskEntries {
 
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
-		taskToEnterBehavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
-		enterTaskData, _ := activeInst.FindOrCreateTaskData(taskEntry.Task)
+		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
 
-		enterTaskData.id = enterTaskData.taskID
+		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
+		taskInst.id = taskInst.taskID
 
-		enterResult := taskToEnterBehavior.Enter(enterTaskData)
+		enterResult := behavior.Enter(taskInst)
 
-		if enterResult == model.EnterEval {
-			err := applySettingsMapper(enterTaskData)
+		if enterResult == model.EREval {
+			err := applySettingsMapper(taskInst)
 			if err != nil {
 				return err
 			}
-			enterTaskData.SetStatus(model.TaskStatusReady)
-			inst.scheduleEval(enterTaskData)
-		} else if enterResult == model.EnterSkip {
-			//update all down stream to skip status before join
-			inst.skipTasks(model.EnterSkip, enterTaskData, activeInst)
+			taskInst.SetStatus(model.TaskStatusReady)
+			inst.scheduleEval(taskInst)
+		} else if enterResult == model.ERSkip {
+			inst.handleTaskDone(behavior, taskInst)
 		}
 	}
 

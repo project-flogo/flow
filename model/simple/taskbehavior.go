@@ -10,6 +10,8 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const PropagateSkip = true
+
 // TaskBehavior implements model.TaskBehavior
 type TaskBehavior struct {
 }
@@ -59,14 +61,14 @@ func (tb *TaskBehavior) Enter(ctx model.TaskContext) (enterResult model.EnterRes
 
 		if skipped {
 			ctx.SetStatus(model.TaskStatusSkipped)
-			return model.EnterSkip
+			return model.ERSkip
 		} else {
 			if logger.DebugEnabled() {
 				logger.Debugf("Task '%s' Ready", ctx.Task().ID())
 			}
 			ctx.SetStatus(model.TaskStatusReady)
 		}
-		return model.EnterEval
+		return model.EREval
 
 	} else {
 		if logger.DebugEnabled() {
@@ -74,7 +76,7 @@ func (tb *TaskBehavior) Enter(ctx model.TaskContext) (enterResult model.EnterRes
 		}
 	}
 
-	return model.EnterNotReady
+	return model.ERNotReady
 }
 
 // Eval implements model.TaskBehavior.Eval
@@ -171,12 +173,13 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 	linkInsts := ctx.GetToLinkInstances()
 
-	//Error branch already been handled, remove error branch from here
-	for i, link := range linkInsts {
-		if link.Link().Type() != definition.LtError {
-			linkInsts = append(linkInsts[:i], linkInsts[i+1:]...)
-		}
-	}
+	//todo review this, was ending flows prematurely on error
+	////Error branch already been handled, remove error branch from here
+	//for i, link := range linkInsts {
+	//	if link.Link().Type() != definition.LtError {
+	//		linkInsts = append(linkInsts[:i], linkInsts[i+1:]...)
+	//	}
+	//}
 
 	numLinks := len(linkInsts)
 	ctx.SetStatus(model.TaskStatusDone)
@@ -234,6 +237,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				taskEntries = append(taskEntries, taskEntry)
 			} else {
 				linkInst.SetStatus(model.LinkStatusFalse)
+
 				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
 				taskEntries = append(taskEntries, taskEntry)
 			}
@@ -262,7 +266,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 }
 
 // Skip implements model.TaskBehavior.Skip
-func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry) {
+func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry, propagateSkip bool) {
 	linkInsts := ctx.GetToLinkInstances()
 	numLinks := len(linkInsts)
 
@@ -289,14 +293,14 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			taskEntries = append(taskEntries, taskEntry)
 		}
 
-		return false, taskEntries
+		return false, taskEntries, PropagateSkip
 	}
 
 	if logger.DebugEnabled() {
 		logger.Debugf("Notifying flow that end task '%s' is skipped", ctx.Task().ID())
 	}
 
-	return true, nil
+	return true, nil, PropagateSkip
 }
 
 // Error implements model.TaskBehavior.Error
@@ -352,3 +356,5 @@ func linkStatus(inst model.LinkInstance) string {
 
 	return "unknown"
 }
+
+
