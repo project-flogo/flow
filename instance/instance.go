@@ -66,9 +66,9 @@ func (inst *Instance) SetResultHandler(handler action.ResultHandler) {
 	inst.resultHandler = handler
 }
 
-// FindOrCreateTaskData finds an existing TaskInst or creates ones if not found for the
+// FindOrCreateTaskInst finds an existing TaskInst or creates ones if not found for the
 // specified task the task environment
-func (inst *Instance) FindOrCreateTaskData(task *definition.Task) (taskInst *TaskInst, created bool) {
+func (inst *Instance) FindOrCreateTaskInst(task *definition.Task) (taskInst *TaskInst, created bool) {
 
 	taskInst, ok := inst.taskInsts[task.ID()]
 
