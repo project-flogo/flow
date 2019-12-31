@@ -358,7 +358,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 				//if the flow failed, set the error
 				for name, value := range containerInst.returnData {
 					//todo review how we should handle an error encountered here
-					host.SetOutput(name, value)
+					_ = host.SetOutput(name, value)
 				}
 
 				inst.scheduleEval(host)
@@ -384,11 +384,14 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		}
 
 	} else {
-		// not done, so enter tasks specified by the Done behavior call
-		err := inst.enterTasks(containerInst, taskEntries)
-		if err != nil {
-			//todo review how we should handle an error encountered here
-			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+
+		if !propagateSkip {
+			// not done, so enter tasks specified by the Done behavior call
+			err := inst.enterTasks(containerInst, taskEntries)
+			if err != nil {
+				//todo review how we should handle an error encountered here
+				log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
+			}
 		}
 	}
 
