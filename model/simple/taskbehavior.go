@@ -216,6 +216,11 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				continue
 			}
 
+			if linkInst.Link().Type() == definition.LtDependency {
+				linkInst.SetStatus(model.LinkStatusTrue)
+				continue
+			}
+
 			if linkInst.Link().Type() == definition.LtExpression {
 				hasExprLink = true
 				if logger.DebugEnabled() {
