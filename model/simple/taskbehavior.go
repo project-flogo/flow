@@ -199,12 +199,15 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 		var exprLinkFollowed, hasExprLink bool
 		var exprOtherwiseLinkInst model.LinkInstance
+
 		for _, linkInst := range linkInsts {
 
-			follow := true
+			//using skip propagation, so all links need to be followed, mark them false to start
+			linkInst.SetStatus(model.LinkStatusFalse)
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
+			taskEntries = append(taskEntries, taskEntry)
 
 			if linkInst.Link().Type() == definition.LtError {
-				//todo should we skip or ignore?
 				continue
 			}
 
@@ -215,42 +218,29 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 			if linkInst.Link().Type() == definition.LtExpression {
 				hasExprLink = true
-				//todo handle error
 				if logger.DebugEnabled() {
 					logger.Debugf("Task '%s': Evaluating Outgoing Expression Link to Task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
 				}
-				follow, err = ctx.EvalLink(linkInst.Link())
+				follow, err := ctx.EvalLink(linkInst.Link())
 				if err != nil {
 					return false, nil, err
 				}
 				if follow {
 					exprLinkFollowed = true
+					linkInst.SetStatus(model.LinkStatusTrue)
+					if logger.DebugEnabled() {
+						logger.Debugf("Task '%s': Following Expression Link to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
+					}
 				}
-			}
-
-			if follow {
-				linkInst.SetStatus(model.LinkStatusTrue)
-				if logger.DebugEnabled() {
-					logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
-				}
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
-				taskEntries = append(taskEntries, taskEntry)
-			} else {
-				linkInst.SetStatus(model.LinkStatusFalse)
-
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
-				taskEntries = append(taskEntries, taskEntry)
 			}
 		}
 
-		//Otherwise branch while no link to follow
-		if hasExprLink && !exprLinkFollowed && exprOtherwiseLinkInst != nil {
+		//Otherwise branch while no expression link to follow
+		if exprOtherwiseLinkInst != nil && hasExprLink && !exprLinkFollowed  {
 			exprOtherwiseLinkInst.SetStatus(model.LinkStatusTrue)
 			if logger.DebugEnabled() {
-				logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
+				logger.Debugf("Task '%s': Following Otherwise Link to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
 			}
-			taskEntry := &model.TaskEntry{Task: exprOtherwiseLinkInst.Link().ToTask()}
-			taskEntries = append(taskEntries, taskEntry)
 		}
 
 		//continue on to successor tasks
