@@ -542,7 +542,7 @@ func (ti *TaskInst) SpanConfig() trace.Config {
 }
 
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
-	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": ""}
+	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": "", "data": nil}
 }
 
 //DEPRECATED
