@@ -173,14 +173,6 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 	linkInsts := ctx.GetToLinkInstances()
 
-	//todo review this, was ending flows prematurely on error
-	////Error branch already been handled, remove error branch from here
-	//for i, link := range linkInsts {
-	//	if link.Link().Type() != definition.LtError {
-	//		linkInsts = append(linkInsts[:i], linkInsts[i+1:]...)
-	//	}
-	//}
-
 	numLinks := len(linkInsts)
 	ctx.SetStatus(model.TaskStatusDone)
 
