@@ -402,6 +402,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, activeInst *Instance) bool {
 
 	if len(taskEntries) == 0 {
+		//no entries, so essentially a notifyFlow
 		return true
 	}
 
@@ -423,7 +424,6 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 		}
 	}
 
-	//no entries, so essentially a notifyFlow
 	return notify
 }
 
