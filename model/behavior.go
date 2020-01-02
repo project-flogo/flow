@@ -49,9 +49,9 @@ const (
 type EnterResult int
 
 const (
-	EnterNotReady EnterResult = iota
-	EnterEval
-	EnterSkip
+	ERNotReady EnterResult = iota
+	EREval
+	ERSkip
 )
 
 // TaskBehavior is the execution behavior of a Task.
@@ -79,7 +79,7 @@ type TaskBehavior interface {
 	// Skip is called when Enter returns a result of SKIP, indicating
 	// that the task should be skipped.  This step is used to skip the task and
 	// determine the next set of tasks to be entered.
-	Skip(context TaskContext) (notifyFlow bool, taskEntries []*TaskEntry)
+	Skip(context TaskContext) (notifyFlow bool, taskEntries []*TaskEntry, propagateSkip bool)
 
 	// Error is called when there is an issue executing Eval, it returns a boolean indicating
 	// if it handled the error, otherwise the error is handled by the global error handler

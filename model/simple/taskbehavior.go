@@ -10,6 +10,8 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const PropagateSkip = true
+
 // TaskBehavior implements model.TaskBehavior
 type TaskBehavior struct {
 }
@@ -59,14 +61,14 @@ func (tb *TaskBehavior) Enter(ctx model.TaskContext) (enterResult model.EnterRes
 
 		if skipped {
 			ctx.SetStatus(model.TaskStatusSkipped)
-			return model.EnterSkip
+			return model.ERSkip
 		} else {
 			if logger.DebugEnabled() {
 				logger.Debugf("Task '%s' Ready", ctx.Task().ID())
 			}
 			ctx.SetStatus(model.TaskStatusReady)
 		}
-		return model.EnterEval
+		return model.EREval
 
 	} else {
 		if logger.DebugEnabled() {
@@ -74,7 +76,7 @@ func (tb *TaskBehavior) Enter(ctx model.TaskContext) (enterResult model.EnterRes
 		}
 	}
 
-	return model.EnterNotReady
+	return model.ERNotReady
 }
 
 // Eval implements model.TaskBehavior.Eval
@@ -171,13 +173,6 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 	linkInsts := ctx.GetToLinkInstances()
 
-	//Error branch already been handled, remove error branch from here
-	for i, link := range linkInsts {
-		if link.Link().Type() != definition.LtError {
-			linkInsts = append(linkInsts[:i], linkInsts[i+1:]...)
-		}
-	}
-
 	numLinks := len(linkInsts)
 	ctx.SetStatus(model.TaskStatusDone)
 
@@ -196,12 +191,15 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 		var exprLinkFollowed, hasExprLink bool
 		var exprOtherwiseLinkInst model.LinkInstance
+
 		for _, linkInst := range linkInsts {
 
-			follow := true
+			//using skip propagation, so all links need to be followed, mark them false to start
+			linkInst.SetStatus(model.LinkStatusFalse)
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
+			taskEntries = append(taskEntries, taskEntry)
 
 			if linkInst.Link().Type() == definition.LtError {
-				//todo should we skip or ignore?
 				continue
 			}
 
@@ -210,43 +208,36 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				continue
 			}
 
+			if linkInst.Link().Type() == definition.LtDependency {
+				linkInst.SetStatus(model.LinkStatusTrue)
+				continue
+			}
+
 			if linkInst.Link().Type() == definition.LtExpression {
 				hasExprLink = true
-				//todo handle error
 				if logger.DebugEnabled() {
 					logger.Debugf("Task '%s': Evaluating Outgoing Expression Link to Task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
 				}
-				follow, err = ctx.EvalLink(linkInst.Link())
+				follow, err := ctx.EvalLink(linkInst.Link())
 				if err != nil {
 					return false, nil, err
 				}
 				if follow {
 					exprLinkFollowed = true
+					linkInst.SetStatus(model.LinkStatusTrue)
+					if logger.DebugEnabled() {
+						logger.Debugf("Task '%s': Following Expression Link to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
+					}
 				}
-			}
-
-			if follow {
-				linkInst.SetStatus(model.LinkStatusTrue)
-				if logger.DebugEnabled() {
-					logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
-				}
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
-				taskEntries = append(taskEntries, taskEntry)
-			} else {
-				linkInst.SetStatus(model.LinkStatusFalse)
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
-				taskEntries = append(taskEntries, taskEntry)
 			}
 		}
 
-		//Otherwise branch while no link to follow
-		if hasExprLink && !exprLinkFollowed && exprOtherwiseLinkInst != nil {
+		//Otherwise branch while no expression link to follow
+		if exprOtherwiseLinkInst != nil && hasExprLink && !exprLinkFollowed  {
 			exprOtherwiseLinkInst.SetStatus(model.LinkStatusTrue)
 			if logger.DebugEnabled() {
-				logger.Debugf("Task '%s': Following Link  to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
+				logger.Debugf("Task '%s': Following Otherwise Link to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
 			}
-			taskEntry := &model.TaskEntry{Task: exprOtherwiseLinkInst.Link().ToTask()}
-			taskEntries = append(taskEntries, taskEntry)
 		}
 
 		//continue on to successor tasks
@@ -262,7 +253,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 }
 
 // Skip implements model.TaskBehavior.Skip
-func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry) {
+func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry, propagateSkip bool) {
 	linkInsts := ctx.GetToLinkInstances()
 	numLinks := len(linkInsts)
 
@@ -289,14 +280,14 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			taskEntries = append(taskEntries, taskEntry)
 		}
 
-		return false, taskEntries
+		return false, taskEntries, PropagateSkip
 	}
 
 	if logger.DebugEnabled() {
 		logger.Debugf("Notifying flow that end task '%s' is skipped", ctx.Task().ID())
 	}
 
-	return true, nil
+	return true, nil, PropagateSkip
 }
 
 // Error implements model.TaskBehavior.Error
@@ -352,3 +343,5 @@ func linkStatus(inst model.LinkInstance) string {
 
 	return "unknown"
 }
+
+

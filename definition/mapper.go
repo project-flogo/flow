@@ -33,14 +33,18 @@ type defaultActivityOutputMapper struct {
 
 func (m *defaultActivityOutputMapper) Apply(scope data.Scope) (map[string]interface{}, error) {
 
-	output := make(map[string]interface{}, len(m.metadata.Output))
-	for name := range m.metadata.Output {
+	if m.metadata.IOMetadata != nil {
+		output := make(map[string]interface{}, len(m.metadata.Output))
+		for name := range m.metadata.Output {
 
-		value, ok := scope.GetValue(name)
-		if ok {
-			output[m.attrNS+name] = value
+			value, ok := scope.GetValue(name)
+			if ok {
+				output[m.attrNS+name] = value
+			}
 		}
+
+		return output, nil
 	}
 
-	return output, nil
+	return nil, nil
 }
