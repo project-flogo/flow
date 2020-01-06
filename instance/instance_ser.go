@@ -80,7 +80,7 @@ func (inst *IndependentInstance) UnmarshalJSON(d []byte) error {
 		inst.attrs[name] = value
 	}
 
-	inst.changeTracker = NewInstanceChangeTracker(inst.id)
+	//inst.changeTracker = NewInstanceChangeTracker(inst.id)
 
 	inst.taskInsts = make(map[string]*TaskInst, len(ser.TaskInsts))
 
