@@ -648,6 +648,9 @@ func (inst *IndependentInstance) Restart(logger log.Logger, id string) error {
 	inst.master = inst
 	inst.init(inst.Instance)
 
+	inst.changeTracker = NewInstanceChangeTracker(inst.id)
+	inst.changeTracker.FlowCreated(inst)
+
 	return nil
 }
 
