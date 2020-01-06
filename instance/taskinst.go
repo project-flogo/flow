@@ -14,21 +14,40 @@ import (
 	"github.com/project-flogo/flow/model"
 )
 
-func NewTaskInst(inst *Instance, task *definition.Task) *TaskInst {
+func NewTaskInst(flowInst *Instance, task *definition.Task) *TaskInst {
 	var taskInst TaskInst
 
-	taskInst.flowInst = inst
+	initTaskInst(&taskInst, flowInst, task)
+	//taskInst.flowInst = inst
+	//taskInst.task = task
+	//taskInst.taskID = task.ID()
+
+	//if log.CtxLoggingEnabled() {
+	//	taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("flowId", inst.ID()))
+
+	//} else {
+	//	taskInst.logger = task.ActivityConfig().Logger
+	//}
+
+	return &taskInst
+}
+
+func initTaskInst(taskInst *TaskInst, flowInst *Instance, task *definition.Task) {
+
+	if task == nil {
+		task = flowInst.flowDef.GetTask(taskInst.taskID)
+	}
+
+	taskInst.flowInst = flowInst
 	taskInst.task = task
 	taskInst.taskID = task.ID()
 
 	if log.CtxLoggingEnabled() {
-		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("flowId", inst.ID()))
+		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("flowId", flowInst.ID()))
 
 	} else {
 		taskInst.logger = task.ActivityConfig().Logger
 	}
-
-	return &taskInst
 }
 
 type TaskInst struct {

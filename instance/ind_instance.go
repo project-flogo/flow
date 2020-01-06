@@ -656,14 +656,15 @@ func (inst *IndependentInstance) Restart(logger log.Logger, id string) error {
 
 func (inst *IndependentInstance) init(flowInst *Instance) {
 
-	for _, v := range flowInst.taskInsts {
-		v.flowInst = flowInst
-		v.task = flowInst.flowDef.GetTask(v.taskID)
+	for _, taskInst := range flowInst.taskInsts {
+		initTaskInst(taskInst, flowInst, nil)
+		//v.flowInst = flowInst
+		//v.task = flowInst.flowDef.GetTask(v.taskID)
 	}
 
-	for _, v := range flowInst.linkInsts {
-		v.flowInst = flowInst
-		v.link = flowInst.flowDef.GetLink(v.id)
+	for _, linkInst := range flowInst.linkInsts {
+		linkInst.flowInst = flowInst
+		linkInst.link = flowInst.flowDef.GetLink(linkInst.id)
 	}
 }
 
