@@ -290,13 +290,16 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	inst.SetResultHandler(handler)
 
+	if stateRecorder != nil {
+		recordState(inst)
+	}
+
 	go func() {
 
 		defer handler.Done()
 
 		if retID {
 
-			//idAttr, _ := data.NewAttribute("id", data.TypeString, inst.ID())
 			results := map[string]interface{}{
 				"id": inst.ID(),
 			}
@@ -310,20 +313,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			hasWork = inst.DoStep()
 
 			if stateRecorder != nil {
-
-				if recordSnapshot {
-					err := stateRecorder.RecordSnapshot(inst.Snapshot())
-					if err != nil {
-						logger.Warnf("unable to record snapshot: %v", err)
-					}
-				}
-
-				if recordSteps {
-					err := stateRecorder.RecordStep(inst.CurrentStep(true))
-					if err != nil {
-						logger.Warnf("unable to record step: %v", err)
-					}
-				}
+				recordState(inst)
 			}
 		}
 
@@ -350,4 +340,20 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}()
 
 	return nil
+}
+
+func recordState(inst *instance.IndependentInstance) {
+	if recordSnapshot {
+		err := stateRecorder.RecordSnapshot(inst.Snapshot())
+		if err != nil {
+			logger.Warnf("unable to record snapshot: %v", err)
+		}
+	}
+
+	if recordSteps {
+		err := stateRecorder.RecordStep(inst.CurrentStep(true))
+		if err != nil {
+			logger.Warnf("unable to record step: %v", err)
+		}
+	}
 }
