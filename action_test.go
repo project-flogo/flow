@@ -1,16 +1,8 @@
 package flow
 
 import (
-	"context"
-	"encoding/json"
-	"github.com/project-flogo/core/action"
-	"github.com/project-flogo/core/data"
-	"github.com/project-flogo/core/engine/runner"
-	"github.com/project-flogo/core/support/test"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
-	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const FlowRef = "github.com/project-flogo/flow"
@@ -160,55 +152,55 @@ var testRestartInitialState = `{
 }
 `
 
-func TestFlowAction_Run_Restart(t *testing.T) {
-
-	cfg := &action.Config{}
-	err := json.Unmarshal([]byte(testFlowActionCfg), cfg)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	ff := ActionFactory{}
-	err = ff.Initialize(test.NewActionInitCtx())
-	assert.Nil(t, err)
-
-	flowAction, err := ff.New(cfg)
-	assert.NotNil(t, err)
-
-	req := &RestartRequest{}
-	err = json.Unmarshal([]byte(testRestartInitialState), req)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	ctx := context.Background()
-
-	if req.Data != nil {
-
-		attrs := make([]*data.Attribute, len(req.Data))
-
-		for k, v := range req.Data {
-			attr := data.NewAttribute(k, data.TypeAny, v)
-			attrs = append(attrs, attr)
-		}
-
-		//ctx = trigger.NewContext(context.Background(), attrs)
-		ctx = context.Background()
-	}
-
-	execOptions := &instance.ExecOptions{Interceptor: req.Interceptor, Patch: req.Patch}
-	ro := &instance.RunOptions{Op: instance.OpRestart, ReturnID: true, FlowURI: req.InitialState.FlowURI(), InitialState: req.InitialState, ExecOptions: execOptions}
-	inputs := make(map[string]interface{}, 1)
-	//attr := data.NewAttribute("_run_options", data.TypeAny, ro)
-	inputs["_run_options"] = ro
-
-	r := runner.NewDirect()
-	_, err = r.RunAction(ctx, flowAction, inputs)
-	assert.Nil(t, err)
-}
+//func TestFlowAction_Run_Restart(t *testing.T) {
+//
+//	cfg := &action.Config{}
+//	err := json.Unmarshal([]byte(testFlowActionCfg), cfg)
+//	if err != nil {
+//		t.Error(err)
+//		return
+//	}
+//
+//	ff := ActionFactory{}
+//	err = ff.Initialize(test.NewActionInitCtx())
+//	assert.Nil(t, err)
+//
+//	flowAction, err := ff.New(cfg)
+//	assert.NotNil(t, err)
+//
+//	req := &RestartRequest{}
+//	err = json.Unmarshal([]byte(testRestartInitialState), req)
+//
+//	if err != nil {
+//		t.Error(err)
+//		return
+//	}
+//
+//	ctx := context.Background()
+//
+//	if req.Data != nil {
+//
+//		attrs := make([]*data.Attribute, len(req.Data))
+//
+//		for k, v := range req.Data {
+//			attr := data.NewAttribute(k, data.TypeAny, v)
+//			attrs = append(attrs, attr)
+//		}
+//
+//		//ctx = trigger.NewContext(context.Background(), attrs)
+//		ctx = context.Background()
+//	}
+//
+//	execOptions := &instance.ExecOptions{Interceptor: req.Interceptor, Patch: req.Patch}
+//	ro := &instance.RunOptions{Op: instance.OpRestart, ReturnID: true, FlowURI: req.InitialState.FlowURI(), InitialState: req.InitialState, ExecOptions: execOptions}
+//	inputs := make(map[string]interface{}, 1)
+//	//attr := data.NewAttribute("_run_options", data.TypeAny, ro)
+//	inputs["_run_options"] = ro
+//
+//	r := runner.NewDirect()
+//	_, err = r.RunAction(ctx, flowAction, inputs)
+//	assert.Nil(t, err)
+//}
 
 type RestartRequest struct {
 	InitialState *instance.IndependentInstance `json:"initialState"`
