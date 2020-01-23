@@ -4,29 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
-	"strconv"
+	"strings"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/data/resolve"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
-	"github.com/project-flogo/flow"
+	"github.com/project-flogo/core/support/service"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
-	_ "github.com/project-flogo/flow/model/simple"
+	"github.com/project-flogo/flow/model/simple"
+	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
 )
 
 const (
-	EnvFlowRecord = "FLOGO_FLOW_RECORD"
-
 	ivFlowPackage = "flowPackage"
+)
+
+const (
+	RtSettingStepMode     = "stepRecordingMode"
+	RtSettingSnapshotMode = "snapshotRecordingMode"
 )
 
 type FlowAction struct {
@@ -40,11 +44,13 @@ type FlowPackage struct {
 	Flow    *definition.DefinitionRep `json:"flow"`
 }
 
-var ep flow.ExtensionProvider
 var idGenerator *support.Generator
 var record bool
 var flowManager *flowsupport.FlowManager
 var logger log.Logger
+var stateRecorder state.Recorder
+var recordSnapshot bool //todo switch to "mode"
+var recordSteps bool    //todo switch to "mode"
 
 var actionMd = action.ToMetadata(&Settings{})
 
@@ -58,10 +64,6 @@ func init() {
 	_ = action.Register(&FlowAction{}, &ActionFactory{})
 }
 
-func SetExtensionProvider(provider flow.ExtensionProvider) {
-	ep = provider
-}
-
 type ActionFactory struct {
 }
 
@@ -73,10 +75,36 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		return nil
 	}
 
-	if ep == nil {
-		ep = flow.NewDefaultExtensionProvider()
-		record = recordFlows()
+	sm := ctx.ServiceManager()
+
+	srService := sm.FindService(func(s service.Service) bool {
+		_, ok := s.(state.Recorder)
+		return ok
+	})
+
+	stepMode := ""
+	snapshotMode := ""
+
+	if len(ctx.RuntimeSettings()) > 0 {
+		sStepMode := ctx.RuntimeSettings()[RtSettingStepMode]
+		sSnapshotMode := ctx.RuntimeSettings()[RtSettingSnapshotMode]
+
+		stepMode, _ = coerce.ToString(sStepMode)
+		snapshotMode, _ = coerce.ToString(sSnapshotMode)
 	}
+
+	//todo only support "full" for now, until we come up with other modes
+	recordSteps = strings.EqualFold("full", stepMode)
+	recordSnapshot = strings.EqualFold("full", snapshotMode)
+
+	if srService != nil {
+		stateRecorder = srService.(state.Recorder)
+
+		if recordSteps {
+			instance.EnableChangeTracking(true)
+		}
+	}
+
 	exprFactory := expression.NewFactory(definition.GetDataResolver())
 	mapperFactory := mapper.NewFactory(definition.GetDataResolver())
 
@@ -87,19 +115,13 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		idGenerator, _ = support.NewGenerator()
 	}
 
-	model.RegisterDefault(ep.GetDefaultFlowModel())
+	//todo fix the following
+	model.RegisterDefault(simple.New())
+	flowManager = flowsupport.NewFlowManager(nil)
+	flowsupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
 
 	return nil
 
-}
-
-func recordFlows() bool {
-	recordFlows := os.Getenv(EnvFlowRecord)
-	if len(recordFlows) == 0 {
-		return false
-	}
-	b, _ := strconv.ParseBool(recordFlows)
-	return b
 }
 
 //Metadata get the Action's metadata

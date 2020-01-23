@@ -3,10 +3,10 @@ package ondemand
 import (
 	"context"
 	"encoding/json"
+	"github.com/project-flogo/core/support/test"
 	"testing"
 
 	"github.com/project-flogo/core/action"
-	"github.com/project-flogo/core/app/resource"
 	_ "github.com/project-flogo/core/support/test"
 
 	"github.com/project-flogo/core/engine/runner"
@@ -51,13 +51,6 @@ const testEventJson = `
   }
 }`
 
-type testInitCtx struct {
-}
-
-func (testInitCtx) ResourceManager() *resource.Manager {
-	return nil
-}
-
 type Event struct {
 	Payload interface{}     `json:"payload"`
 	Flogo   json.RawMessage `json:"flogo"`
@@ -77,7 +70,7 @@ func TestFlowAction_Run(t *testing.T) {
 	cfg := &action.Config{}
 
 	ff := ActionFactory{}
-	err := ff.Initialize(&testInitCtx{})
+	err := ff.Initialize(test.NewActionInitCtx())
 	assert.Nil(t, err)
 
 	fa, err := ff.New(cfg)
