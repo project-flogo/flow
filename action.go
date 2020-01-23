@@ -21,12 +21,12 @@ import (
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
-	flowSupport "github.com/project-flogo/flow/support"
+	flowsupport "github.com/project-flogo/flow/support"
 )
 
 func init() {
 	_ = action.Register(&FlowAction{}, &ActionFactory{})
-	_ = resource.RegisterLoader(flowSupport.ResTypeFlow, &flowSupport.FlowLoader{})
+	_ = resource.RegisterLoader(flowsupport.ResTypeFlow, &flowsupport.FlowLoader{})
 }
 
 const (
@@ -38,7 +38,7 @@ var idGenerator *support.Generator
 var maxStepCount = 1000000
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
-var flowManager *flowSupport.FlowManager
+var flowManager *flowsupport.FlowManager
 var stateRecorder state.Recorder
 var recordSnapshot bool //todo switch to "mode"
 var recordSteps bool    //todo switch to "mode"
@@ -98,8 +98,8 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 
 	//todo fix the following
 	model.RegisterDefault(simple.New())
-	flowManager = flowSupport.NewFlowManager(nil)
-	flowSupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
+	flowManager = flowsupport.NewFlowManager(nil)
+	flowsupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
 
 	return nil
 }
@@ -116,7 +116,7 @@ func (f *ActionFactory) New(config *action.Config) (action.Action, error) {
 
 	flowAction.flowURI = settings.FlowURI
 
-	def, res, err := flowSupport.GetDefinition(flowAction.flowURI)
+	def, res, err := flowsupport.GetDefinition(flowAction.flowURI)
 	if err != nil {
 		return nil, err
 	}

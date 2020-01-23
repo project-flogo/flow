@@ -3,17 +3,14 @@ package flow
 import (
 	"context"
 	"encoding/json"
-	"testing"
-
 	"github.com/project-flogo/core/action"
-	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/engine/runner"
 	"github.com/project-flogo/core/support/test"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
-	"github.com/project-flogo/flow/tester"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 const FlowRef = "github.com/project-flogo/flow"
@@ -335,29 +332,29 @@ var jsonRestartRequest = `{
 }
 `
 
-func TestRequestProcessor_RestartFlow(t *testing.T) {
-
-	f := action.GetFactory(FlowRef)
-	af := f.(*ActionFactory)
-	err := af.Initialize(test.NewActionInitCtx())
-	assert.Nil(t, err)
-
-	loader := resource.GetLoader("flow")
-	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
-	_, err = loader.LoadResource(rConfig1)
-	assert.Nil(t, err)
-
-	rp := tester.NewRequestProcessor()
-
-	req := &tester.RestartRequest{}
-	err = json.Unmarshal([]byte(jsonRestartRequest), req)
-	assert.Nil(t, err)
-
-	var results map[string]interface{}
-
-	results, err = rp.RestartFlow(req)
-	assert.Nil(t, err)
-	assert.NotNil(t, results)
-
-	//results, err := rp.RestartFlow(req)
-}
+//func TestRequestProcessor_RestartFlow(t *testing.T) {
+//
+//	f := action.GetFactory(FlowRef)
+//	af := f.(*ActionFactory)
+//	err := af.Initialize(test.NewActionInitCtx())
+//	assert.Nil(t, err)
+//
+//	loader := resource.GetLoader("flow")
+//	rConfig1 := &resource.Config{ID: "flow:flow1", Data: []byte(jsonFlow1)}
+//	_, err = loader.LoadResource(rConfig1)
+//	assert.Nil(t, err)
+//
+//	rp := tester.NewRequestProcessor()
+//
+//	req := &tester.RestartRequest{}
+//	err = json.Unmarshal([]byte(jsonRestartRequest), req)
+//	assert.Nil(t, err)
+//
+//	var results map[string]interface{}
+//
+//	results, err = rp.RestartFlow(req)
+//	assert.Nil(t, err)
+//	assert.NotNil(t, results)
+//
+//	//results, err := rp.RestartFlow(req)
+//}
