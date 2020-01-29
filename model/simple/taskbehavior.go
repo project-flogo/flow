@@ -208,7 +208,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				continue
 			}
 
-			if linkInst.Link().Type() == definition.LtDependency {
+			if linkInst.Link().Type() == definition.LtDependency || linkInst.Link().Type() == definition.LtLabel {
 				linkInst.SetStatus(model.LinkStatusTrue)
 				continue
 			}
@@ -233,7 +233,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		}
 
 		//Otherwise branch while no expression link to follow
-		if exprOtherwiseLinkInst != nil && hasExprLink && !exprLinkFollowed  {
+		if exprOtherwiseLinkInst != nil && hasExprLink && !exprLinkFollowed {
 			exprOtherwiseLinkInst.SetStatus(model.LinkStatusTrue)
 			if logger.DebugEnabled() {
 				logger.Debugf("Task '%s': Following Otherwise Link to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
@@ -343,5 +343,3 @@ func linkStatus(inst model.LinkInstance) string {
 
 	return "unknown"
 }
-
-
