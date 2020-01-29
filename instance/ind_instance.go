@@ -314,7 +314,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		notifyFlow, taskEntries, propagateSkip = taskBehavior.Skip(taskInst)
 
 		if propagateSkip {
-			notifyFlow = inst.propagateSkip(taskEntries, containerInst)
+			inst.propagateSkip(taskEntries, containerInst)
 		}
 	} else {
 		notifyFlow, taskEntries, err = taskBehavior.Done(taskInst)
@@ -399,14 +399,12 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 	containerInst.releaseTask(task)
 }
 
-func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, activeInst *Instance) bool {
+func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, activeInst *Instance) {
 
 	if len(taskEntries) == 0 {
-		//no entries, so essentially a notifyFlow
-		return true
+		return
 	}
 
-	notify := false
 	for _, entry := range taskEntries {
 		newTaskInst, _ := activeInst.FindOrCreateTaskInst(entry.Task)
 		newTaskInst.id = newTaskInst.taskID
@@ -416,17 +414,12 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 		if enterResult == model.ERSkip {
 			_, toSkipEntries, _ := taskToEnterBehavior.Skip(newTaskInst)
 			if len(toSkipEntries) > 0 {
-				shouldNotify := inst.propagateSkip(toSkipEntries, activeInst)
-				notify = notify || shouldNotify
-			} else {
-				notify = true
+				inst.propagateSkip(toSkipEntries, activeInst)
 			}
 		}
 	}
 
-	return notify
 }
-
 
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
