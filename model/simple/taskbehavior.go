@@ -198,7 +198,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 			//using skip propagation, so all links need to be followed, mark them false to start
 			linkInst.SetStatus(model.LinkStatusFalse)
-			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode:3}
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode: 3}
 			taskEntries = append(taskEntries, taskEntry)
 
 			if linkInst.Link().Type() == definition.LtError {
@@ -246,8 +246,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			}
 		}
 
-		sort.Sort(ByCode{taskEntries})
-
+		SortTaskEntries(taskEntries)
 		//continue on to successor tasks
 		return false, taskEntries, nil
 	}
@@ -284,7 +283,7 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 		for _, linkInst := range linkInsts {
 			linkInst.SetStatus(model.LinkStatusSkipped)
-			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode:3}
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode: 3}
 			taskEntries = append(taskEntries, taskEntry)
 		}
 
@@ -329,12 +328,13 @@ func (tb *TaskBehavior) Error(ctx model.TaskContext, err error) (handled bool, t
 					linkInst.SetStatus(model.LinkStatusFalse)
 				}
 
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode:enterCode}
+				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode: enterCode}
 				taskEntries = append(taskEntries, taskEntry)
 			}
 
-			sort.Sort(ByCode{taskEntries})
+			//sort.Sort(ByCode{taskEntries})
 
+			SortTaskEntries(taskEntries)
 			return true, taskEntries
 		}
 	}
@@ -356,12 +356,9 @@ func linkStatus(inst model.LinkInstance) string {
 	return "unknown"
 }
 
-/////
-
-type TaskEntries []*model.TaskEntry
-func (s TaskEntries) Len() int      { return len(s) }
-func (s TaskEntries) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-
-type ByCode struct{ TaskEntries }
-
-func (s ByCode) Less(i, j int) bool { return s.TaskEntries[i].EnterCode != 3 }
+//SortTaskEntries Sort by EnterCode, keeping original order or equal elements.
+func SortTaskEntries(entries []*model.TaskEntry) {
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].EnterCode < entries[j].EnterCode
+	})
+}
