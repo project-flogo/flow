@@ -240,7 +240,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		//Otherwise branch while no expression link to follow
 		if exprOtherwiseLinkInst != nil && hasExprLink && !exprLinkFollowed {
 			exprOtherwiseLinkInst.SetStatus(model.LinkStatusTrue)
-			exprOtherwiseTaskEntry.EnterCode = 3
+			exprOtherwiseTaskEntry.EnterCode = 0
 			if logger.DebugEnabled() {
 				logger.Debugf("Task '%s': Following Otherwise Link to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
 			}
