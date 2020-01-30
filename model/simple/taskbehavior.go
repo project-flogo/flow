@@ -6,6 +6,7 @@ import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
+	"sort"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,12 +192,13 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 		var exprLinkFollowed, hasExprLink bool
 		var exprOtherwiseLinkInst model.LinkInstance
+		var exprOtherwiseTaskEntry *model.TaskEntry
 
 		for _, linkInst := range linkInsts {
 
 			//using skip propagation, so all links need to be followed, mark them false to start
 			linkInst.SetStatus(model.LinkStatusFalse)
-			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode:3}
 			taskEntries = append(taskEntries, taskEntry)
 
 			if linkInst.Link().Type() == definition.LtError {
@@ -205,11 +207,13 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 			if linkInst.Link().Type() == definition.LtExprOtherwise {
 				exprOtherwiseLinkInst = linkInst
+				exprOtherwiseTaskEntry = taskEntry
 				continue
 			}
 
 			if linkInst.Link().Type() == definition.LtDependency || linkInst.Link().Type() == definition.LtLabel {
 				linkInst.SetStatus(model.LinkStatusTrue)
+				taskEntry.EnterCode = 0
 				continue
 			}
 
@@ -225,6 +229,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				if follow {
 					exprLinkFollowed = true
 					linkInst.SetStatus(model.LinkStatusTrue)
+					taskEntry.EnterCode = 0
 					if logger.DebugEnabled() {
 						logger.Debugf("Task '%s': Following Expression Link to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
 					}
@@ -235,10 +240,13 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		//Otherwise branch while no expression link to follow
 		if exprOtherwiseLinkInst != nil && hasExprLink && !exprLinkFollowed {
 			exprOtherwiseLinkInst.SetStatus(model.LinkStatusTrue)
+			exprOtherwiseTaskEntry.EnterCode = 3
 			if logger.DebugEnabled() {
 				logger.Debugf("Task '%s': Following Otherwise Link to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
 			}
 		}
+
+		sort.Sort(ByCode{taskEntries})
 
 		//continue on to successor tasks
 		return false, taskEntries, nil
@@ -276,7 +284,7 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 		for _, linkInst := range linkInsts {
 			linkInst.SetStatus(model.LinkStatusSkipped)
-			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode:3}
 			taskEntries = append(taskEntries, taskEntry)
 		}
 
@@ -313,15 +321,19 @@ func (tb *TaskBehavior) Error(ctx model.TaskContext, err error) (handled bool, t
 
 			for _, linkInst := range linkInsts {
 
+				enterCode := 0
 				if linkInst.Link().Type() == definition.LtError {
 					linkInst.SetStatus(model.LinkStatusTrue)
 				} else {
+					enterCode = 3
 					linkInst.SetStatus(model.LinkStatusFalse)
 				}
 
-				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask()}
+				taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode:enterCode}
 				taskEntries = append(taskEntries, taskEntry)
 			}
+
+			sort.Sort(ByCode{taskEntries})
 
 			return true, taskEntries
 		}
@@ -343,3 +355,13 @@ func linkStatus(inst model.LinkInstance) string {
 
 	return "unknown"
 }
+
+/////
+
+type TaskEntries []*model.TaskEntry
+func (s TaskEntries) Len() int      { return len(s) }
+func (s TaskEntries) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+type ByCode struct{ TaskEntries }
+
+func (s ByCode) Less(i, j int) bool { return s.TaskEntries[i].EnterCode != 3 }
