@@ -2,6 +2,7 @@ package instance
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
@@ -216,6 +217,16 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def)
 
 	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
+
+	//pass flow attr to subflow, no activities outputs
+	for k, v := range taskInst.flowInst.master.attrs {
+		if !strings.HasPrefix(k, "_A.") {
+			//subflow input override exist flow attr
+			if _, ok := inputs[k]; !ok {
+				inputs[k] = v
+			}
+		}
+	}
 
 	err = taskInst.flowInst.master.startEmbedded(flowInst, inputs)
 	if err != nil {
