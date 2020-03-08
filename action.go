@@ -337,6 +337,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		} else if inst.Status() == model.FlowStatusFailed {
 			logger.Infof("Instance [%s] Failed", inst.ID())
 		}
+		// Release memory
+		inst = nil
 	}()
 
 	return nil
