@@ -22,7 +22,7 @@ import (
 type DefinitionRep struct {
 	ExplicitReply bool                 `json:"explicitReply,omitempty"`
 	Name          string               `json:"name"`
-	ModelID       string               `json:"model,omitempty"`
+	ModelID       string               `json:"id,omitempty"`
 	Metadata      *metadata.IOMetadata `json:"metadata,omitempty"`
 	Tasks         []*TaskRep           `json:"tasks"`
 	Links         []*LinkRep           `json:"links,omitempty"`

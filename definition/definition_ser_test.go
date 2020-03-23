@@ -94,6 +94,73 @@ const oldDefJSON = `
   }
 `
 
+const defErrJSON = `
+{
+  "type": 1,
+  "name": "Demo Flow",
+  "model": "simple",
+  "attributes": [
+    { "name": "petInfo", "type": "string", "value": "blahPet" }
+  ],
+  "rootTask": {
+    "id": 1,
+    "type": 1,
+    "name": "root",
+  "activityRef": "",
+  "tasks": [
+      {
+        "id": "2",
+        "type": 1,
+        "activityRef": "log",
+        "name": "Log Start",
+        "attributes": [
+          { "type": "string", "name": "message", "value": "Find Pet Flow Started!"}
+        ]
+      },
+      {
+        "id": "3",
+        "type": 1,
+        "activityRef": "log",
+        "name": "Log Results",
+        "attributes": [
+          { "type": "string", "name": "message", "value": "REST results" }
+        ],
+        "inputMappings": [
+          { "type": 1, "value": "petInfo", "result": "message" }
+        ]
+      }
+    ],
+    "links": [
+      { "id": 1, "type": 1,  "name": "", "from": 2, "to": 3  }
+    ]
+  },
+  "errorHandler": {
+    "tasks" :[
+      {
+        "id": "2",
+        "activityRef": "errorLog",
+        "name": "Error Log 1",
+        "attributes": [
+          { "type": "string", "name": "message", "value": "Error log 1"}
+        ]
+      },
+      {
+        "id": "3",
+        "activityRef": "errorLog",
+        "name": "Error Log 2",
+        "attributes": [
+          { "type": "string", "name": "message", "value": "Error Log 2" }
+        ],
+        "inputMappings": [
+          { "type": 1, "value": "petInfo", "result": "message" }
+        ]
+      }
+    ],
+    "links" : [ { "id": "1",  "name": "", "from": "2", "to": "3"  } ]
+  }
+}
+`
+
 func TestDeserialize(t *testing.T) {
 
 	defRep := &DefinitionRep{}
@@ -103,8 +170,7 @@ func TestDeserialize(t *testing.T) {
 
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
-
-	fmt.Printf("Definition: %v", def)
+	assert.NotNil(t, def)
 }
 
 func TestDeserializeOld(t *testing.T) {
@@ -116,8 +182,19 @@ func TestDeserializeOld(t *testing.T) {
 
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
+	assert.NotNil(t, def)
+}
 
-	fmt.Printf("Definition: %v", def)
+func TestDeserializeError(t *testing.T) {
+
+	defRep := &DefinitionRep{}
+
+	err := json.Unmarshal([]byte(defErrJSON), defRep)
+	assert.Nil(t, err)
+
+	def, err := NewDefinition(defRep)
+	assert.Nil(t, err)
+	assert.NotNil(t, def)
 }
 
 //DUMMY TEST ACTIVITIES
