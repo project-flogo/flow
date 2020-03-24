@@ -135,6 +135,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 }
 
 func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, error) {
+	var err error
 	task := &Task{}
 	task.id = rep.ID
 	task.name = rep.Name
@@ -149,11 +150,45 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 
 	mf := GetMapperFactory()
 
-	loopConfigure, err := getLoopCfg(rep.Settings, ef)
-	if err != nil {
-		return nil, err
+	if rep.Settings["loopConfig"] == nil {
+
+		//DEPRECATED
+		loopConfigure, err := getLoopCfg(rep.Settings, ef)
+		if err != nil {
+			return nil, err
+		}
+		task.oldloopCfg = loopConfigure
+	} else {
+
+		loop := &loopCfg{}
+
+		loopCfgMap, err := coerce.ToObject(rep.Settings["loopConfig"])
+		if err != nil {
+			return nil, err
+		}
+		err = metadata.MapToStruct(loopCfgMap, loop, true)
+		if err != nil {
+			return nil, err
+		}
+
+		task.loop, err = NewLoop(loop, ef)
+		if err != nil {
+			return nil, err
+		}
+
+		retryErr := &retryErrorCfg{}
+
+		retryCfgMap, err := coerce.ToObject(rep.Settings["retryOnError"])
+		if err != nil {
+			return nil, err
+		}
+		err = metadata.MapToStruct(retryCfgMap, retryErr, true)
+		if err != nil {
+			return nil, err
+		}
+
+		task.retryErrorCfg = retryErr
 	}
-	task.loopCfg = loopConfigure
 
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
 	if err != nil {
@@ -401,8 +436,9 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 	return link, nil
 }
 
-func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loopCfg, error) {
-	loop := &loopCfg{}
+//DEPRECATED
+func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*oldloopCfg, error) {
+	loop := &oldloopCfg{}
 	if len(settings) > 0 {
 		var err error
 		//backward compatible

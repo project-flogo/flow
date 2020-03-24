@@ -182,6 +182,102 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 }
 
 type loopCfg struct {
+	Condition  string `md:"condition"`
+	IterateOn  string `md:"iterateOn"`
+	Delay      int    `md:"delay"`
+	Accumulate bool   `md:"accumulate"`
+}
+
+type loop struct {
+	condition  expression.Expr
+	accumulate bool
+	delay      int
+	iterateOn  interface{}
+}
+
+func NewLoop(cfg *loopCfg, ef expression.Factory) (*loop, error) {
+	loop := &loop{}
+	var err error
+	loop.accumulate = cfg.Accumulate
+	loop.delay = cfg.Delay
+
+	if cfg.Condition != "" {
+		if cfg.Condition[0] == '=' {
+			loop.condition, err = ef.NewExpr(cfg.Condition[1:])
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if cfg.IterateOn != "" {
+		if cfg.IterateOn[0] == '=' {
+			loop.iterateOn, err = ef.NewExpr(cfg.IterateOn[1:])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			loop.iterateOn = cfg.IterateOn
+		}
+	}
+
+	return loop, nil
+}
+
+func (l *loop) Accumulated() bool {
+	return l.accumulate
+}
+
+func (l *loop) DowhileCondition() expression.Expr {
+	return l.condition
+}
+
+func (l *loop) GetIterate() interface{} {
+	return l.iterateOn
+}
+
+func (l *loop) IterateEnabled() bool {
+	return l.iterateOn != nil
+}
+
+func (l *loop) DowhileEnabled() bool {
+	return l.condition != nil
+}
+
+func (l *loop) Delay() int {
+	return l.delay
+}
+
+//Temporary Methods. Need to Remove
+func (l *loop) RetryOnErrorEnabled() bool {
+	return false
+}
+
+//Temporary Methods. Need to Remove
+func (l *loop) RetryOnErrorCount() int {
+	return 0
+}
+
+//Temporary Methods. Need to Remove
+func (l *loop) RetryOnErrorInterval() int {
+	return 0
+}
+
+type retryErrorCfg struct {
+	Count    int `md:"count"`
+	Interval int `md:"interval"`
+}
+
+func (r *retryErrorCfg) RetryOnErrorCount() int {
+	return r.Count
+}
+
+func (r *retryErrorCfg) RetryOnErrorInterval() int {
+	return r.Interval
+}
+
+//DEPRECATED.
+type oldloopCfg struct {
 	condition    expression.Expr
 	iterate      interface{}
 	delay        int
@@ -192,40 +288,62 @@ type loopCfg struct {
 	}
 }
 
-func (l *loopCfg) Accumulated() bool {
+//DEPRECATED.
+func (l *oldloopCfg) Accumulated() bool {
 	return l.accumulate
 }
 
-func (l *loopCfg) DowhileCondition() expression.Expr {
+//DEPRECATED.
+func (l *oldloopCfg) DowhileCondition() expression.Expr {
 	return l.condition
 }
 
-func (l *loopCfg) GetIterate() interface{} {
+//DEPRECATED.
+func (l *oldloopCfg) GetIterate() interface{} {
 	return l.iterate
 }
 
-func (l *loopCfg) IterateEnabled() bool {
+//DEPRECATED.
+func (l *oldloopCfg) IterateEnabled() bool {
 	return l.iterate != nil
 }
 
-func (l *loopCfg) DowhileEnabled() bool {
+//DEPRECATED.
+func (l *oldloopCfg) DowhileEnabled() bool {
 	return l.condition != nil
 }
 
-func (l *loopCfg) Delay() int {
+//DEPRECATED.
+func (l *oldloopCfg) Delay() int {
 	return l.delay
 }
 
-func (l *loopCfg) RetryOnErrorEnabled() bool {
+//DEPRECATED.
+func (l *oldloopCfg) RetryOnErrorEnabled() bool {
 	return l.retryOnError.count > 0
 }
 
-func (l *loopCfg) RetryOnErrorCount() int {
+//DEPRECATED.
+func (l *oldloopCfg) RetryOnErrorCount() int {
 	return l.retryOnError.count
 }
 
-func (l *loopCfg) RetryOnErrorInterval() int {
+//DEPRECATED.
+func (l *oldloopCfg) RetryOnErrorInterval() int {
 	return l.retryOnError.interval
+}
+
+// Need To Remove
+type Loop interface {
+	Accumulated() bool
+	DowhileCondition() expression.Expr
+	GetIterate() interface{}
+	IterateEnabled() bool
+	DowhileEnabled() bool
+	Delay() int
+	RetryOnErrorEnabled() bool
+	RetryOnErrorCount() int
+	RetryOnErrorInterval() int
 }
 
 // Task is the object that describes the definition of
@@ -243,7 +361,10 @@ type Task struct {
 	settingsMapper mapper.Mapper
 
 	//For do-while and retry
-	loopCfg *loopCfg
+	oldloopCfg *oldloopCfg
+
+	loop          *loop
+	retryErrorCfg *retryErrorCfg
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -273,8 +394,22 @@ func (task *Task) SettingsMapper() mapper.Mapper {
 	return task.settingsMapper
 }
 
-func (task *Task) LoopConfig() *loopCfg {
-	return task.loopCfg
+func (task *Task) RetryOnErrorEnabled() bool {
+	return task.retryErrorCfg.Count > 0
+}
+func (task *Task) RetryOnErrorCount() int {
+	return task.retryErrorCfg.Count
+}
+
+func (task *Task) RetryOnErrorInterval() int {
+	return task.retryErrorCfg.Interval
+}
+
+func (task *Task) LoopConfig() Loop {
+	if task.oldloopCfg != nil {
+		return task.oldloopCfg
+	}
+	return task.loop
 }
 
 // ToLinks returns the predecessor links of the task
