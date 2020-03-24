@@ -559,7 +559,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			if err != nil {
 				return err
 			}
-			taskInst.SetStatus(model.TaskStatusReady)
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {
 			inst.handleTaskDone(behavior, taskInst)
