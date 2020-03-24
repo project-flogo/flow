@@ -1,14 +1,11 @@
 package definition
 
 import (
-	"encoding/json"
 	"fmt"
-	"testing"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
-	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -27,6 +24,11 @@ const defJSON = `
 	"tasks": [
 	{
 	  "id":"LogStart",
+		"settings" :{
+			"accumulate": true,
+			"delay":2,
+			"condition":"=$loop"
+		},
 	  "activity" : {
 	    "ref":"log",
         "input" : {
@@ -94,6 +96,7 @@ const oldDefJSON = `
   }
 `
 
+/*
 func TestDeserialize(t *testing.T) {
 
 	defRep := &DefinitionRep{}
@@ -103,8 +106,7 @@ func TestDeserialize(t *testing.T) {
 
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
-
-	fmt.Printf("Definition: %v", def)
+	assert.NotNil(t, def)
 }
 
 func TestDeserializeOld(t *testing.T) {
@@ -116,10 +118,10 @@ func TestDeserializeOld(t *testing.T) {
 
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
+	assert.NotNil(t, def)
 
-	fmt.Printf("Definition: %v", def)
 }
-
+*/
 //DUMMY TEST ACTIVITIES
 
 type LogActivity struct {
