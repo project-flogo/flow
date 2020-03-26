@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/project-flogo/core/app/resolve"
 	"github.com/project-flogo/core/data/coerce"
 
 	"github.com/project-flogo/core/activity"
@@ -150,44 +149,14 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 
 	mf := GetMapperFactory()
 
-	if rep.Settings["loopConfig"] == nil {
+	task.loop, err = getLoopCfg(rep.Settings, ef)
+	if err != nil {
+		return nil, err
+	}
 
-		//DEPRECATED
-		loopConfigure, err := getLoopCfg(rep.Settings, ef)
-		if err != nil {
-			return nil, err
-		}
-		task.oldloopCfg = loopConfigure
-	} else {
-
-		loop := &loopCfg{}
-
-		loopCfgMap, err := coerce.ToObject(rep.Settings["loopConfig"])
-		if err != nil {
-			return nil, err
-		}
-		err = metadata.MapToStruct(loopCfgMap, loop, true)
-		if err != nil {
-			return nil, err
-		}
-
-		task.loop, err = NewLoop(loop, ef)
-		if err != nil {
-			return nil, err
-		}
-
-		retryErr := &retryErrorCfg{}
-
-		retryCfgMap, err := coerce.ToObject(rep.Settings["retryOnError"])
-		if err != nil {
-			return nil, err
-		}
-		err = metadata.MapToStruct(retryCfgMap, retryErr, true)
-		if err != nil {
-			return nil, err
-		}
-
-		task.retryErrorCfg = retryErr
+	task.retryErrorCfg, err = getErrorCfg(rep.Settings)
+	if err != nil {
+		return nil, err
 	}
 
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
@@ -436,153 +405,59 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 	return link, nil
 }
 
-//DEPRECATED
-func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*oldloopCfg, error) {
-	loop := &oldloopCfg{}
-	if len(settings) > 0 {
-		var err error
-		//backward compatible
-		dowhile, ok := settings["doWhile"]
-		if ok && dowhile != nil {
-			dowhileObj, err := coerce.ToObject(dowhile)
-			if err != nil {
-				return nil, fmt.Errorf("doWhile configuration error : %s", err.Error())
-			}
-			condition, exist := dowhileObj["condition"]
-			if exist && len(condition.(string)) > 0 {
-				conditionStr := condition.(string)
-				if conditionStr[0] == '=' {
-					conditionStr = conditionStr[1:]
-				}
-				conditionExpr, err := ef.NewExpr(conditionStr)
-				if err != nil {
-					return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
-				}
-				loop.condition = conditionExpr
-			}
-			delay, exist := dowhileObj["delay"]
-			if exist && delay != nil {
-				strVal, ok := delay.(string)
-				if ok && len(strVal) > 0 && strVal[0] == '=' {
-					delay, err = resolve.Resolve(strVal[1:], nil)
-					if err != nil {
-						return nil, err
-					}
-				}
-				delayInt, err := coerce.ToInt(delay)
-				if err != nil {
-					return nil, fmt.Errorf("doWhile delay must be int")
-				}
-				loop.delay = delayInt
-			}
+func getErrorCfg(settings map[string]interface{}) (*retryErrorCfg, error) {
+	retryErr := &retryErrorCfg{}
 
-			delete(settings, "doWhile")
+	retryCfgMap, err := coerce.ToObject(settings["retryOnError"])
+	if err != nil {
+		return nil, err
+	}
+	err = metadata.MapToStruct(retryCfgMap, retryErr, true)
+	if err != nil {
+		return nil, err
+	}
+
+	return retryErr, nil
+
+}
+
+func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loop, error) {
+	loopCfg := &loopCfg{}
+
+	loopCfgMap, err := coerce.ToObject(settings["loopConfig"])
+	if err != nil {
+		return nil, err
+	}
+
+	if loopCfgMap != nil {
+		
+		err = metadata.MapToStruct(loopCfgMap, loopCfg, true)
+
+		if err != nil {
+			return nil, err
 		}
 
-		//For new iterator and dowhile which put directtly under settings
-		delay, exist := settings["delay"]
-		if exist && delay != nil {
-			strVal, ok := delay.(string)
-			if ok && len(strVal) > 0 && strVal[0] == '=' {
-				delay, err = resolve.Resolve(strVal[1:], nil)
-				if err != nil {
-					return nil, err
-				}
-			}
-			delayInt, err := coerce.ToInt(delay)
-			if err != nil {
-				return nil, fmt.Errorf("doWhile delay must be int")
-			}
-			loop.delay = delayInt
-			delete(settings, "delay")
+	} else {
+
+		err = metadata.MapToStruct(settings, loopCfg, true)
+
+		if err != nil {
+			return nil, err
 		}
-
-		condition, exist := settings["condition"]
-		if exist && condition != nil {
-			conditionStr, ok := condition.(string)
-			if ok && len(conditionStr) > 0 && conditionStr[0] == '=' {
-				conditionStr = conditionStr[1:]
-			}
-			conditionExpr, err := ef.NewExpr(conditionStr)
-			if err != nil {
-				return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
-			}
-			loop.condition = conditionExpr
-			delete(settings, "condition")
+		dowhileObj, err := coerce.ToObject(settings["doWhile"])
+		if err != nil {
+				return nil, err
 		}
+		err = metadata.MapToStruct(dowhileObj, loopCfg, true)
 
-		iterate, exist := settings["iterate"]
-		if exist && iterate != nil {
-			iterateStr, ok := iterate.(string)
-			if ok && iterateStr[0] == '=' {
-				iterateStr = iterateStr[1:]
-				iterateStrExpr, err := ef.NewExpr(iterateStr)
-				if err != nil {
-					return nil, fmt.Errorf("compile doWhile condition error: %s", err.Error())
-				}
-				loop.iterate = iterateStrExpr
-			} else {
-				loop.iterate = iterate
-			}
-			delete(settings, "iterate")
-		}
-
-		//Accumuate output for loop
-		accumulateOutput, ok := settings["accumulate"]
-		if ok {
-			accumulated, _ := coerce.ToBool(accumulateOutput)
-			if accumulated {
-				//Make sure in loop otherwise it doesn't make sense to enable accumulate
-				if !loop.DowhileEnabled() && !loop.IterateEnabled() {
-					return nil, fmt.Errorf("accumulate only for iterate and dowhile task")
-				}
-			}
-			loop.accumulate = accumulated
-			delete(settings, "accumulate")
-		}
-
-		retryOnError, ok := settings["retryOnError"]
-		if ok && retryOnError != nil {
-			retryObj, err := coerce.ToObject(retryOnError)
-			if err != nil {
-				return nil, fmt.Errorf("retryOnError configuration error : %s", err.Error())
-			}
-
-			count, exist := retryObj["count"]
-			if exist && count != nil {
-				strVal, ok := count.(string)
-				if ok && len(strVal) > 0 && strVal[0] == '=' {
-					count, err = resolve.Resolve(strVal[1:], nil)
-					if err != nil {
-						return nil, err
-					}
-				}
-				cnt, err := coerce.ToInt(count)
-				if err != nil {
-					return nil, fmt.Errorf("retryOnError count must be int")
-				}
-				loop.retryOnError.count = cnt
-			}
-
-			interval, exist := retryObj["interval"]
-			if exist && interval != nil {
-				strVal, ok := interval.(string)
-				if ok && len(strVal) > 0 && strVal[0] == '=' {
-					interval, err = resolve.Resolve(strVal[1:], nil)
-					if err != nil {
-						return nil, err
-					}
-				}
-				intervalInt, err := coerce.ToInt(interval)
-				if err != nil {
-					return nil, fmt.Errorf("retryOnError interval must be int")
-				}
-				loop.retryOnError.interval = intervalInt
-			}
-			delete(settings, "retryOnError")
+		if err != nil {
+				return nil, err
 		}
 	}
-	return loop, nil
+
+ 	return NewLoop(loopCfg, ef)
+
+
 }
 
 type initCtxImpl struct {

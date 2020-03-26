@@ -27,12 +27,6 @@ func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
 		if ctx.Task().RetryOnErrorEnabled() {
 			retryData.Count = ctx.Task().RetryOnErrorCount()
 			retryData.Interval = ctx.Task().RetryOnErrorInterval()
-		}
-
-		//DEPRECATED
-		if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().RetryOnErrorEnabled() {
-			retryData.Count = ctx.Task().LoopConfig().RetryOnErrorCount()
-			retryData.Interval = ctx.Task().LoopConfig().RetryOnErrorInterval()
 			ctx.SetWorkingData(retryOnErrorAttr, retryData)
 		}
 
