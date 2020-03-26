@@ -183,7 +183,7 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 
 type loopCfg struct {
 	Condition  string `md:"condition"`
-	IterateOn  string `md:"iterateOn"`
+	IterateOn  string `md:"iterate"`
 	Delay      int    `md:"delay"`
 	Accumulate bool   `md:"accumulate"`
 }
@@ -248,21 +248,6 @@ func (l *loop) Delay() int {
 	return l.delay
 }
 
-//Temporary Methods. Need to Remove
-func (l *loop) RetryOnErrorEnabled() bool {
-	return false
-}
-
-//Temporary Methods. Need to Remove
-func (l *loop) RetryOnErrorCount() int {
-	return 0
-}
-
-//Temporary Methods. Need to Remove
-func (l *loop) RetryOnErrorInterval() int {
-	return 0
-}
-
 type retryErrorCfg struct {
 	Count    int `md:"count"`
 	Interval int `md:"interval"`
@@ -274,76 +259,6 @@ func (r *retryErrorCfg) RetryOnErrorCount() int {
 
 func (r *retryErrorCfg) RetryOnErrorInterval() int {
 	return r.Interval
-}
-
-//DEPRECATED.
-type oldloopCfg struct {
-	condition    expression.Expr
-	iterate      interface{}
-	delay        int
-	accumulate   bool
-	retryOnError struct {
-		count    int
-		interval int
-	}
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) Accumulated() bool {
-	return l.accumulate
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) DowhileCondition() expression.Expr {
-	return l.condition
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) GetIterate() interface{} {
-	return l.iterate
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) IterateEnabled() bool {
-	return l.iterate != nil
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) DowhileEnabled() bool {
-	return l.condition != nil
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) Delay() int {
-	return l.delay
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) RetryOnErrorEnabled() bool {
-	return l.retryOnError.count > 0
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) RetryOnErrorCount() int {
-	return l.retryOnError.count
-}
-
-//DEPRECATED.
-func (l *oldloopCfg) RetryOnErrorInterval() int {
-	return l.retryOnError.interval
-}
-
-// Need To Remove
-type Loop interface {
-	Accumulated() bool
-	DowhileCondition() expression.Expr
-	GetIterate() interface{}
-	IterateEnabled() bool
-	DowhileEnabled() bool
-	Delay() int
-	RetryOnErrorEnabled() bool
-	RetryOnErrorCount() int
-	RetryOnErrorInterval() int
 }
 
 // Task is the object that describes the definition of
@@ -361,7 +276,6 @@ type Task struct {
 	settingsMapper mapper.Mapper
 
 	//For do-while and retry
-	oldloopCfg *oldloopCfg
 
 	loop          *loop
 	retryErrorCfg *retryErrorCfg
@@ -405,10 +319,7 @@ func (task *Task) RetryOnErrorInterval() int {
 	return task.retryErrorCfg.Interval
 }
 
-func (task *Task) LoopConfig() Loop {
-	if task.oldloopCfg != nil {
-		return task.oldloopCfg
-	}
+func (task *Task) LoopConfig() *loop {
 	return task.loop
 }
 

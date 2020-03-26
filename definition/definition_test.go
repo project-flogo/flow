@@ -7,45 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const defOldDelayJSON = `
-{
-	"id":"DemoFlow",
-  "name": "Demo Flow",
-   "metadata": {
-      "input":[
-        { "name":"petInfo", "type":"string","value":"blahPet" }
-      ]
-    },
-	"tasks": [
-	{
-	  "id":"LogStart",
-		"settings" :{
-			"accumulate": false,
-			"delay":2
-		},
-	  "activity" : {
-	    "ref":"log",
-        "input" : {
-           "message" : "Find Pet Flow Started!"
-        }
-      }
-	},
-	{
-	  "id": "LogResult",
-	  "name": "Log Results",
-	  "activity" : {
-	    "ref":"log",
-        "input" : {
-           "message" : "=$.petInfo"
-        }
-      }
-    }
-    ],
-    "links": [
-      { "id": 1, "name": "", "from": "LogStart", "to": "LogResult"  }
-    ]
-  }
-`
 const defRetryJSON = `
 {
 	"id":"DemoFlow",
@@ -95,17 +56,16 @@ const defRetryJSON = `
 func TestRetry(t *testing.T) {
 	defRep := &DefinitionRep{}
 
-	err := json.Unmarshal([]byte(defOldDelayJSON), defRep)
+	err := json.Unmarshal([]byte(defRetryJSON), defRep)
 	assert.Nil(t, err)
 
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
 	assert.NotNil(t, def)
+	task := def.GetTask("LogStart")
+	assert.NotNil(t, task)
 
-	err = json.Unmarshal([]byte(defRetryJSON), defRep)
-	assert.Nil(t, err)
+	assert.Equal(t, 2, task.LoopConfig().Delay())
 
-	def, err = NewDefinition(defRep)
-	assert.Nil(t, err)
-	assert.NotNil(t, def)
+	assert.Equal(t, 100, task.RetryOnErrorInterval())
 }
