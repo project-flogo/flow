@@ -3,6 +3,7 @@ package definition
 import (
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/app/resolve"
 	"strconv"
 
 	"github.com/project-flogo/core/data/coerce"
@@ -412,9 +413,36 @@ func getErrorCfg(settings map[string]interface{}) (*retryErrorCfg, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = metadata.MapToStruct(retryCfgMap, retryErr, true)
-	if err != nil {
-		return nil, err
+	count , exist := retryCfgMap["count"]
+	if exist && count != nil {
+		strVal, ok := count.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			count, err = resolve.Resolve(strVal[1:], nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+		cnt, err := coerce.ToInt(count)
+		if err != nil {
+			return nil, fmt.Errorf("retryOnError count must be int")
+		}
+		retryErr.Count = cnt
+	}
+
+	interval , exist := retryCfgMap["count"]
+	if exist && interval != nil {
+		strVal, ok := interval.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			interval, err = resolve.Resolve(strVal[1:], nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+		intervalInt, err := coerce.ToInt(interval)
+		if err != nil {
+			return nil, fmt.Errorf("retryOnError interval must be int")
+		}
+		retryErr.Interval = intervalInt
 	}
 
 	return retryErr, nil
