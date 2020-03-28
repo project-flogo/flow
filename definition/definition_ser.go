@@ -429,7 +429,7 @@ func getErrorCfg(settings map[string]interface{}) (*retryErrorCfg, error) {
 		retryErr.Count = cnt
 	}
 
-	interval , exist := retryCfgMap["count"]
+	interval , exist := retryCfgMap["interval"]
 	if exist && interval != nil {
 		strVal, ok := interval.(string)
 		if ok && len(strVal) > 0 && strVal[0] == '=' {
