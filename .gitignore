@@ -5,6 +5,8 @@
 ## OS X Resources
 .DS_Store
 
+.idea
+
 bin/
 pkg/
 **/vendor/src/
