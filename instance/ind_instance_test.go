@@ -13,12 +13,11 @@ import (
 )
 func init() {
 	_ = activity.LegacyRegister("log", NewLogActivity())
-
 }
 
 const defTestJSON = `
 {
-	"id":"flow",
+	"id":"",
   "name": "Demo Flow",
    "metadata": {
       "input":[
@@ -69,7 +68,6 @@ func TestIndependentAction(t *testing.T) {
 
 	assert.NotNil(t,ind.ID())
 	assert.NotNil(t, ind.Snapshot())
-	ind.Start(nil)
 
 }
 
