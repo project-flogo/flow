@@ -95,3 +95,13 @@ func (a *LogActivity) Eval(context activity.Context) (done bool, err error) {
 	fmt.Println("Message :", message)
 	return true, nil
 }
+
+func getDef() *definition.Definition {
+
+	defRep := &definition.DefinitionRep{}
+	json.Unmarshal([]byte(defTestJSON), defRep)
+
+	def, _ := definition.NewDefinition(defRep)
+
+	return def
+}

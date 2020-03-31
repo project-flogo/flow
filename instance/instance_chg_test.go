@@ -1,9 +1,7 @@
 package instance
 
 import (
-	"encoding/json"
 	"github.com/project-flogo/core/support/log"
-	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -11,14 +9,7 @@ import (
 
 
 func TestSimpleChange(t *testing.T) {
-	defRep := &definition.DefinitionRep{}
-
-	err := json.Unmarshal([]byte(defTestJSON), defRep)
-	assert.Nil(t, err)
-
-	def, err := definition.NewDefinition(defRep)
-	assert.Nil(t, err)
-	assert.NotNil(t, def)
+	def := getDef()
 	//fmt.Println(def.ModelID())
 
 	ind , err := NewIndependentInstance("test","", def, log.RootLogger())
