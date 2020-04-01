@@ -92,9 +92,10 @@ func (tb *TaskBehavior) Eval(ctx model.TaskContext) (evalResult model.EvalResult
 
 	done, err := evalActivity(ctx)
 	if err != nil {
+
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
-		ctx.SetStatus(model.TaskStatusFailed)
+		//ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
 
@@ -161,7 +162,7 @@ func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalRe
 		//}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
-		ctx.SetStatus(model.TaskStatusFailed)
+		//ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
 	return model.EvalDone, nil

@@ -427,7 +427,6 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 	return notify
 }
 
-
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
 
@@ -435,9 +434,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 	}
 	// Set task status to failed for subflow activity
-	if taskInst.status == model.TaskStatusWaiting {
-		taskInst.SetStatus(model.TaskStatusFailed)
-	}
+	taskInst.SetStatus(model.TaskStatusFailed)
 
 	handled, taskEntries := taskBehavior.Error(taskInst, err)
 
