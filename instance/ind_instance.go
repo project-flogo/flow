@@ -434,6 +434,11 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 	}
+	// Set task status to failed for subflow activity
+	if taskInst.status == model.TaskStatusWaiting {
+		taskInst.SetStatus(model.TaskStatusFailed)
+	}
+
 	handled, taskEntries := taskBehavior.Error(taskInst, err)
 
 	containerInst := taskInst.flowInst
