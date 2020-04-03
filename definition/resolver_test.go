@@ -16,7 +16,7 @@ func TestFlowResolver(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "value", val.(string))
 	_, err = flowResolver.Resolve(scope,"","key")
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 }
 
 func TestActivityResolver(t *testing.T) {

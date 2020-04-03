@@ -32,5 +32,5 @@ func TestLinks(t *testing.T) {
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
 
-	assert.NotNil(t, GetExpressionLinks(def))
+	assert.Nil(t, GetExpressionLinks(def))
 }
