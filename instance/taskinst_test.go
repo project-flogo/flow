@@ -3,6 +3,7 @@ package instance
 import (
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -31,5 +32,9 @@ func TestTaskInst(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Nil(t,taskInst.FlowLogger())
+	assert.Nil(t, taskInst.GetTracingContext())
+	taskInst.SetStatus(model.TaskStatusDone)
+	assert.Equal(t, model.TaskStatusDone, taskInst.Status())
+	assert.Nil(t, taskInst.GetFromLinkInstances())
 }
 
