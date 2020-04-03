@@ -23,11 +23,13 @@ func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
 	if _, ok := ctx.GetWorkingData(retryOnErrorAttr); !ok {
 		// first attempt - build retry data
 		retryData := &RetryData{}
-		if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().RetryOnErrorEnabled() {
-			retryData.Count = ctx.Task().LoopConfig().RetryOnErrorCount()
-			retryData.Interval = ctx.Task().LoopConfig().RetryOnErrorInterval()
+
+		if ctx.Task().RetryOnErrorEnabled() {
+			retryData.Count = ctx.Task().RetryOnErrorCount()
+			retryData.Interval = ctx.Task().RetryOnErrorInterval()
 			ctx.SetWorkingData(retryOnErrorAttr, retryData)
 		}
+
 		return retryData, nil
 	}
 	// should be set by now

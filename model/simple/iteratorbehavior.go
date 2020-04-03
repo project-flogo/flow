@@ -2,11 +2,12 @@ package simple
 
 import (
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/flow/instance"
-	"reflect"
-	"time"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/coerce"

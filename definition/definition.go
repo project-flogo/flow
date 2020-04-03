@@ -182,50 +182,83 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 }
 
 type loopCfg struct {
-	condition    expression.Expr
-	iterate      interface{}
-	delay        int
-	accumulate   bool
-	retryOnError struct {
-		count    int
-		interval int
-	}
+	Condition  string `md:"condition"`
+	IterateOn  string `md:"iterate"`
+	Delay      int    `md:"delay"`
+	Accumulate bool   `md:"accumulate"`
 }
 
-func (l *loopCfg) Accumulated() bool {
+type loop struct {
+	condition  expression.Expr
+	accumulate bool
+	delay      int
+	iterateOn  interface{}
+}
+
+func NewLoop(cfg *loopCfg, ef expression.Factory) (*loop, error) {
+	loop := &loop{}
+	var err error
+	loop.accumulate = cfg.Accumulate
+	loop.delay = cfg.Delay
+
+	if cfg.Condition != "" {
+		if cfg.Condition[0] == '=' {
+			loop.condition, err = ef.NewExpr(cfg.Condition[1:])
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if cfg.IterateOn != "" {
+		if cfg.IterateOn[0] == '=' {
+			loop.iterateOn, err = ef.NewExpr(cfg.IterateOn[1:])
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			loop.iterateOn = cfg.IterateOn
+		}
+	}
+
+	return loop, nil
+}
+
+func (l *loop) Accumulated() bool {
 	return l.accumulate
 }
 
-func (l *loopCfg) DowhileCondition() expression.Expr {
+func (l *loop) DowhileCondition() expression.Expr {
 	return l.condition
 }
 
-func (l *loopCfg) GetIterate() interface{} {
-	return l.iterate
+func (l *loop) GetIterate() interface{} {
+	return l.iterateOn
 }
 
-func (l *loopCfg) IterateEnabled() bool {
-	return l.iterate != nil
+func (l *loop) IterateEnabled() bool {
+	return l.iterateOn != nil
 }
 
-func (l *loopCfg) DowhileEnabled() bool {
+func (l *loop) DowhileEnabled() bool {
 	return l.condition != nil
 }
 
-func (l *loopCfg) Delay() int {
+func (l *loop) Delay() int {
 	return l.delay
 }
 
-func (l *loopCfg) RetryOnErrorEnabled() bool {
-	return l.retryOnError.count > 0
+type retryErrorCfg struct {
+	Count    int `md:"count"`
+	Interval int `md:"interval"`
 }
 
-func (l *loopCfg) RetryOnErrorCount() int {
-	return l.retryOnError.count
+func (r *retryErrorCfg) RetryOnErrorCount() int {
+	return r.Count
 }
 
-func (l *loopCfg) RetryOnErrorInterval() int {
-	return l.retryOnError.interval
+func (r *retryErrorCfg) RetryOnErrorInterval() int {
+	return r.Interval
 }
 
 // Task is the object that describes the definition of
@@ -243,7 +276,9 @@ type Task struct {
 	settingsMapper mapper.Mapper
 
 	//For do-while and retry
-	loopCfg *loopCfg
+
+	loop          *loop
+	retryErrorCfg *retryErrorCfg
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -273,8 +308,19 @@ func (task *Task) SettingsMapper() mapper.Mapper {
 	return task.settingsMapper
 }
 
-func (task *Task) LoopConfig() *loopCfg {
-	return task.loopCfg
+func (task *Task) RetryOnErrorEnabled() bool {
+	return task.retryErrorCfg.Count > 0
+}
+func (task *Task) RetryOnErrorCount() int {
+	return task.retryErrorCfg.Count
+}
+
+func (task *Task) RetryOnErrorInterval() int {
+	return task.retryErrorCfg.Interval
+}
+
+func (task *Task) LoopConfig() *loop {
+	return task.loop
 }
 
 // ToLinks returns the predecessor links of the task

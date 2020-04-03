@@ -427,13 +427,15 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 	return notify
 }
 
-
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
 
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 	}
+	// Set task status to failed for subflow activity
+	taskInst.SetStatus(model.TaskStatusFailed)
+
 	handled, taskEntries := taskBehavior.Error(taskInst, err)
 
 	containerInst := taskInst.flowInst
@@ -559,7 +561,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			if err != nil {
 				return err
 			}
-			taskInst.SetStatus(model.TaskStatusReady)
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {
 			inst.handleTaskDone(behavior, taskInst)

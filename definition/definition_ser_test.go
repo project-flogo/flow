@@ -27,6 +27,11 @@ const defJSON = `
 	"tasks": [
 	{
 	  "id":"LogStart",
+		"settings" :{
+			"accumulate": true,
+			"delay":2,
+			"condition":"=$loop"
+		},
 	  "activity" : {
 	    "ref":"log",
         "input" : {
@@ -183,6 +188,7 @@ func TestDeserializeOld(t *testing.T) {
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
 	assert.NotNil(t, def)
+
 }
 
 func TestDeserializeError(t *testing.T) {
@@ -195,6 +201,7 @@ func TestDeserializeError(t *testing.T) {
 	def, err := NewDefinition(defRep)
 	assert.Nil(t, err)
 	assert.NotNil(t, def)
+
 }
 
 //DUMMY TEST ACTIVITIES

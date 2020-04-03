@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const defLoopJSON = `
+const defRetryJSON = `
 {
 	"id":"DemoFlow",
   "name": "Demo Flow",
@@ -20,10 +20,59 @@ const defLoopJSON = `
 	{
 	  "id":"LogStart",
 		"settings" :{
-			"doWhile" :{
+      		"loopConfig" :{
+        		"accumulate": true,
+  				"delay":2
+			},
+			"retryOnError" : {
+        "count": 1,
+        "interval": 100
+      }
+		},
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "Find Pet Flow Started!"
+        }
+      }
+	},
+	{
+	  "id": "LogResult",
+	  "name": "Log Results",
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "=$.petInfo"
+        }
+      }
+    }
+    ],
+    "links": [
+      { "id": 1, "name": "", "from": "LogStart", "to": "LogResult"  }
+    ]
+  }
+`
 
-			}
-		}
+const defBackJSON = `
+{
+	"id":"DemoFlow",
+  "name": "Demo Flow",
+   "metadata": {
+      "input":[
+        { "name":"petInfo", "type":"string","value":"blahPet" }
+      ]
+    },
+	"tasks": [
+	{
+	  "id":"LogStart",
+		"settings" :{
+      		"doWhile": {
+				"condition": "1",
+				"delay": 0
+				},
+			"accumulate": false
+		},
+
 	  "activity" : {
 	    "ref":"log",
         "input" : {
@@ -76,5 +125,33 @@ func TestNewDefinition(t *testing.T) {
 	assert.NotNil(t, task.IsScope())
 	assert.NotNil(t, task.Name())
 	assert.NotNil(t, task.String())
+}
+func TestRetry(t *testing.T) {
+	defRep := &DefinitionRep{}
+
+	err := json.Unmarshal([]byte(defRetryJSON), defRep)
+	assert.Nil(t, err)
+
+	def, err := NewDefinition(defRep)
+	assert.Nil(t, err)
+	assert.NotNil(t, def)
+	task := def.GetTask("LogStart")
+	assert.NotNil(t, task)
+
+	assert.Equal(t, 2, task.LoopConfig().Delay())
+
+	assert.Equal(t, 100, task.RetryOnErrorInterval())
+
+	oldDefRep := &DefinitionRep{}
+	err = json.Unmarshal([]byte(defBackJSON), oldDefRep)
+	assert.Nil(t, err)
+
+	def, err = NewDefinition(oldDefRep)
+	assert.Nil(t, err)
+	assert.NotNil(t, def)
+	task = def.GetTask("LogStart")
+	assert.NotNil(t, task)
+
+
 
 }
