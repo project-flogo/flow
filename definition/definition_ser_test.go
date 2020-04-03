@@ -104,64 +104,38 @@ const defErrJSON = `
   "type": 1,
   "name": "Demo Flow",
   "model": "simple",
-  "attributes": [
-    { "name": "petInfo", "type": "string", "value": "blahPet" }
-  ],
-  "rootTask": {
-    "id": 1,
-    "type": 1,
-    "name": "root",
-  "activityRef": "",
-  "tasks": [
-      {
-        "id": "2",
-        "type": 1,
-        "activityRef": "log",
-        "name": "Log Start",
-        "attributes": [
-          { "type": "string", "name": "message", "value": "Find Pet Flow Started!"}
-        ]
-      },
-      {
-        "id": "3",
-        "type": 1,
-        "activityRef": "log",
-        "name": "Log Results",
-        "attributes": [
-          { "type": "string", "name": "message", "value": "REST results" }
-        ],
-        "inputMappings": [
-          { "type": 1, "value": "petInfo", "result": "message" }
-        ]
-      }
-    ],
-    "links": [
-      { "id": 1, "type": 1,  "name": "", "from": 2, "to": 3  }
-    ]
+ "metadata": {
+      "input":[
+        { "name":"petInfo", "type":"string","value":"blahPet" }
+      ]
   },
+  "tasks": [
+     {
+	  "id": "LogResult",
+	  "name": "Log Results",
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "message"
+        }
+      }
+    }
+  ],
+  "links": [ ],
   "errorHandler": {
     "tasks" :[
       {
-        "id": "2",
-        "activityRef": "errorLog",
-        "name": "Error Log 1",
-        "attributes": [
-          { "type": "string", "name": "message", "value": "Error log 1"}
-        ]
-      },
-      {
-        "id": "3",
-        "activityRef": "errorLog",
-        "name": "Error Log 2",
-        "attributes": [
-          { "type": "string", "name": "message", "value": "Error Log 2" }
-        ],
-        "inputMappings": [
-          { "type": 1, "value": "petInfo", "result": "message" }
-        ]
+	  "id": "LogErrorResult",
+	  "name": "Log Error",
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "Error Log"
+        }
       }
+    }
     ],
-    "links" : [ { "id": "1",  "name": "", "from": "2", "to": "3"  } ]
+    "links" : [  ]
   }
 }
 `

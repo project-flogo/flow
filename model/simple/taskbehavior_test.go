@@ -10,6 +10,7 @@ import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"testing"
 )
 func init() {
@@ -63,6 +64,7 @@ func TestTaskBehaviour(t *testing.T){
 }
 
 type TestTaskContext struct {
+	mock.Mock
 	status model.TaskStatus
 	data map[string]interface{}
 }

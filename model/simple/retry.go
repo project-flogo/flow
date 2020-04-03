@@ -1,6 +1,7 @@
 package simple
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -18,6 +19,7 @@ type RetryData struct {
 	Interval int
 }
 
+//
 // getRetryData returns retryonerror configuration for a task
 func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
 	if _, ok := ctx.GetWorkingData(retryOnErrorAttr); !ok {
@@ -28,6 +30,8 @@ func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
 			retryData.Count = ctx.Task().RetryOnErrorCount()
 			retryData.Interval = ctx.Task().RetryOnErrorInterval()
 			ctx.SetWorkingData(retryOnErrorAttr, retryData)
+		} else {
+			return nil, errors.New("Retry Data not available and Retry on error not enabled.")
 		}
 
 		return retryData, nil
@@ -42,6 +46,11 @@ func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
 
 // retryEval retries current task from Eval
 func retryEval(ctx model.TaskContext, retryData *RetryData) (bool, error) {
+
+	if retryData == nil {
+		return false, errors.New("Retry Data not specified.")
+	}
+
 	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
 
 	if retryData.Interval > 0 {
