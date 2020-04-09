@@ -52,7 +52,7 @@ const defJSON = `
   }
 `
 
-//
+
 //func TestFullSerialization(t *testing.T) {
 //
 //	defRep := &definition.DefinitionRep{}

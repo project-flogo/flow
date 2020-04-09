@@ -6,6 +6,7 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm40UhjYkI=
 github.com/julienschmidt/httprouter v1.2.0 h1:TDTW5Yz1mjftljbcKqRcrYhd4XeOoI98t+9HbQbYf7g=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
+github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
@@ -22,6 +23,8 @@ github.com/project-flogo/core v0.10.1 h1:YDsOmMV0rBJaOgiOLmpFb2rli7eJ6Fltc/7gaBZ
 github.com/project-flogo/core v0.10.1/go.mod h1:4DhTlZ5re1DKHBXYwNZmUswiakcD2E4v3FzlZT/rAI8=
 github.com/project-flogo/flow v0.9.4 h1:0VLX3ynpKlgvyAInN0IggvU/pxre+cDrb/ULPKkwHV4=
 github.com/project-flogo/flow v0.9.4/go.mod h1:ZMh4fuEYLMVRGECMrTlOqL5+Um3BW727WZig4hlBkDU=
+github.com/project-flogo/flow v0.10.1 h1:P1h5UPjwvdc7CNE+GERt3EJ8xtzFza6ssClo5cBW+nM=
+github.com/project-flogo/flow v0.10.1/go.mod h1:ruIoGt/yPBZsDwoUi3dIgGVXOllt+3YCBah9tdEjffM=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/stretchr/objx v0.1.0 h1:4G4v2dO3VZwixGIRoQ5Lfboy6nUhCyYzaqnIAPPhYs4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

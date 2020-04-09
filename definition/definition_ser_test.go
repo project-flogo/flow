@@ -99,6 +99,47 @@ const oldDefJSON = `
   }
 `
 
+const defErrJSON = `
+{
+  "type": 1,
+  "name": "Demo Flow",
+  "model": "simple",
+ "metadata": {
+      "input":[
+        { "name":"petInfo", "type":"string","value":"blahPet" }
+      ]
+  },
+  "tasks": [
+     {
+	  "id": "LogResult",
+	  "name": "Log Results",
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "message"
+        }
+      }
+    }
+  ],
+  "links": [ ],
+  "errorHandler": {
+    "tasks" :[
+      {
+	  "id": "LogErrorResult",
+	  "name": "Log Error",
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "Error Log"
+        }
+      }
+    }
+    ],
+    "links" : [  ]
+  }
+}
+`
+
 func TestDeserialize(t *testing.T) {
 
 	defRep := &DefinitionRep{}
@@ -116,6 +157,19 @@ func TestDeserializeOld(t *testing.T) {
 	defRep := &DefinitionRep{}
 
 	err := json.Unmarshal([]byte(oldDefJSON), defRep)
+	assert.Nil(t, err)
+
+	def, err := NewDefinition(defRep)
+	assert.Nil(t, err)
+	assert.NotNil(t, def)
+
+}
+
+func TestDeserializeError(t *testing.T) {
+
+	defRep := &DefinitionRep{}
+
+	err := json.Unmarshal([]byte(defErrJSON), defRep)
 	assert.Nil(t, err)
 
 	def, err := NewDefinition(defRep)
