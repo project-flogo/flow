@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/project-flogo/core/app/resolve"
+	"github.com/project-flogo/core/data"
 	"strconv"
+	"strings"
 
 	"github.com/project-flogo/core/data/coerce"
 
@@ -252,9 +254,19 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		if !isExpr(v) {
 			fieldMetaddata, ok := act.Metadata().Input[k]
 			if ok {
-				v, err = coerce.ToType(v, fieldMetaddata.Type())
-				if err != nil {
-					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+				if (fieldMetaddata.Type() == data.TypeConnection) {
+					// Do nothing for legacy connection
+					if conn , ok := v.(string); ok  && strings.HasPrefix(conn, "conn://") {
+						v, err = coerce.ToConnection(v)
+						if err != nil {
+							return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+						}
+					}
+				}else {
+					v, err = coerce.ToType(v, fieldMetaddata.Type())
+					if err != nil {
+						return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+					}
 				}
 				input[k] = v
 			} else {
