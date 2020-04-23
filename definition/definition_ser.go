@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/project-flogo/core/app/resolve"
+	"github.com/project-flogo/core/data"
 	"strconv"
 
 	"github.com/project-flogo/core/data/coerce"
@@ -252,11 +253,23 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		if !isExpr(v) {
 			fieldMetaddata, ok := act.Metadata().Input[k]
 			if ok {
-				v, err = coerce.ToType(v, fieldMetaddata.Type())
+				newVal, err := coerce.ToType(v, fieldMetaddata.Type())
 				if err != nil {
+					if fieldMetaddata.Type() == data.TypeConnection {
+						connObj, ok := v.(map[string]interface{})
+						if ok {
+							_, idExist := connObj["id"]
+							_, typeExist := connObj["type"]
+							if idExist && typeExist {
+								//Backward compatible
+								input[k] = v
+								continue
+							}
+						}
+					}
 					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
 				}
-				input[k] = v
+				input[k] = newVal
 			} else {
 				//For the cases that metadata comes from iometadata, eg: subflow
 				input[k] = v
