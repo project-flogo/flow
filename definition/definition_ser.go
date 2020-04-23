@@ -6,7 +6,6 @@ import (
 	"github.com/project-flogo/core/app/resolve"
 	"github.com/project-flogo/core/data"
 	"strconv"
-	"strings"
 
 	"github.com/project-flogo/core/data/coerce"
 
@@ -254,21 +253,23 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		if !isExpr(v) {
 			fieldMetaddata, ok := act.Metadata().Input[k]
 			if ok {
-				if (fieldMetaddata.Type() == data.TypeConnection) {
-					// Do nothing for legacy connection
-					if conn , ok := v.(string); ok  && strings.HasPrefix(conn, "conn://") {
-						v, err = coerce.ToConnection(v)
-						if err != nil {
-							return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+				newVal, err := coerce.ToType(v, fieldMetaddata.Type())
+				if err != nil {
+					if fieldMetaddata.Type() == data.TypeConnection {
+						connObj, ok := v.(map[string]interface{})
+						if ok {
+							_, idExist := connObj["id"]
+							_, typeExist := connObj["type"]
+							if idExist && typeExist {
+								//Backward compatible
+								input[k] = v
+								continue
+							}
 						}
 					}
-				}else {
-					v, err = coerce.ToType(v, fieldMetaddata.Type())
-					if err != nil {
-						return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
-					}
+					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
 				}
-				input[k] = v
+				input[k] = newVal
 			} else {
 				//For the cases that metadata comes from iometadata, eg: subflow
 				input[k] = v
