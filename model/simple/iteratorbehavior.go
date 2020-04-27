@@ -40,6 +40,12 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		itx = itxAttr.(Iterator)
 	} else {
 
+		if ctx.Task().LoopConfig() == nil {
+			//todo loop configuration not defined, what should we do?
+			//just skip for now
+			return model.EvalDone, nil
+		}
+
 		var iterateOn interface{}
 		iterate := ctx.Task().LoopConfig().GetIterateOn()
 		switch t := iterate.(type) {
@@ -125,7 +131,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			return model.EvalFail, err
 		}
 
-		//Wait for deply
+		//Wait for delay
 		delay := ctx.Task().LoopConfig().Delay()
 		if delay > 0 {
 			ctx.FlowLogger().Infof("Iterate Task[%s] execution delaying for %d milliseconds...", ctx.Task().ID(), delay)

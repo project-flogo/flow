@@ -372,7 +372,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		if cfg := ti.Task().LoopConfig(); cfg.Accumulate() {
+		if cfg := ti.Task().LoopConfig(); cfg !=nil && cfg.Accumulate() {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
@@ -453,7 +453,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		if ti.Task().LoopConfig().Accumulate() {
+		if cfg := ti.Task().LoopConfig(); cfg != nil && cfg.Accumulate() {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
