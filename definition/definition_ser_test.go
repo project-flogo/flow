@@ -71,10 +71,30 @@ const defWithLoop = `
            "message" : "=$flow[aValue]"
         }
       }
-    }
+    },
+    {
+      "id":"LogLoopItx",
+       "type": "iterator",
+       "settings" :{
+         "iterateOn" : 5, 
+         "accumulate": true,
+         "delay": 5,
+         "retryOnError" : {
+           "count": 2,
+           "interval": 500
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	}
     ],
     "links": [
-      { "id": 1, "from": "LogLoop", "to": "LogSingle"  }
+      { "id": 1, "from": "LogLoop", "to": "LogSingle" },
+      { "id": 2, "from": "LogSingle", "to": "LogLoopItx" }
     ]
   }
 `
@@ -119,10 +139,32 @@ const defWithLoopDeprecated1 = `
            "message" : "=$flow[aValue]"
         }
       }
-    }
+    },
+    {
+      "id":"LogLoopItx",
+       "type": "iterator",
+       "settings" :{
+         "loopConfig": {
+           "iterate" : 5, 
+           "accumulate": true,
+           "delay": 5
+         },
+         "retryOnError" : {
+           "count": 2,
+           "interval": 500
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	}
     ],
     "links": [
-      { "id": 1, "from": "LogLoop", "to": "LogSingle"  }
+      { "id": 1, "from": "LogLoop", "to": "LogSingle" },
+      { "id": 2, "from": "LogSingle", "to": "LogLoopItx" }
     ]
   }
 `
@@ -167,10 +209,30 @@ const defWithLoopDeprecated2 = `
            "message" : "=$flow[aValue]"
         }
       }
-    }
+    },
+    {
+      "id":"LogLoopItx",
+       "type": "iterator",
+       "settings" :{ 
+         "iterate" : 5, 
+         "delay": 5,
+         "accumulate": true,
+         "retryOnError" : {
+           "count": 2,
+           "interval": 500
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	}
     ],
     "links": [
-      { "id": 1, "from": "LogLoop", "to": "LogSingle"  }
+      { "id": 1, "from": "LogLoop", "to": "LogSingle" },
+      { "id": 2, "from": "LogSingle", "to": "LogLoopItx" }
     ]
   }
 `
@@ -201,8 +263,8 @@ func validate(t *testing.T, defJson string) {
 	assert.Nil(t, def.GetErrorHandler())
 
 	assert.NotNil(t, def.GetLink(0))
-	assert.Equal(t, 2, len(def.Tasks()))
-	assert.Equal(t, 1, len(def.Links()))
+	assert.Equal(t, 3, len(def.Tasks()))
+	assert.Equal(t, 2, len(def.Links()))
 
 	task := def.GetTask("LogLoop")
 	assert.NotNil(t, task)
@@ -235,6 +297,29 @@ func validate(t *testing.T, defJson string) {
 
 	assert.Nil(t, task.LoopConfig())
 	assert.Nil(t, task.RetryOnErrConfig())
+
+	task = def.GetTask("LogLoopItx")
+	assert.NotNil(t, task)
+	assert.Equal(t, "iterator", task.TypeID())
+	assert.NotNil(t, task.SettingsMapper())
+
+	loopCfg = task.LoopConfig()
+	assert.NotNil(t, loopCfg)
+	assert.Nil(t, loopCfg.Condition())
+	assert.NotNil(t, loopCfg.GetIterateOn())
+	assert.Equal(t, 5, loopCfg.Delay())
+	assert.True(t, loopCfg.Accumulate())
+	assert.False(t, loopCfg.ApplyOutputOnAccumulate())
+
+	retryOnErrCfg = task.RetryOnErrConfig()
+	assert.NotNil(t, retryOnErrCfg)
+	assert.Equal(t, 2, retryOnErrCfg.Count())
+	assert.Equal(t, 500, retryOnErrCfg.Interval())
+
+	ac = task.ActivityConfig()
+	assert.NotNil(t, ac)
+	assert.Equal(t, "github.com/project-flogo/flow/definition", ac.Ref())
+
 }
 
 const oldDefJSON = `
