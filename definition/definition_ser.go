@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"github.com/project-flogo/core/app/resolve"
 	"github.com/project-flogo/core/data"
-	"strconv"
-
 	"github.com/project-flogo/core/data/coerce"
+	"strconv"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/expression"
@@ -23,7 +22,7 @@ import (
 type DefinitionRep struct {
 	ExplicitReply bool                 `json:"explicitReply,omitempty"`
 	Name          string               `json:"name"`
-	ModelID       string               `json:"id,omitempty"`
+	ModelID       string               `json:"model,omitempty"`
 	Metadata      *metadata.IOMetadata `json:"metadata,omitempty"`
 	Tasks         []*TaskRep           `json:"tasks"`
 	Links         []*LinkRep           `json:"links,omitempty"`
@@ -151,12 +150,12 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 
 	mf := GetMapperFactory()
 
-	task.loop, err = getLoopCfg(rep.Settings, ef)
+	task.loopCfg, err = getLoopCfg(rep.Settings, task.typeID, ef)
 	if err != nil {
 		return nil, err
 	}
 
-	task.retryErrorCfg, err = getErrorCfg(rep.Settings)
+	task.retryOnErrConfig, err = getRetryOnErrCfg(rep.Settings)
 	if err != nil {
 		return nil, err
 	}
@@ -419,14 +418,20 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 	return link, nil
 }
 
-func getErrorCfg(settings map[string]interface{}) (*retryErrorCfg, error) {
-	retryErr := &retryErrorCfg{}
+func getRetryOnErrCfg(settings map[string]interface{}) (*RetryOnErrConfig, error) {
 
-	retryCfgMap, err := coerce.ToObject(settings["retryOnError"])
+	retrySetting, ok := settings["retryOnError"]
+	if !ok {
+		return nil, nil
+	}
+
+	retryErr := &RetryOnErrConfig{}
+
+	retryCfgMap, err := coerce.ToObject(retrySetting)
 	if err != nil {
 		return nil, err
 	}
-	count , exist := retryCfgMap["count"]
+	count, exist := retryCfgMap["count"]
 	if exist && count != nil {
 		strVal, ok := count.(string)
 		if ok && len(strVal) > 0 && strVal[0] == '=' {
@@ -439,10 +444,10 @@ func getErrorCfg(settings map[string]interface{}) (*retryErrorCfg, error) {
 		if err != nil {
 			return nil, fmt.Errorf("retryOnError count must be int")
 		}
-		retryErr.Count = cnt
+		retryErr.count = cnt
 	}
 
-	interval , exist := retryCfgMap["interval"]
+	interval, exist := retryCfgMap["interval"]
 	if exist && interval != nil {
 		strVal, ok := interval.(string)
 		if ok && len(strVal) > 0 && strVal[0] == '=' {
@@ -455,50 +460,62 @@ func getErrorCfg(settings map[string]interface{}) (*retryErrorCfg, error) {
 		if err != nil {
 			return nil, fmt.Errorf("retryOnError interval must be int")
 		}
-		retryErr.Interval = intervalInt
+		retryErr.interval = intervalInt
 	}
 
 	return retryErr, nil
-
 }
 
-func getLoopCfg(settings map[string]interface{}, ef expression.Factory) (*loop, error) {
-	loopCfg := &loopCfg{}
+func getLoopCfg(settings map[string]interface{}, taskType string, ef expression.Factory) (*LoopConfig, error) {
 
-	loopCfgMap, err := coerce.ToObject(settings["loopConfig"])
+	var lcd *loopCfgDef
+	var err error
+
+	//check for old configurations
+	if setting, ok := settings["loopConfig"]; ok {
+		lcd, err = getLoopCfgDef(setting)
+	} else if setting, ok := settings["doWhile"]; ok {
+		lcd, err = getLoopCfgDef(setting)
+		if accum,ok := settings["accumulate"];  lcd != nil && ok {
+			lcd.Accumulate, _ = coerce.ToBool(accum)
+		}
+	} else {
+		lcd, err = getLoopCfgDef(settings)
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	if loopCfgMap != nil {
-		
-		err = metadata.MapToStruct(loopCfgMap, loopCfg, true)
-
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
-
-		err = metadata.MapToStruct(settings, loopCfg, true)
-
-		if err != nil {
-			return nil, err
-		}
-		dowhileObj, err := coerce.ToObject(settings["doWhile"])
-		if err != nil {
-				return nil, err
-		}
-		err = metadata.MapToStruct(dowhileObj, loopCfg, true)
-
-		if err != nil {
-				return nil, err
-		}
+	if lcd == nil {
+		return nil, nil
 	}
 
- 	return NewLoop(loopCfg, ef)
+	return newLoopCfg(lcd, taskType == "doWhile", ef)
+}
 
+func getLoopCfgDef(setting interface{}) (*loopCfgDef, error) {
 
+	settingMap, err := coerce.ToObject(setting)
+	if err != nil {
+		return nil, err
+	}
+
+	lcd := &loopCfgDef{}
+	err = metadata.MapToStruct(settingMap, lcd, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if lcd.IterateOn == "" {
+		lcd.IterateOn = lcd.Iterate
+	}
+
+	if lcd.Condition == "" && lcd.IterateOn == ""  {
+		return nil, nil
+	}
+
+	return lcd, nil
 }
 
 type initCtxImpl struct {

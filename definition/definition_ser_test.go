@@ -7,54 +7,320 @@ import (
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/expression"
+	_ "github.com/project-flogo/core/data/expression/script"
+	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
+	flowUtil "github.com/project-flogo/flow/util"
 	"github.com/stretchr/testify/assert"
 )
 
 func init() {
 	_ = activity.LegacyRegister("log", NewLogActivity())
+
+	flowUtil.RegisterModelValidator("test", &dummyModelValidator{})
+	exprFactory := expression.NewFactory(GetDataResolver())
+	mapperFactory := mapper.NewFactory(GetDataResolver())
+
+	SetMapperFactory(mapperFactory)
+	SetExprFactory(exprFactory)
 }
 
-const defJSON = `
+type dummyModelValidator struct {
+}
+
+func (d *dummyModelValidator) IsValidTaskType(taskType string) bool {
+	return true
+}
+
+const defWithLoop = `
 {
-	"id":"DemoFlow",
-  "name": "Demo Flow",
-   "metadata": {
-      "input":[
-        { "name":"petInfo", "type":"string","value":"blahPet" }
-      ]
-    },
-	"tasks": [
-	{
-	  "id":"LogStart",
-		"settings" :{
-			"accumulate": true,
-			"delay":2,
-			"condition":"=$loop"
-		},
+  "name": "Test Flow",
+  "model":"test",
+  "metadata": {
+    "input":[
+      { "name":"aValue", "type":"string", "value":"foo" }
+    ]
+  },
+  "tasks": [
+    {
+      "id":"LogLoop",
+       "type": "doWhile",
+       "settings" :{
+         "condition" : "=$iteration[index] < 5", 
+         "accumulate": true,
+         "delay": 5,
+         "retryOnError" : {
+           "count": 1,
+           "interval": 100
+         }
+       },
 	  "activity" : {
 	    "ref":"log",
         "input" : {
-           "message" : "Find Pet Flow Started!"
+           "message" : "A Log Statement"
         }
       }
 	},
 	{
-	  "id": "LogResult",
-	  "name": "Log Results",
+	  "id": "LogSingle",
+	  "name": "Log Single",
 	  "activity" : {
 	    "ref":"log",
         "input" : {
-           "message" : "=$.petInfo"
+           "message" : "=$flow[aValue]"
         }
       }
-    }
+    },
+    {
+      "id":"LogLoopItx",
+       "type": "iterator",
+       "settings" :{
+         "iterateOn" : 5, 
+         "accumulate": true,
+         "delay": 5,
+         "retryOnError" : {
+           "count": 2,
+           "interval": 500
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	}
     ],
     "links": [
-      { "id": 1, "name": "", "from": "LogStart", "to": "LogResult"  }
+      { "id": 1, "from": "LogLoop", "to": "LogSingle" },
+      { "id": 2, "from": "LogSingle", "to": "LogLoopItx" }
     ]
   }
 `
+
+const defWithLoopDeprecated1 = `
+{
+  "name": "Test Flow",
+  "model":"test",
+  "metadata": {
+    "input":[
+      { "name":"aValue", "type":"string", "value":"foo" }
+    ]
+  },
+  "tasks": [
+    {
+      "id":"LogLoop",
+       "type": "doWhile",
+       "settings" :{
+         "loopConfig": {
+           "condition" : "=$iteration[index] < 5", 
+           "accumulate": true,
+           "delay": 5
+         },
+         "retryOnError" : {
+           "count": 1,
+           "interval": 100
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	},
+	{
+	  "id": "LogSingle",
+	  "name": "Log Single",
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "=$flow[aValue]"
+        }
+      }
+    },
+    {
+      "id":"LogLoopItx",
+       "type": "iterator",
+       "settings" :{
+         "loopConfig": {
+           "iterate" : 5, 
+           "accumulate": true,
+           "delay": 5
+         },
+         "retryOnError" : {
+           "count": 2,
+           "interval": 500
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	}
+    ],
+    "links": [
+      { "id": 1, "from": "LogLoop", "to": "LogSingle" },
+      { "id": 2, "from": "LogSingle", "to": "LogLoopItx" }
+    ]
+  }
+`
+
+const defWithLoopDeprecated2 = `
+{
+  "name": "Test Flow",
+  "model":"test",
+  "metadata": {
+    "input":[
+      { "name":"aValue", "type":"string", "value":"foo" }
+    ]
+  },
+  "tasks": [
+    {
+      "id":"LogLoop",
+       "type": "doWhile",
+       "settings" :{
+         "doWhile": {
+           "condition" : "=$iteration[index] < 5", 
+           "delay": 5
+         },
+         "accumulate": true,
+         "retryOnError" : {
+           "count": 1,
+           "interval": 100
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	},
+	{
+	  "id": "LogSingle",
+	  "name": "Log Single",
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "=$flow[aValue]"
+        }
+      }
+    },
+    {
+      "id":"LogLoopItx",
+       "type": "iterator",
+       "settings" :{ 
+         "iterate" : 5, 
+         "delay": 5,
+         "accumulate": true,
+         "retryOnError" : {
+           "count": 2,
+           "interval": 500
+         }
+       },
+	  "activity" : {
+	    "ref":"log",
+        "input" : {
+           "message" : "A Log Statement"
+        }
+      }
+	}
+    ],
+    "links": [
+      { "id": 1, "from": "LogLoop", "to": "LogSingle" },
+      { "id": 2, "from": "LogSingle", "to": "LogLoopItx" }
+    ]
+  }
+`
+
+func TestDefWithLoop(t *testing.T) {
+	validate(t, defWithLoop)
+}
+func TestDefWithLoopDeprecated1(t *testing.T) {
+	validate(t, defWithLoopDeprecated1)
+}
+
+func TestDefWithLoopDeprecated2(t *testing.T) {
+	validate(t, defWithLoopDeprecated2)
+}
+
+func validate(t *testing.T, defJson string) {
+	defRep := &DefinitionRep{}
+
+	err := json.Unmarshal([]byte(defJson), defRep)
+	assert.Nil(t, err)
+
+	def, err := NewDefinition(defRep)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "Test Flow", def.Name())
+	assert.NotNil(t, def.Metadata())
+	assert.Equal(t, false, def.ExplicitReply())
+	assert.Nil(t, def.GetErrorHandler())
+
+	assert.NotNil(t, def.GetLink(0))
+	assert.Equal(t, 3, len(def.Tasks()))
+	assert.Equal(t, 2, len(def.Links()))
+
+	task := def.GetTask("LogLoop")
+	assert.NotNil(t, task)
+	assert.Equal(t, "doWhile", task.TypeID())
+	assert.NotNil(t, task.SettingsMapper())
+
+	loopCfg := task.LoopConfig()
+	assert.NotNil(t, loopCfg)
+	assert.NotNil(t, loopCfg.Condition())
+	assert.Nil(t, loopCfg.GetIterateOn())
+	assert.Equal(t, 5, loopCfg.Delay())
+	assert.True(t, loopCfg.Accumulate())
+	assert.True(t, loopCfg.ApplyOutputOnAccumulate())
+
+	retryOnErrCfg := task.RetryOnErrConfig()
+	assert.NotNil(t, retryOnErrCfg)
+	assert.Equal(t, 1, retryOnErrCfg.Count())
+	assert.Equal(t, 100, retryOnErrCfg.Interval())
+
+	ac := task.ActivityConfig()
+	assert.NotNil(t, ac)
+	assert.Equal(t, "github.com/project-flogo/flow/definition", ac.Ref())
+
+	task = def.GetTask("LogSingle")
+
+	assert.NotNil(t, task)
+	ac = task.ActivityConfig()
+	assert.NotNil(t, ac)
+	assert.Equal(t, "github.com/project-flogo/flow/definition", ac.Ref())
+
+	assert.Nil(t, task.LoopConfig())
+	assert.Nil(t, task.RetryOnErrConfig())
+
+	task = def.GetTask("LogLoopItx")
+	assert.NotNil(t, task)
+	assert.Equal(t, "iterator", task.TypeID())
+	assert.NotNil(t, task.SettingsMapper())
+
+	loopCfg = task.LoopConfig()
+	assert.NotNil(t, loopCfg)
+	assert.Nil(t, loopCfg.Condition())
+	assert.NotNil(t, loopCfg.GetIterateOn())
+	assert.Equal(t, 5, loopCfg.Delay())
+	assert.True(t, loopCfg.Accumulate())
+	assert.False(t, loopCfg.ApplyOutputOnAccumulate())
+
+	retryOnErrCfg = task.RetryOnErrConfig()
+	assert.NotNil(t, retryOnErrCfg)
+	assert.Equal(t, 2, retryOnErrCfg.Count())
+	assert.Equal(t, 500, retryOnErrCfg.Interval())
+
+	ac = task.ActivityConfig()
+	assert.NotNil(t, ac)
+	assert.Equal(t, "github.com/project-flogo/flow/definition", ac.Ref())
+
+}
 
 const oldDefJSON = `
 {
@@ -139,18 +405,6 @@ const defErrJSON = `
   }
 }
 `
-
-func TestDeserialize(t *testing.T) {
-
-	defRep := &DefinitionRep{}
-
-	err := json.Unmarshal([]byte(defJSON), defRep)
-	assert.Nil(t, err)
-
-	def, err := NewDefinition(defRep)
-	assert.Nil(t, err)
-	assert.NotNil(t, def)
-}
 
 func TestDeserializeOld(t *testing.T) {
 

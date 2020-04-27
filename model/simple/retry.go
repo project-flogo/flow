@@ -19,29 +19,28 @@ type RetryData struct {
 	Interval int
 }
 
-//
-// getRetryData returns retryonerror configuration for a task
+// getRetryData returns the RetryData for a task
 func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
-	if _, ok := ctx.GetWorkingData(retryOnErrorAttr); !ok {
+
+	//assumes task was configured for retry
+	rd, ok := ctx.GetWorkingData(retryOnErrorAttr)
+
+	if !ok {
 		// first attempt - build retry data
-		retryData := &RetryData{}
+		retryData = &RetryData{}
 
-		if ctx.Task().RetryOnErrorEnabled() {
-			retryData.Count = ctx.Task().RetryOnErrorCount()
-			retryData.Interval = ctx.Task().RetryOnErrorInterval()
-			ctx.SetWorkingData(retryOnErrorAttr, retryData)
-		} else {
-			return nil, errors.New("Retry Data not available and Retry on error not enabled.")
+		retryCfg := ctx.Task().RetryOnErrConfig()
+		retryData.Count = retryCfg.Count()
+		retryData.Interval = retryCfg.Interval()
+		ctx.SetWorkingData(retryOnErrorAttr, retryData)
+	} else {
+		retryData, ok = rd.(*RetryData)
+		if !ok {
+			return nil, fmt.Errorf("error getting retry data")
 		}
+	}
 
-		return retryData, nil
-	}
-	// should be set by now
-	rd, _ := ctx.GetWorkingData(retryOnErrorAttr)
-	if retryData, ok := rd.(*RetryData); ok {
-		return retryData, nil
-	}
-	return nil, fmt.Errorf("error getting retry data")
+	return retryData, nil
 }
 
 // retryEval retries current task from Eval

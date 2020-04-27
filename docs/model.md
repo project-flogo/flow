@@ -58,48 +58,58 @@ The `tasks` section allows one to define the tasks that are part of the flow. Ta
 ]
 ```
 
+### Loops
+There are special types of tasks that can be part of a flow.  There are currently two task types that are for used for creating loop constructs: Iterator and DoWhile.
+
 #### Iterator Task
-There are also special types of tasks that can be part of a flow.  An `iterator` lets you iterate for a specified count or over an array, map or object. 
+An `iterator` lets you iterate for a specified count or over an array, map or object. 
 
-Iterators take an `iterate` setting.  This can be set to a number or use a mapping that evaluates to an object.  It also takes an optional `delay` setting that can be used to set a delay in millseconds between iterations.
+Iterators take an `iterateOn` setting.  This value indicates what you are iterating on.  It can be set to a number or use a mapping that evaluates to an object.  It also takes an optional `delay` setting that can be used to set a delay in millseconds between iterations.
 
-Count Example:  
+The current key and value of an iteration is access via `$iteration[key]` and `$iteration[value]` respectively.
+
+***Count Example:***
+ 
+In this example, we are going to perform 10 iterations on this activity. This is achieved by setting the `iterateOn` value to `10`.
+
+
  
 ```json
-  {
-    "id": "loop_log",
-    "name": "Loop Log",
-    "type": "iterator",
-    "settings": {
-      "iterate": 10,
-      "delay": 5
-    },
-    "activity": {
-      "ref": "#log",
-      "input": {
-        "message": "=$iteration[key]"
-      }
-    }
-  }
+{
+	"id": "loop_log",
+	"name": "Loop Log",
+	"type": "iterator",
+	"settings": {
+		"iterateOn": 10,
+		"delay": 5
+	},
+	"activity": {
+		"ref": "#log",
+		"input": {
+			"message": "=$iteration[key]"
+		}
+	}
+}
 ```
 
-Object Example:  
+***Object Example:***  
  
 ```json
-  {
-    "id": "loop_log",
-    "name": "Loop Log",
-    "type": "iterator",
-    "settings": {
-      "iterate": "=$flow.orders"
-    },
-    "activity": {
-      "ref": "#log",
-      "input": {
-        "message": "=$iteration[value]"
-      }
-    }
-  }
+{
+	"id": "loop_log",
+	"name": "Loop Log",
+	"type": "iterator",
+	"settings": {
+		"iterateOn": "=$flow.orders"
+		"delay": 5
+	},
+	"activity": {
+		"ref": "#log",
+		"input": {
+			"message": "=$iteration[value]"
+		}
+	}
+}
 ```
 
 *Note:  `$iteration[index]` is also available to get the index of the current iteration.*
@@ -109,20 +119,22 @@ A `doWhile` task lets you loop over an activity using a conditional expression t
 
 DoWhile tasks take a `condition` setting which is where the conditional expression is specified.  It also takes an optional `delay` setting that can be used to set a delay in millseconds between iterations.
 
+*Note:  `$iteration[index]` is also available to get the index of the current iteration of the doWhile loop.*
+
 ```json
 {
-    "id": "RESTInvoke",
-    "name": "RESTInvoke",
-    "description": "Invokes a REST Service",
-    "type": "doWhile",
-    "settings": {
-      "condition": "$iteration[index] < 5",
-      "delay": 5
-    },
-    "activity": {
-      "ref": "#rest",
-      ...
-    }
+	"id": "RESTInvoke",
+	"name": "RESTInvoke",
+	"description": "Invokes a REST Service 5 times",
+	"type": "doWhile",
+	"settings": {
+		"condition": "$iteration[index] < 5",
+		"delay": 5
+	},
+	"activity": {
+		"ref": "#rest",
+		...
+	}
 }
 ```
 
@@ -133,13 +145,13 @@ To Enable:
 
 ```json
 {
-    "id": "RESTInvoke",
-    "name": "RESTInvoke",
-    "type": "doWhile",
-    "settings": {
-      "condition": "$iteration[index] < 5",
-      "delay": 5,
-      "accumulate": true
+	"id": "RESTInvoke",
+	"name": "RESTInvoke",
+	"type": "doWhile",
+	"settings": {
+		"condition": "$iteration[index] < 5",
+		"delay": 5,
+		"accumulate": true
     },
     ...
 }
@@ -162,7 +174,7 @@ Access Accumlated Values:
 
 *Note: This logs the output of the first iteration*
 
-#### Retry
+### Retry
 
 When an activity encounters an error, they may report that error is "Retriable".  In that case a `retryOnError ` setting can be set on the task that tells it to retry those errors.  You can indicate both how many retries and the iterval in milliseconds in which to retry.
 
@@ -323,7 +335,7 @@ Sample flogo application configuration file.
             "name": "FirstLog",
             "type": "iterator",
             "settings": {
-              "iterate": 10
+              "iterateOn": 10
             },
             "activity": {
               "ref": "#log",

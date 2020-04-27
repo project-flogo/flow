@@ -118,6 +118,10 @@ func evalActivity(ctx model.TaskContext) (bool, error) {
 		if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
 
 			// check if task is configured to retry on error
+			if ctx.Task().RetryOnErrConfig() == nil {
+				return done, err
+			}
+
 			retryData, rerr := getRetryData(ctx)
 			if rerr != nil {
 				return done, rerr

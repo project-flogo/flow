@@ -5,12 +5,11 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/flow/instance"
-
-	"github.com/project-flogo/core/activity"
-	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/flow/model"
 )
 
@@ -41,8 +40,14 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		itx = itxAttr.(Iterator)
 	} else {
 
+		if ctx.Task().LoopConfig() == nil {
+			//todo loop configuration not defined, what should we do?
+			//just skip for now
+			return model.EvalDone, nil
+		}
+
 		var iterateOn interface{}
-		iterate := ctx.Task().LoopConfig().GetIterate()
+		iterate := ctx.Task().LoopConfig().GetIterateOn()
 		switch t := iterate.(type) {
 		case expression.Expr:
 			iterateOn, err = t.Eval(ctx.(*instance.TaskInst).ActivityHost().(data.Scope))
@@ -126,7 +131,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			return model.EvalFail, err
 		}
 
-		//Wait for deply
+		//Wait for delay
 		delay := ctx.Task().LoopConfig().Delay()
 		if delay > 0 {
 			ctx.FlowLogger().Infof("Iterate Task[%s] execution delaying for %d milliseconds...", ctx.Task().ID(), delay)

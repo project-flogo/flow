@@ -1,6 +1,7 @@
 package definition
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/project-flogo/core/activity"
@@ -181,84 +182,108 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 	return ac.outputMapper
 }
 
-type loopCfg struct {
+type loopCfgDef struct {
 	Condition  string `md:"condition"`
-	IterateOn  string `md:"iterate"`
+	IterateOn  string `md:"iterateOn"`
 	Delay      int    `md:"delay"`
 	Accumulate bool   `md:"accumulate"`
+
+	//DEPRECATED
+	Iterate string `md:"iterate"`
 }
 
-type loop struct {
-	condition  expression.Expr
-	accumulate bool
-	delay      int
-	iterateOn  interface{}
+type LoopConfig struct {
+	condition      expression.Expr
+	accumulate     bool
+	delay          int
+	iterateOn      interface{}
+	accApplyOutput bool
 }
 
-func NewLoop(cfg *loopCfg, ef expression.Factory) (*loop, error) {
-	loop := &loop{}
+func newLoopCfg(loopCfgDef *loopCfgDef, accApplyOutput bool, ef expression.Factory) (*LoopConfig, error) {
+	loopCfg := &LoopConfig{accumulate: loopCfgDef.Accumulate, delay: loopCfgDef.Delay, accApplyOutput: accApplyOutput}
 	var err error
-	loop.accumulate = cfg.Accumulate
-	loop.delay = cfg.Delay
 
-	if cfg.Condition != "" {
-		if cfg.Condition[0] == '=' {
-			loop.condition, err = ef.NewExpr(cfg.Condition[1:])
+	if loopCfgDef.Condition != "" {
+		if loopCfgDef.Condition[0] == '=' {
+			loopCfg.condition, err = ef.NewExpr(loopCfgDef.Condition[1:])
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	if cfg.IterateOn != "" {
-		if cfg.IterateOn[0] == '=' {
-			loop.iterateOn, err = ef.NewExpr(cfg.IterateOn[1:])
+	if loopCfgDef.IterateOn != "" {
+		if loopCfgDef.IterateOn[0] == '=' {
+			loopCfg.iterateOn, err = ef.NewExpr(loopCfgDef.IterateOn[1:])
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			loop.iterateOn = cfg.IterateOn
+			loopCfg.iterateOn = loopCfgDef.IterateOn
 		}
 	}
 
-	return loop, nil
+	return loopCfg, nil
 }
 
-func (l *loop) Accumulated() bool {
+func (l *LoopConfig) Accumulate() bool {
 	return l.accumulate
 }
 
-func (l *loop) DowhileCondition() expression.Expr {
+func (l *LoopConfig) ApplyOutputOnAccumulate() bool {
+	return l.accApplyOutput
+}
+
+func (l *LoopConfig) Condition() expression.Expr {
 	return l.condition
 }
 
-func (l *loop) GetIterate() interface{} {
+func (l *LoopConfig) GetIterateOn() interface{} {
 	return l.iterateOn
 }
 
-func (l *loop) IterateEnabled() bool {
-	return l.iterateOn != nil
-}
-
-func (l *loop) DowhileEnabled() bool {
-	return l.condition != nil
-}
-
-func (l *loop) Delay() int {
+func (l *LoopConfig) Delay() int {
 	return l.delay
 }
 
-type retryErrorCfg struct {
-	Count    int `md:"count"`
-	Interval int `md:"interval"`
+type RetryOnErrConfig struct {
+	count    int
+	interval int
 }
 
-func (r *retryErrorCfg) RetryOnErrorCount() int {
-	return r.Count
+func (r *RetryOnErrConfig) Count() int {
+	return r.count
 }
 
-func (r *retryErrorCfg) RetryOnErrorInterval() int {
-	return r.Interval
+func (r *RetryOnErrConfig) Interval() int {
+	return r.interval
+}
+
+func (r *RetryOnErrConfig) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Count    int `md:"count"`
+		Interval int `md:"interval"`
+	}{
+		Count:    r.count,
+		Interval: r.interval,
+	})
+}
+
+// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON
+func (r *RetryOnErrConfig) UnmarshalJSON(data []byte) error {
+
+	ser := &struct {
+		Count    int `md:"count"`
+		Interval int `md:"interval"`
+	}{}
+
+	if err := json.Unmarshal(data, ser); err != nil {
+		return err
+	}
+	r.count = ser.Count
+	r.interval = ser.Interval
+	return nil
 }
 
 // Task is the object that describes the definition of
@@ -275,10 +300,8 @@ type Task struct {
 
 	settingsMapper mapper.Mapper
 
-	//For do-while and retry
-
-	loop          *loop
-	retryErrorCfg *retryErrorCfg
+	loopCfg          *LoopConfig
+	retryOnErrConfig *RetryOnErrConfig
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -308,19 +331,12 @@ func (task *Task) SettingsMapper() mapper.Mapper {
 	return task.settingsMapper
 }
 
-func (task *Task) RetryOnErrorEnabled() bool {
-	return task.retryErrorCfg.Count > 0
-}
-func (task *Task) RetryOnErrorCount() int {
-	return task.retryErrorCfg.Count
+func (task *Task) RetryOnErrConfig() *RetryOnErrConfig {
+	return task.retryOnErrConfig
 }
 
-func (task *Task) RetryOnErrorInterval() int {
-	return task.retryErrorCfg.Interval
-}
-
-func (task *Task) LoopConfig() *loop {
-	return task.loop
+func (task *Task) LoopConfig() *LoopConfig {
+	return task.loopCfg
 }
 
 // ToLinks returns the predecessor links of the task
