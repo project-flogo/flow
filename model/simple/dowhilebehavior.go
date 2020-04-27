@@ -69,8 +69,8 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 }
 
 func (dw *DoWhileTaskBehavior) checkDoWhileCondition(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
-	if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().DowhileCondition() != nil {
-		return dw.evaluateCondition(ctx, ctx.Task().LoopConfig().DowhileCondition())
+	if ctx.Task().LoopConfig() != nil && ctx.Task().LoopConfig().Condition() != nil {
+		return dw.evaluateCondition(ctx, ctx.Task().LoopConfig().Condition())
 	}
 	return model.EvalDone, nil
 }

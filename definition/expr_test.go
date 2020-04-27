@@ -1,11 +1,12 @@
 package definition
 
 import (
-	"encoding/json"
+	"testing"
+
+
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/resolve"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestExprFactory(t *testing.T){
@@ -19,18 +20,16 @@ func TestExprFactory(t *testing.T){
 	assert.NotNil(t, linkExErr)
 
 	assert.Equal(t, "test", linkExErr.Error())
-
-
 }
 
-func TestLinks(t *testing.T) {
-	defRep := &DefinitionRep{}
-
-	err := json.Unmarshal([]byte(defJSON), defRep)
-	assert.Nil(t, err)
-
-	def, err := NewDefinition(defRep)
-	assert.Nil(t, err)
-
-	assert.Nil(t, GetExpressionLinks(def))
-}
+//func TestLinks(t *testing.T) {
+//	defRep := &DefinitionRep{}
+//
+//	err := json.Unmarshal([]byte(defJSON), defRep)
+//	assert.Nil(t, err)
+//
+//	def, err := NewDefinition(defRep)
+//	assert.Nil(t, err)
+//
+//	assert.Nil(t, GetExpressionLinks(def))
+//}

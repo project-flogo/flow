@@ -1,32 +1,29 @@
 package simple
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRetryData(t *testing.T) {
 	taskTestContext := new(TestTaskContext)
 
-	rData , err := getRetryData(taskTestContext)
+	rData, err := getRetryData(taskTestContext)
 	assert.NotNil(t, err)
 	assert.Nil(t, rData)
-
 }
-
-
 
 func TestRetryEval(t *testing.T) {
 	taskTestContext := &TestTaskContext{}
 
-	val, err := retryEval(taskTestContext,nil)
+	val, err := retryEval(taskTestContext, nil)
 	assert.NotNil(t, err)
 	assert.False(t, val)
 
-	retryData := &RetryData{Interval: 1, Count : 1}
+	retryData := &RetryData{Interval: 1, Count: 1}
 	val, err = retryEval(taskTestContext, retryData)
 	assert.Nil(t, err)
 	assert.True(t, val)
 	assert.Equal(t, 0, retryData.Count)
-
 }

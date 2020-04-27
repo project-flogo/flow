@@ -5,12 +5,11 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
+	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/flow/instance"
-
-	"github.com/project-flogo/core/activity"
-	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/flow/model"
 )
 
@@ -42,7 +41,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 	} else {
 
 		var iterateOn interface{}
-		iterate := ctx.Task().LoopConfig().GetIterate()
+		iterate := ctx.Task().LoopConfig().GetIterateOn()
 		switch t := iterate.(type) {
 		case expression.Expr:
 			iterateOn, err = t.Eval(ctx.(*instance.TaskInst).ActivityHost().(data.Scope))

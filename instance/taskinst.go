@@ -372,13 +372,12 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		//skip apply output mapper while enable accumulate for iterator/dowhile
-		if ti.Task().LoopConfig().Accumulated() {
+		if cfg := ti.Task().LoopConfig(); cfg.Accumulate() {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
-			//For dowhile condition case, we need add activity output to scope
-			if ti.Task().LoopConfig().DowhileEnabled() {
+
+			if cfg.ApplyOutputOnAccumulate() {
 				err = ti.applyOutputMapper()
 				if err != nil {
 					return done, err
@@ -454,7 +453,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		if ti.Task().LoopConfig().Accumulated() {
+		if ti.Task().LoopConfig().Accumulate() {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
