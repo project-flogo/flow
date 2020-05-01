@@ -75,7 +75,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 			task, err := createTask(def, taskRep, ef)
 			if err != nil {
-				return nil, fmt.Errorf("creating task [%s] in flow [%s] error: %s", taskRep.ID, rep.Name, err.Error())
+				return nil, fmt.Errorf("error creating task [%s] in flow [%s]: %s", taskRep.ID, rep.Name, err.Error())
 			}
 			def.tasks[task.id] = task
 		}
@@ -87,7 +87,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 			link, err := createLink(def.tasks, linkRep, id, ef)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error creating link [%s] in flow [%s]: %s", linkRep.Name, rep.Name, err.Error())
 			}
 
 			def.links[link.id] = link
@@ -107,7 +107,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 				task, err := createTask(def, taskRep, ef)
 				if err != nil {
-					return nil, fmt.Errorf("creating task [%s] in error handle flow [%s] ->  %s", taskRep.ID, rep.Name, err.Error())
+					return nil, fmt.Errorf("error creating task [%s] in flow [%s]'s error handler:%s", taskRep.ID, rep.Name, err.Error())
 				}
 				errorHandler.tasks[task.id] = task
 			}
@@ -121,7 +121,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 				link, err := createLink(errorHandler.tasks, linkRep, id+idOffset, ef)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("error creating link [%s] in flow [%s]'s error handler:%s", linkRep.Name, rep.Name, err.Error())
 				}
 				errorHandler.links[link.id] = link
 			}
@@ -226,7 +226,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		for name, value := range rep.Settings {
 			activityCfg.settings[name], err = metadata.ResolveSettingValue(name, value, mdSettings, ef)
 			if err != nil {
-				return nil, fmt.Errorf("unable to resolve setting field [%s]'s value [%s] due to %s", name, value, err.Error())
+				return nil, fmt.Errorf("unable to resolve setting [%s]'s value [%s]:%s", name, value, err.Error())
 			}
 		}
 	}
@@ -264,7 +264,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 							}
 						}
 					}
-					return nil, fmt.Errorf("unable to convert input field [%s]s value [%s] to type [%s] due to %s", k, v, fieldMetaddata.Type(), err.Error())
+					return nil, fmt.Errorf("unable to convert input [%s]'s value [%s] to type [%s]:%s", k, v, fieldMetaddata.Type(), err.Error())
 				}
 				input[k] = newVal
 			} else {
@@ -289,7 +289,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 			if ok {
 				v, err = coerce.ToType(v, fieldMetaddata.Type())
 				if err != nil {
-					return nil, fmt.Errorf("unable to convert output field [%s]'s value [%s] to type [%s], due to %s", k, v, fieldMetaddata.Type(), err.Error())
+					return nil, fmt.Errorf("unable to convert output [%s]'s value [%s] to type [%s]:%s", k, v, fieldMetaddata.Type(), err.Error())
 				}
 				output[k] = v
 			} else {
