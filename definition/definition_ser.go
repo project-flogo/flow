@@ -327,7 +327,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 			for name, def := range in {
 				s, err := schema.FindOrCreate(def)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("unable to find/create input [%s]'s schema [%+v]:%s", name, def, err.Error())
 				}
 				activityCfg.inputSchemas[name] = s
 			}
@@ -338,7 +338,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 			for name, def := range out {
 				s, err := schema.FindOrCreate(def)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("unable to find/create output [%s]'s schema [%+v]:%s", name, def, err.Error())
 				}
 				activityCfg.outputSchemas[name] = s
 			}
