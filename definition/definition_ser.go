@@ -107,7 +107,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 				task, err := createTask(def, taskRep, ef)
 				if err != nil {
-					return nil, fmt.Errorf("task [%s] ->  %s", taskRep.ID, err.Error())
+					return nil, fmt.Errorf("creating task [%s] in error handle flow [%s] ->  %s", taskRep.ID, rep.Name, err.Error())
 				}
 				errorHandler.tasks[task.id] = task
 			}
