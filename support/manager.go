@@ -181,7 +181,7 @@ func materializeFlow(flowRep *definition.DefinitionRep) (*definition.Definition,
 
 	def, err := definition.NewDefinition(flowRep)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling flow: %s", err.Error())
+		return nil, err
 	}
 
 	//todo validate flow

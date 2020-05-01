@@ -74,9 +74,8 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 		for _, taskRep := range rep.Tasks {
 
 			task, err := createTask(def, taskRep, ef)
-
 			if err != nil {
-				return nil, fmt.Errorf("create task [%s] error: %s", taskRep.ID, err.Error())
+				return nil, fmt.Errorf("creating task [%s] in flow [%s] error: %s", taskRep.ID, rep.Name, err.Error())
 			}
 			def.tasks[task.id] = task
 		}
@@ -107,9 +106,8 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 			for _, taskRep := range rep.ErrorHandler.Tasks {
 
 				task, err := createTask(def, taskRep, ef)
-
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("task [%s] ->  %s", taskRep.ID, err.Error())
 				}
 				errorHandler.tasks[task.id] = task
 			}
@@ -228,7 +226,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		for name, value := range rep.Settings {
 			activityCfg.settings[name], err = metadata.ResolveSettingValue(name, value, mdSettings, ef)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("unable to resolve setting field [%s]'s value [%s] due to %s", name, value, err.Error())
 			}
 		}
 	}
@@ -266,7 +264,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 							}
 						}
 					}
-					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+					return nil, fmt.Errorf("unable to convert input field [%s]s value [%s] to type [%s] due to %s", k, v, fieldMetaddata.Type(), err.Error())
 				}
 				input[k] = newVal
 			} else {
@@ -291,7 +289,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 			if ok {
 				v, err = coerce.ToType(v, fieldMetaddata.Type())
 				if err != nil {
-					return nil, fmt.Errorf("convert value [%+v] to type [%s] error: %s", v, fieldMetaddata.Type(), err.Error())
+					return nil, fmt.Errorf("unable to convert output field [%s]'s value [%s] to type [%s], due to %s", k, v, fieldMetaddata.Type(), err.Error())
 				}
 				output[k] = v
 			} else {
@@ -476,7 +474,7 @@ func getLoopCfg(settings map[string]interface{}, taskType string, ef expression.
 		lcd, err = getLoopCfgDef(setting)
 	} else if setting, ok := settings["doWhile"]; ok {
 		lcd, err = getLoopCfgDef(setting)
-		if accum,ok := settings["accumulate"];  lcd != nil && ok {
+		if accum, ok := settings["accumulate"]; lcd != nil && ok {
 			lcd.Accumulate, _ = coerce.ToBool(accum)
 		}
 	} else {
@@ -511,7 +509,7 @@ func getLoopCfgDef(setting interface{}) (*loopCfgDef, error) {
 		lcd.IterateOn = lcd.Iterate
 	}
 
-	if lcd.Condition == "" && lcd.IterateOn == ""  {
+	if lcd.Condition == "" && lcd.IterateOn == "" {
 		return nil, nil
 	}
 
