@@ -23,7 +23,7 @@ func (*FlowLoader) LoadResource(config *resource.Config) (*resource.Resource, er
 	var defRep *definition.DefinitionRep
 	err := json.Unmarshal(flowDefBytes, &defRep)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling flow resource with id '%s', %s", config.ID, err.Error())
+		return nil, fmt.Errorf("error loading flow resource with id '%s': %s", config.ID, err.Error())
 	}
 
 	flow, err := materializeFlow(defRep)
