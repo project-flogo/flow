@@ -29,6 +29,8 @@ const (
 )
 
 const (
+	StateRecordingMode = "stateRecordingMode"
+	// Deprecated
 	RtSettingStepMode     = "stepRecordingMode"
 	RtSettingSnapshotMode = "snapshotRecordingMode"
 )
@@ -49,8 +51,7 @@ var record bool
 var flowManager *flowsupport.FlowManager
 var logger log.Logger
 var stateRecorder state.Recorder
-var recordSnapshot bool //todo switch to "mode"
-var recordSteps bool    //todo switch to "mode"
+var stateRecordingMode = state.RecordingModeOff
 
 var actionMd = action.ToMetadata(&Settings{})
 
@@ -82,26 +83,40 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		return ok
 	})
 
-	stepMode := ""
-	snapshotMode := ""
-
 	if len(ctx.RuntimeSettings()) > 0 {
-		sStepMode := ctx.RuntimeSettings()[RtSettingStepMode]
-		sSnapshotMode := ctx.RuntimeSettings()[RtSettingSnapshotMode]
+		mode, ok := ctx.RuntimeSettings()[StateRecordingMode]
+		if !ok {
+			// For backward compatible
+			sStepMode := ctx.RuntimeSettings()[RtSettingStepMode]
+			sSnapshotMode := ctx.RuntimeSettings()[RtSettingSnapshotMode]
 
-		stepMode, _ = coerce.ToString(sStepMode)
-		snapshotMode, _ = coerce.ToString(sSnapshotMode)
+			stepMode, _ := coerce.ToString(sStepMode)
+			snapshotMode, _ := coerce.ToString(sSnapshotMode)
+
+			recordSteps := strings.EqualFold("full", stepMode)
+			recordSnapshot := strings.EqualFold("full", snapshotMode)
+			if recordSteps && recordSnapshot {
+				stateRecordingMode = state.RecordingModeFull
+			} else if recordSteps {
+				stateRecordingMode = state.RecordingModeStep
+			} else if recordSnapshot {
+				stateRecordingMode = state.RecordingModeSnapshot
+			} else {
+				stateRecordingMode = state.RecordingModeOff
+			}
+		} else {
+			var err error
+			stateRecordingMode, err = state.ToRecordingMode(mode)
+			if err != nil {
+				return nil
+			}
+		}
 	}
-
-	//todo only support "full" for now, until we come up with other modes
-	recordSteps = strings.EqualFold("full", stepMode)
-	recordSnapshot = strings.EqualFold("full", snapshotMode)
 
 	if srService != nil {
 		stateRecorder = srService.(state.Recorder)
-
-		if recordSteps {
-			instance.EnableChangeTracking(true)
+		if state.RecordSteps(stateRecordingMode) {
+			instance.EnableChangeTracking(true, stateRecordingMode)
 		}
 	}
 
