@@ -9,6 +9,7 @@ import (
 var defaultChgTracker = &NoopChangeTracker{}
 var chgTrackerFactory = &SimpleChangeTrackerFactory{}
 var chgTrackingEnabled = false
+var stateMode state.RecordingMode
 
 type ChangeTracker interface {
 	// FlowCreated is called to track a when a flow is created
@@ -45,13 +46,14 @@ type ChangeTracker interface {
 
 func NewInstanceChangeTracker(flowId string) ChangeTracker {
 	if chgTrackingEnabled {
-		return chgTrackerFactory.NewChangeTracker(flowId)
+		return chgTrackerFactory.NewChangeTracker(flowId, stateMode)
 	}
 	return defaultChgTracker
 }
 
-func EnableChangeTracking(enable bool) {
+func EnableChangeTracking(enable bool, mode state.RecordingMode) {
 	chgTrackingEnabled = enable
+	stateMode = mode
 }
 
 type NoopChangeTracker struct {
@@ -106,9 +108,9 @@ func (nct *NoopChangeTracker) ExtractStep(reset bool) *state.Step {
 type SimpleChangeTrackerFactory struct {
 }
 
-func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string) ChangeTracker {
+func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode) ChangeTracker {
 
-	ct := &SimpleChangeTracker{flowId: flowId}
+	ct := &SimpleChangeTracker{flowId: flowId, mode: mode}
 	ct.currentStep = &state.Step{
 		FlowId:      flowId,
 		FlowChanges: make(map[int]*change.Flow),
@@ -119,6 +121,7 @@ func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string) ChangeTrac
 
 type SimpleChangeTracker struct {
 	flowId      string
+	mode        state.RecordingMode
 	stepCtr     int
 	currentStep *state.Step
 }
@@ -158,21 +161,23 @@ func (sct *SimpleChangeTracker) FlowCreated(flow *IndependentInstance) {
 }
 
 func (sct *SimpleChangeTracker) FlowDone(flow *IndependentInstance) {
-	flowC := sct.currentStep.FlowChanges[flow.subflowId]
-	if flowC != nil {
-		flowC.FlowURI = flow.flowURI
-		flowC.Status = int(flow.status)
-		flowC.ReturnData, _ = flow.GetReturnData()
-	} else {
-		fc := &change.Flow{
-			NewFlow: false,
-			FlowURI: flow.flowURI,
-			Status:  int(flow.status),
+	// Save return for debugger mode only
+	if sct.mode == state.RecordingModeDebugger {
+		flowC := sct.currentStep.FlowChanges[flow.subflowId]
+		if flowC != nil {
+			flowC.FlowURI = flow.flowURI
+			flowC.Status = int(flow.status)
+			flowC.ReturnData, _ = flow.GetReturnData()
+		} else {
+			fc := &change.Flow{
+				NewFlow: false,
+				FlowURI: flow.flowURI,
+				Status:  int(flow.status),
+			}
+			fc.ReturnData, _ = flow.GetReturnData()
+			sct.currentStep.FlowChanges[flow.subflowId] = fc
 		}
-		fc.ReturnData, _ = flow.GetReturnData()
-		sct.currentStep.FlowChanges[flow.subflowId] = fc
 	}
-
 }
 
 func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
@@ -190,20 +195,23 @@ func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
 }
 
 func (sct *SimpleChangeTracker) SubflowDone(subflow *Instance) {
-	if sct.currentStep.FlowChanges != nil {
-		fc := sct.currentStep.FlowChanges[subflow.subflowId]
-		if fc != nil {
-			fc.FlowURI = subflow.flowURI
-			fc.Status = int(subflow.status)
-			fc.ReturnData, _ = subflow.GetReturnData()
-		} else {
-			fc := &change.Flow{
-				NewFlow: false,
-				FlowURI: subflow.flowURI,
-				Status:  int(subflow.status),
+	// Save return for debugger mode only
+	if sct.mode == state.RecordingModeDebugger {
+		if sct.currentStep.FlowChanges != nil {
+			fc := sct.currentStep.FlowChanges[subflow.subflowId]
+			if fc != nil {
+				fc.FlowURI = subflow.flowURI
+				fc.Status = int(subflow.status)
+				fc.ReturnData, _ = subflow.GetReturnData()
+			} else {
+				fc := &change.Flow{
+					NewFlow: false,
+					FlowURI: subflow.flowURI,
+					Status:  int(subflow.status),
+				}
+				fc.ReturnData, _ = subflow.GetReturnData()
+				sct.currentStep.FlowChanges[subflow.subflowId] = fc
 			}
-			fc.ReturnData, _ = subflow.GetReturnData()
-			sct.currentStep.FlowChanges[subflow.subflowId] = fc
 		}
 	}
 }
@@ -228,7 +236,10 @@ func (sct *SimpleChangeTracker) TaskUpdated(taskInst *TaskInst) {
 	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID)
 	task.ChgType = change.Update
 	task.Status = int(taskInst.status)
-	task.Input = taskInst.inputs
+	// Store input for debugger mode
+	if sct.mode == state.RecordingModeDebugger {
+		task.Input = taskInst.inputs
+	}
 }
 
 func (sct *SimpleChangeTracker) TaskRemoved(subflowId int, taskId string) {
