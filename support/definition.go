@@ -1,6 +1,7 @@
 package support
 
 import (
+	"fmt"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/flow/definition"
 	"strings"
@@ -41,4 +42,26 @@ func GetDefinition(flowURI string) (*definition.Definition, bool, error) {
 	}
 
 	return nil, false, nil
+}
+
+func SetResource(resources []*resource.Config) error {
+	for _, resConfig := range resources {
+		resType, err := resource.GetTypeFromID(resConfig.ID)
+		if err != nil {
+			return err
+		}
+
+		loader := resource.GetLoader(resType)
+
+		if loader == nil {
+			return fmt.Errorf("resource loader for '%s' not registered", resType)
+		}
+
+		res, err := loader.LoadResource(resConfig)
+		if err != nil {
+			return err
+		}
+		resManager.SetResource(resConfig.ID, res)
+	}
+	return nil
 }
