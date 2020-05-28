@@ -360,7 +360,8 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 					//todo review how we should handle an error encountered here
 					_ = host.SetOutput(name, value)
 				}
-
+				//Sub flow done
+				containerInst.master.GetChanges().SubflowDone(containerInst)
 				inst.scheduleEval(host)
 			}
 
@@ -381,6 +382,8 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 			// flow has completed so remove it
 			delete(inst.subflows, containerInst.subflowId)
+		} else {
+			containerInst.master.GetChanges().FlowDone(inst)
 		}
 
 	} else {
@@ -704,7 +707,7 @@ func (inst *IndependentInstance) Snapshot() *state.Snapshot {
 			sfs := state.Subflow{
 				SnapshotBase: &state.SnapshotBase{},
 				Id:           id,
-				TaskId:       inst.host.(TaskInst).taskID,
+				TaskId:       subflow.host.(*TaskInst).taskID,
 			}
 			populateBaseSnapshot(subflow, sfs.SnapshotBase)
 		}
