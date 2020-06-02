@@ -31,8 +31,10 @@ type Task struct {
 }
 
 type Link struct {
-	ChgType Type `json:"change"`
-	Status  int  `json:"status,omitEmpty"`
+	ChgType Type   `json:"change"`
+	Status  int    `json:"status,omitEmpty"`
+	From    string `json:"from"`
+	To      string `json:"to"`
 }
 
 type Queue struct {
