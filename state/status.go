@@ -46,7 +46,7 @@ func RecordSteps(stateRecordingMode RecordingMode) bool {
 // RecordSnapshot check to see if enbale snapshot recording
 func RecordSnapshot(stateRecordingMode RecordingMode) bool {
 	switch stateRecordingMode {
-	case RecordingModeSnapshot, RecordingModeFull, RecordingModeDebugger:
+	case RecordingModeSnapshot, RecordingModeFull:
 		return true
 	default:
 		return false
