@@ -27,12 +27,14 @@ type Flow struct {
 type Task struct {
 	ChgType Type                   `json:"change"`
 	Status  int                    `json:"status,omitEmpty"`
-	Input   map[string]interface{} `json:"input"`
+	Input   map[string]interface{} `json:"input,omitEmpty"`
 }
 
 type Link struct {
-	ChgType Type `json:"change"`
-	Status  int  `json:"status,omitEmpty"`
+	ChgType Type   `json:"change"`
+	Status  int    `json:"status,omitEmpty"`
+	From    string `json:"from,omitEmpty"`
+	To      string `json:"to,omitEmpty"`
 }
 
 type Queue struct {

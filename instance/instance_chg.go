@@ -250,6 +250,10 @@ func (sct *SimpleChangeTracker) TaskRemoved(subflowId int, taskId string) {
 func (sct *SimpleChangeTracker) LinkAdded(linkInst *LinkInst) {
 	link := getLinkChange(sct.currentStep, linkInst.flowInst.subflowId, linkInst.id)
 	link.Status = int(linkInst.status)
+	if sct.mode == state.RecordingModeDebugger {
+		link.From = linkInst.link.FromTask().ID()
+		link.To = linkInst.link.ToTask().ID()
+	}
 }
 
 func (sct *SimpleChangeTracker) LinkUpdated(linkInst *LinkInst) {
@@ -299,7 +303,7 @@ func getTaskChange(step *state.Step, subflowId int, taskId string) *change.Task 
 
 	fc, exists := step.FlowChanges[subflowId]
 	if !exists {
-		fc = &change.Flow{}
+		fc = &change.Flow{TaskId: taskId}
 		step.FlowChanges[subflowId] = fc
 	}
 
