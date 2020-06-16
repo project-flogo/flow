@@ -87,7 +87,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 			link, err := createLink(def.tasks, linkRep, id, ef)
 			if err != nil {
-				return nil, fmt.Errorf("error creating link [%s] in flow [%s]: %s", linkRep.Name, rep.Name, err.Error())
+				return nil, fmt.Errorf("error creating link in flow [%s]: %s", rep.Name, err.Error())
 			}
 
 			def.links[link.id] = link
