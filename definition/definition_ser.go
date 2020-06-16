@@ -379,7 +379,7 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			}
 			link.expr, err = ef.NewExpr(linkRep.Value)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid expression [%s] from task [%s] to task [%s]: %s", linkRep.Value, linkRep.FromID, linkRep.ToID, err.Error())
 			}
 		case "label", "2":
 			link.linkType = LtLabel
