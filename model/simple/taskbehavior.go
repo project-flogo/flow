@@ -1,6 +1,7 @@
 package simple
 
 import (
+	"fmt"
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
@@ -186,15 +187,13 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		logger.Debugf("Task '%s' is done", ctx.Task().ID())
 	}
 
+	if logger.DebugEnabled() {
+		logger.Debugf("Task '%s' has %d outgoing links", ctx.Task().ID(), numLinks)
+	}
+
 	// process outgoing links
 	if numLinks > 0 {
-
 		taskEntries = make([]*model.TaskEntry, 0, numLinks)
-
-		if logger.DebugEnabled() {
-			logger.Debugf("Task '%s' has %d outgoing links", ctx.Task().ID(), numLinks)
-		}
-
 		var exprLinkFollowed, hasExprLink bool
 		var exprOtherwiseLinkInst model.LinkInstance
 		var exprOtherwiseTaskEntry *model.TaskEntry
@@ -229,7 +228,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				}
 				follow, err := ctx.EvalLink(linkInst.Link())
 				if err != nil {
-					return false, nil, err
+					return false, nil, fmt.Errorf("error executing link[%s -> %s]: %s", ctx.Task().ID(), linkInst.Link().ToTask().ID(), err.Error())
 				}
 				if follow {
 					exprLinkFollowed = true

@@ -87,7 +87,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 			link, err := createLink(def.tasks, linkRep, id, ef)
 			if err != nil {
-				return nil, fmt.Errorf("error creating link [%s] in flow [%s]: %s", linkRep.Name, rep.Name, err.Error())
+				return nil, fmt.Errorf("error creating link[%s -> %s] in flow [%s]: %s", linkRep.FromID, linkRep.ToID, rep.Name, err.Error())
 			}
 
 			def.links[link.id] = link
@@ -375,11 +375,11 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 		case "expression", "1":
 			link.linkType = LtExpression
 			if linkRep.Value == "" {
-				return nil, fmt.Errorf("expression value not set on link id [%d] from [%s] to [%s]", id, linkRep.FromID, linkRep.ToID)
+				return nil, fmt.Errorf("expression value not set on link[%s -> %s]", linkRep.FromID, linkRep.ToID)
 			}
 			link.expr, err = ef.NewExpr(linkRep.Value)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid expression [%s] on link[%s -> %s]: %s", linkRep.Value, linkRep.FromID, linkRep.ToID, err.Error())
 			}
 		case "label", "2":
 			link.linkType = LtLabel
@@ -389,7 +389,7 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			link.linkType = LtExprOtherwise
 		default:
 			//todo get the flow logger
-			log.RootLogger().Warnf("Unsupported link type '%s', using default link")
+			log.RootLogger().Warnf("Unsupported link type '%s' on link[%s -> %s], using default link", linkRep.FromID, linkRep.ToID)
 		}
 	}
 
