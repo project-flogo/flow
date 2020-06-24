@@ -228,7 +228,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				}
 				follow, err := ctx.EvalLink(linkInst.Link())
 				if err != nil {
-					return false, nil, fmt.Errorf("error executing link from task '%s' to task '%s': %s", ctx.Task().ID(), linkInst.Link().ToTask().ID(), err.Error())
+					return false, nil, fmt.Errorf("error executing link[%s -> %s]: %s", ctx.Task().ID(), linkInst.Link().ToTask().ID(), err.Error())
 				}
 				if follow {
 					exprLinkFollowed = true
