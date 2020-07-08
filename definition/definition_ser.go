@@ -3,10 +3,11 @@ package definition
 import (
 	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/project-flogo/core/app/resolve"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
-	"strconv"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/expression"
@@ -466,54 +467,99 @@ func getRetryOnErrCfg(settings map[string]interface{}) (*RetryOnErrConfig, error
 
 func getLoopCfg(settings map[string]interface{}, taskType string, ef expression.Factory) (*LoopConfig, error) {
 
-	var lcd *loopCfgDef
+	var loopConfig *LoopConfig
 	var err error
 
-	//check for old configurations
 	if setting, ok := settings["loopConfig"]; ok {
-		lcd, err = getLoopCfgDef(setting)
+		loopConfig, err = getLoopCfgDef(setting, ef)
 	} else if setting, ok := settings["doWhile"]; ok {
-		lcd, err = getLoopCfgDef(setting)
-		if accum, ok := settings["accumulate"]; lcd != nil && ok {
-			lcd.Accumulate, _ = coerce.ToBool(accum)
+		loopConfig, err = getLoopCfgDef(setting, ef)
+		if accum, ok := settings["accumulate"]; loopConfig != nil && ok {
+			loopConfig.accumulate, _ = coerce.ToBool(accum)
 		}
 	} else {
-		lcd, err = getLoopCfgDef(settings)
+		loopConfig, err = getLoopCfgDef(settings, ef)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 
-	if lcd == nil {
-		return nil, nil
+	if loopConfig != nil {
+		if taskType == "doWhile" {
+			loopConfig.accApplyOutput = true
+		}
 	}
-
-	return newLoopCfg(lcd, taskType == "doWhile", ef)
+	return loopConfig, nil
 }
 
-func getLoopCfgDef(setting interface{}) (*loopCfgDef, error) {
-
+func getLoopCfgDef(setting interface{}, ef expression.Factory) (*LoopConfig, error) {
 	settingMap, err := coerce.ToObject(setting)
 	if err != nil {
 		return nil, err
 	}
 
-	lcd := &loopCfgDef{}
-	err = metadata.MapToStruct(settingMap, lcd, true)
-	if err != nil {
-		return nil, err
+	loopConf := &LoopConfig{}
+	condition, exist := settingMap["condition"]
+	if exist && len(condition.(string)) > 0 {
+		conditionStr := condition.(string)
+		if conditionStr[0] == '=' {
+			conditionStr = conditionStr[1:]
+		}
+		conditionExpr, err := ef.NewExpr(conditionStr)
+		if err != nil {
+			return nil, fmt.Errorf("compile loop condition error: %s", err.Error())
+		}
+		loopConf.condition = conditionExpr
 	}
 
-	if lcd.IterateOn == "" {
-		lcd.IterateOn = lcd.Iterate
+	iterateOn, exist := settingMap["iterateOn"]
+	if !exist || iterateOn == nil {
+		//Deprecated.
+		iterateOn, exist = settingMap["iterate"]
 	}
 
-	if lcd.Condition == "" && lcd.IterateOn == "" {
+	if exist && iterateOn != nil {
+		iteraterOnStr, ok := iterateOn.(string)
+		if ok {
+			if iteraterOnStr[0] == '=' {
+				iteraterOnStr = iteraterOnStr[1:]
+			}
+			conditionExpr, err := ef.NewExpr(iteraterOnStr)
+			if err != nil {
+				return nil, fmt.Errorf("compile iterateOn error: %s", err.Error())
+			}
+			loopConf.iterateOn = conditionExpr
+		} else {
+			loopConf.iterateOn = iterateOn
+		}
+	}
+
+	delay, exist := settingMap["delay"]
+	if exist && delay != nil {
+		strVal, ok := delay.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			delay, err = resolve.Resolve(strVal[1:], nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+		delayInt, err := coerce.ToInt(delay)
+		if err != nil {
+			return nil, fmt.Errorf("loop delay must be int")
+		}
+		loopConf.delay = delayInt
+	}
+
+	accumulateOutput, ok := settingMap["accumulate"]
+	if ok {
+		loopConf.accumulate, _ = coerce.ToBool(accumulateOutput)
+	}
+
+	if loopConf.condition == nil && loopConf.iterateOn == nil {
 		return nil, nil
 	}
-
-	return lcd, nil
+	return loopConf, nil
 }
 
 type initCtxImpl struct {
