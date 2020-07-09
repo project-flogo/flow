@@ -182,49 +182,12 @@ func (ac *ActivityConfig) OutputMapper() mapper.Mapper {
 	return ac.outputMapper
 }
 
-type loopCfgDef struct {
-	Condition  string `md:"condition"`
-	IterateOn  string `md:"iterateOn"`
-	Delay      int    `md:"delay"`
-	Accumulate bool   `md:"accumulate"`
-
-	//DEPRECATED
-	Iterate string `md:"iterate"`
-}
-
 type LoopConfig struct {
 	condition      expression.Expr
 	accumulate     bool
 	delay          int
 	iterateOn      interface{}
 	accApplyOutput bool
-}
-
-func newLoopCfg(loopCfgDef *loopCfgDef, accApplyOutput bool, ef expression.Factory) (*LoopConfig, error) {
-	loopCfg := &LoopConfig{accumulate: loopCfgDef.Accumulate, delay: loopCfgDef.Delay, accApplyOutput: accApplyOutput}
-	var err error
-
-	if loopCfgDef.Condition != "" {
-		if loopCfgDef.Condition[0] == '=' {
-			loopCfg.condition, err = ef.NewExpr(loopCfgDef.Condition[1:])
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	if loopCfgDef.IterateOn != "" {
-		if loopCfgDef.IterateOn[0] == '=' {
-			loopCfg.iterateOn, err = ef.NewExpr(loopCfgDef.IterateOn[1:])
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			loopCfg.iterateOn = loopCfgDef.IterateOn
-		}
-	}
-
-	return loopCfg, nil
 }
 
 func (l *LoopConfig) Accumulate() bool {
