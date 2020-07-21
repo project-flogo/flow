@@ -198,13 +198,13 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		activityRef := rep.Ref
 		rep.Ref, ok = support.GetAliasRef("activity", activityRef)
 		if !ok {
-			return nil, fmt.Errorf("activity '%s' not imported", activityRef)
+			return nil, fmt.Errorf("incompatible app engine, the app using the activity [%s] which is not installed", activityRef)
 		}
 	}
 
 	act := activity.Get(rep.Ref)
 	if act == nil {
-		return nil, errors.New("Unsupported Activity:" + rep.Ref)
+		return nil, fmt.Errorf("unable to find activity with ref [%s]", rep.Ref)
 	}
 
 	activityCfg := &ActivityConfig{}
