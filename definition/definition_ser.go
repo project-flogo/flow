@@ -198,7 +198,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		activityRef := rep.Ref
 		rep.Ref, ok = support.GetAliasRef("activity", activityRef)
 		if !ok {
-			return nil, fmt.Errorf("incompatible app engine, the app using the activity [%s] which is not installed", activityRef)
+			return nil, fmt.Errorf("ref alias '%s' has no corresponding installed activity", activityRef)
 		}
 	}
 
