@@ -476,6 +476,8 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 					}
 					inst.handleTaskError(behavior, host, err)
 				}
+			} else {
+				taskInst.appendErrorData(err)
 			}
 
 		} else {
