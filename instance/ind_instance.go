@@ -324,7 +324,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 	}
 
 	if err != nil {
-		err = fmt.Errorf("handle task [%s] done in flow [%s] error: %s", taskInst.Name(), inst.flowDef.Name(), err.Error())
+		err = fmt.Errorf("error handling task done transition for task [%s] in flow [%s] : %s", taskInst.Name(), inst.flowDef.Name(), err.Error())
 		taskInst.appendErrorData(err)
 		inst.HandleGlobalError(containerInst, err)
 		return
