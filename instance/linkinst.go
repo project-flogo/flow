@@ -12,7 +12,7 @@ type LinkInst struct {
 	status   model.LinkStatus
 
 	//changes int
-	id      int //needed for serialization
+	id int //needed for serialization
 }
 
 // NewLinkInst creates a LinkInst for the specified link in the specified task
@@ -22,7 +22,7 @@ func NewLinkInst(inst *Instance, link *definition.Link) *LinkInst {
 
 	linkInst.flowInst = inst
 	linkInst.link = link
-
+	linkInst.id = link.ID()
 	return &linkInst
 }
 
