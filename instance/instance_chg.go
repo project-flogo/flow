@@ -305,6 +305,8 @@ func getTaskChange(step *state.Step, subflowId int, taskId string) *change.Task 
 	if !exists {
 		fc = &change.Flow{TaskId: taskId}
 		step.FlowChanges[subflowId] = fc
+	} else {
+		fc.TaskId = taskId
 	}
 
 	if fc.Tasks == nil {
