@@ -40,6 +40,10 @@ type Instance struct {
 	tracingCtx trace.TracingContext
 }
 
+func (inst *Instance) GetMasterScope() data.Scope {
+	return inst.master
+}
+
 func (inst *Instance) FlowURI() string {
 	return inst.flowURI
 }
