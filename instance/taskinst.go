@@ -38,6 +38,11 @@ func initTaskInst(taskInst *TaskInst, flowInst *Instance, task *definition.Task)
 		task = flowInst.flowDef.GetTask(taskInst.taskID)
 	}
 
+	if task == nil {
+		//unable find task from flow, try to get from error handler
+		task = flowInst.flowDef.GetErrorHandler().GetTask(taskInst.taskID)
+	}
+
 	taskInst.flowInst = flowInst
 	taskInst.task = task
 	taskInst.taskID = task.ID()
@@ -372,7 +377,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			return false, err
 		}
 
-		if cfg := ti.Task().LoopConfig(); cfg !=nil && cfg.Accumulate() {
+		if cfg := ti.Task().LoopConfig(); cfg != nil && cfg.Accumulate() {
 			if err := ti.handleAccumulation(); err != nil {
 				return false, err
 			}
