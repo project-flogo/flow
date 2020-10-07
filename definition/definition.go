@@ -405,3 +405,7 @@ func (eh *ErrorHandler) Tasks() []*Task {
 	}
 	return tasks
 }
+
+func (eh *ErrorHandler) GetTask(taskID string) *Task {
+	return eh.tasks[taskID]
+}
