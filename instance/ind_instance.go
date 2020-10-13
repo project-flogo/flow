@@ -3,8 +3,9 @@ package instance
 import (
 	"errors"
 	"fmt"
-	"github.com/project-flogo/flow/state"
 	"strconv"
+
+	"github.com/project-flogo/flow/state"
 
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
@@ -507,7 +508,7 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 	if containerInst.flowDef.GetErrorHandler() != nil {
 
 		// todo: should we clear out the existing workitem queue for items from containerInst?
-
+		inst.logger.Infof("Running flow [%s] failed, now handle error in the error handler", inst.flowDef.Name())
 		//clear existing instances
 		inst.taskInsts = make(map[string]*TaskInst)
 
@@ -519,7 +520,8 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 		}
 
 	} else {
-
+		// Print error message if no error handler
+		inst.logger.Error(err)
 		containerInst.SetStatus(model.FlowStatusFailed)
 
 		if containerInst != inst.Instance {
