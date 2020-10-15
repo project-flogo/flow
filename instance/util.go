@@ -91,6 +91,9 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 						taskInst.logger.Debugf("Overriding Input Attr: %s = %s", name, value)
 					}
 
+					if taskInst.inputs == nil {
+						taskInst.inputs = make(map[string]interface{})
+					}
 					if mdAttr, ok := mdInputs[name]; ok {
 						taskInst.inputs[name], err = coerce.ToType(value, mdAttr.Type())
 						if err != nil {
@@ -132,6 +135,9 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 					taskInst.logger.Debugf("Overriding Output Attr: %s = %s", name, value)
 				}
 
+				if taskInst.outputs == nil {
+					taskInst.outputs = make(map[string]interface{})
+				}
 				if mdAttr, ok := mdOutput[name]; ok {
 					taskInst.outputs[name], err = coerce.ToType(value, mdAttr.Type())
 					if err != nil {
