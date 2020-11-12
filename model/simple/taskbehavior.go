@@ -2,12 +2,13 @@ package simple
 
 import (
 	"fmt"
+	"sort"
+
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
-	"sort"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -191,7 +192,15 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		logger.Debugf("Task '%s' has %d outgoing links", ctx.Task().ID(), numLinks)
 	}
 
-	// process outgoing links
+	/**
+		Enter code
+		0 -> Default or dependence link type
+		1 -> Expression branches
+	    2 -> Otherwise branch
+		3 -> Label or success branch
+		4 -> Skip
+	*/
+	//process outgoing links
 	if numLinks > 0 {
 		taskEntries = make([]*model.TaskEntry, 0, numLinks)
 		var exprLinkFollowed, hasExprLink bool
@@ -202,7 +211,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 			//using skip propagation, so all links need to be followed, mark them false to start
 			linkInst.SetStatus(model.LinkStatusFalse)
-			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode: 3}
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode: 4}
 			taskEntries = append(taskEntries, taskEntry)
 
 			if linkInst.Link().Type() == definition.LtError {
@@ -215,9 +224,15 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				continue
 			}
 
-			if linkInst.Link().Type() == definition.LtDependency || linkInst.Link().Type() == definition.LtLabel {
+			if linkInst.Link().Type() == definition.LtDependency {
 				linkInst.SetStatus(model.LinkStatusTrue)
 				taskEntry.EnterCode = 0
+				continue
+			}
+
+			if linkInst.Link().Type() == definition.LtLabel {
+				linkInst.SetStatus(model.LinkStatusTrue)
+				taskEntry.EnterCode = 3
 				continue
 			}
 
@@ -233,7 +248,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				if follow {
 					exprLinkFollowed = true
 					linkInst.SetStatus(model.LinkStatusTrue)
-					taskEntry.EnterCode = 0
+					taskEntry.EnterCode = 1
 					if logger.DebugEnabled() {
 						logger.Debugf("Task '%s': Following Expression Link to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
 					}
@@ -288,7 +303,7 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 		for _, linkInst := range linkInsts {
 			linkInst.SetStatus(model.LinkStatusSkipped)
-			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode: 3}
+			taskEntry := &model.TaskEntry{Task: linkInst.Link().ToTask(), EnterCode: 4}
 			taskEntries = append(taskEntries, taskEntry)
 		}
 
@@ -329,7 +344,7 @@ func (tb *TaskBehavior) Error(ctx model.TaskContext, err error) (handled bool, t
 				if linkInst.Link().Type() == definition.LtError {
 					linkInst.SetStatus(model.LinkStatusTrue)
 				} else {
-					enterCode = 3
+					enterCode = 4
 					linkInst.SetStatus(model.LinkStatusFalse)
 				}
 
