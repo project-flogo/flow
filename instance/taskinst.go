@@ -48,7 +48,8 @@ func initTaskInst(taskInst *TaskInst, flowInst *Instance, task *definition.Task)
 	taskInst.taskID = task.ID()
 
 	if log.CtxLoggingEnabled() {
-		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("flowId", flowInst.ID()))
+		// Msg, flowName,ActivityName, flowInstance
+		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("flow_name", flowInst.Name()), log.FieldString("activity_name", taskInst.taskID), log.FieldString("flow_instance", flowInst.ID()))
 
 	} else {
 		taskInst.logger = task.ActivityConfig().Logger
