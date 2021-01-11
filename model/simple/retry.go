@@ -50,7 +50,7 @@ func retryEval(ctx model.TaskContext, retryData *RetryData) (bool, error) {
 		return false, errors.New("Retry Data not specified.")
 	}
 
-	ctx.FlowLogger().Debugf("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
+	ctx.FlowLogger().Infof("Task[%s] retrying on error. Retries left (%d)...", ctx.Task().ID(), retryData.Count)
 
 	if retryData.Interval > 0 {
 		ctx.FlowLogger().Debugf("Task[%s] sleeping for %d milliseconds...", ctx.Task().ID(), retryData.Interval)

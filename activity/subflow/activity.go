@@ -1,7 +1,6 @@
 package subflow
 
 import (
-	"github.com/project-flogo/core/support/log"
 	"sync"
 	"sync/atomic"
 
@@ -71,7 +70,6 @@ func (a *SubFlowActivity) Metadata() *activity.Metadata {
 		if a.mdUpdated == 0 {
 			flowIOMd, err := instance.GetFlowIOMetadata(a.flowURI)
 			if err != nil {
-				log.RootLogger().Warnf("unable to load subflow metadata: %s", err.Error())
 				return a.activityMd
 			}
 			a.activityMd.IOMetadata = flowIOMd
