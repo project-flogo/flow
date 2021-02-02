@@ -160,7 +160,7 @@ func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	postTaskEvent(ti)
 }
 
-// UpdateTaskInTracker update task to tracker
+// UpdateTaskToTracker update task to tracker
 func (ti *TaskInst) UpdateTaskToTracker() {
 	ti.flowInst.master.changeTracker.TaskUpdated(ti)
 }
