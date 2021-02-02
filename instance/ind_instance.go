@@ -288,6 +288,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
 		}
 	case model.EvalRepeat:
+		taskInst.UpdateTaskToTracker()
 		if taskInst.traceContext != nil {
 			// Finish previous span
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)

@@ -160,6 +160,11 @@ func (ti *TaskInst) SetStatus(status model.TaskStatus) {
 	postTaskEvent(ti)
 }
 
+// UpdateTaskToTracker update task to tracker
+func (ti *TaskInst) UpdateTaskToTracker() {
+	ti.flowInst.master.changeTracker.TaskUpdated(ti)
+}
+
 func (ti *TaskInst) SetWorkingData(key string, value interface{}) {
 	if ti.workingData == nil {
 		ti.workingData = NewWorkingDataScope(ti.flowInst)
