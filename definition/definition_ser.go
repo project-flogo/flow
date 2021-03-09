@@ -51,6 +51,7 @@ type LinkRep struct {
 	Name   string `json:"name,omitempty"`
 	ToID   string `json:"to"`
 	FromID string `json:"from"`
+	Label  string `json:"label"`
 	Value  string `json:"value,omitempty"`
 }
 
@@ -88,7 +89,14 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 
 			link, err := createLink(def.tasks, linkRep, id, ef)
 			if err != nil {
-				return nil, fmt.Errorf("error creating link[%s -> %s] in flow [%s]: %s", linkRep.FromID, linkRep.ToID, rep.Name, err.Error())
+				var linkLabel string
+				if len(linkRep.Label) > 0 {
+					linkLabel = fmt.Sprintf("[%s]: [%s -> %s]", linkRep.Label, linkRep.FromID, linkRep.ToID)
+				} else {
+					linkLabel = fmt.Sprintf("[%s -> %s]", linkRep.FromID, linkRep.ToID)
+				}
+				return nil, fmt.Errorf("error creating link %s in flow [%s]: %s", linkLabel, rep.Name, err.Error())
+
 			}
 
 			def.links[link.id] = link
@@ -369,6 +377,12 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 	link.id = id
 	link.linkType = LtDependency
 	var err error
+	var linkLabel string
+	if len(linkRep.Label) > 0 {
+		linkLabel = fmt.Sprintf("[%s]: [%s -> %s]", linkRep.Label, linkRep.FromID, linkRep.ToID)
+	} else {
+		linkLabel = fmt.Sprintf("[%s -> %s]", linkRep.FromID, linkRep.ToID)
+	}
 	if len(linkRep.Type) > 0 {
 		switch linkRep.Type {
 		case "default", "dependency", "0":
@@ -376,11 +390,11 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 		case "expression", "1":
 			link.linkType = LtExpression
 			if linkRep.Value == "" {
-				return nil, fmt.Errorf("expression value not set on link[%s -> %s]", linkRep.FromID, linkRep.ToID)
+				return nil, fmt.Errorf("expression value not set on link %s", linkLabel)
 			}
 			link.expr, err = ef.NewExpr(linkRep.Value)
 			if err != nil {
-				return nil, fmt.Errorf("invalid expression [%s] on link[%s -> %s]: %s", linkRep.Value, linkRep.FromID, linkRep.ToID, err.Error())
+				return nil, fmt.Errorf("invalid expression [%s] on link %s: %s", linkRep.Value, linkLabel, err.Error())
 			}
 		case "label", "2":
 			link.linkType = LtLabel
@@ -390,14 +404,14 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 			link.linkType = LtExprOtherwise
 		default:
 			//todo get the flow logger
-			log.RootLogger().Warnf("Unsupported link type '%s' on link[%s -> %s], using default link", linkRep.FromID, linkRep.ToID)
+			log.RootLogger().Warnf("Unsupported link type '%s' on link %s, using default link", linkLabel)
 		}
 	}
 
 	link.value = linkRep.Value
 	link.fromTask = tasks[linkRep.FromID]
 	link.toTask = tasks[linkRep.ToID]
-
+	link.label = linkRep.Label
 	if link.toTask == nil {
 		strId := strconv.Itoa(link.ID())
 		return nil, errors.New("Link[" + strId + "]: ToTask '" + linkRep.ToID + "' not found")
