@@ -350,6 +350,7 @@ type Link struct {
 	definition *Definition
 	id         int
 	name       string
+	label      string
 	fromTask   *Task
 	toTask     *Task
 	linkType   LinkType
