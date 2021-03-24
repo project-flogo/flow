@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/project-flogo/flow/state"
 
@@ -19,6 +20,7 @@ type IndependentInstance struct {
 	*Instance
 
 	id            string
+	eventId       string
 	stepID        int
 	workItemQueue *support.SyncQueue //todo: change to faster non-threadsafe queue
 	wiCounter     int
@@ -32,10 +34,11 @@ type IndependentInstance struct {
 
 	subflowCtr int
 	subflows   map[int]*Instance
+	startTime  time.Time
 }
 
 // New creates a new Flow Instance from the specified Flow
-func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, logger log.Logger) (*IndependentInstance, error) {
+func NewIndependentInstance(instanceID string, eventId string, flowURI string, flow *definition.Definition, logger log.Logger) (*IndependentInstance, error) {
 	var err error
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}
@@ -92,6 +95,14 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	//inst.ChangeTracker.SubFlowChange(taskInst.flowInst.subFlowId, CtAdd, embeddedInst.subFlowId, "")
 
 	return embeddedInst
+}
+
+func (inst *IndependentInstance) UpdateStartTime() {
+	inst.startTime = time.Now()
+}
+
+func (inst *IndependentInstance) ExecutionTime() time.Duration {
+	return time.Since(inst.startTime)
 }
 
 func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
@@ -288,6 +299,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
 		}
 	case model.EvalRepeat:
+		taskInst.UpdateTaskToTracker()
 		if taskInst.traceContext != nil {
 			// Finish previous span
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
