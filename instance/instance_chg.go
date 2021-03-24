@@ -4,6 +4,7 @@ import (
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/state"
 	"github.com/project-flogo/flow/state/change"
+	"github.com/project-flogo/flow/util"
 )
 
 var defaultChgTracker = &NoopChangeTracker{}
@@ -148,7 +149,7 @@ func (sct *SimpleChangeTracker) AttrChange(subflowId int, name string, value int
 		fc.Attrs = make(map[string]interface{})
 	}
 
-	fc.Attrs[name] = value
+	fc.Attrs[name] = util.DeepCopy(value)
 }
 
 func (sct *SimpleChangeTracker) FlowCreated(flow *IndependentInstance) {
@@ -167,14 +168,16 @@ func (sct *SimpleChangeTracker) FlowDone(flow *IndependentInstance) {
 		if flowC != nil {
 			flowC.FlowURI = flow.flowURI
 			flowC.Status = int(flow.status)
-			flowC.ReturnData, _ = flow.GetReturnData()
+			returnData, _ := flow.GetReturnData()
+			flowC.ReturnData = util.DeepCopyMap(returnData)
 		} else {
 			fc := &change.Flow{
 				NewFlow: false,
 				FlowURI: flow.flowURI,
 				Status:  int(flow.status),
 			}
-			fc.ReturnData, _ = flow.GetReturnData()
+			returnData, _ := flow.GetReturnData()
+			flowC.ReturnData = util.DeepCopyMap(returnData)
 			sct.currentStep.FlowChanges[flow.subflowId] = fc
 		}
 	}
@@ -202,14 +205,16 @@ func (sct *SimpleChangeTracker) SubflowDone(subflow *Instance) {
 			if fc != nil {
 				fc.FlowURI = subflow.flowURI
 				fc.Status = int(subflow.status)
-				fc.ReturnData, _ = subflow.GetReturnData()
+				returnData, _ := subflow.GetReturnData()
+				fc.ReturnData = util.DeepCopyMap(returnData)
 			} else {
 				fc := &change.Flow{
 					NewFlow: false,
 					FlowURI: subflow.flowURI,
 					Status:  int(subflow.status),
 				}
-				fc.ReturnData, _ = subflow.GetReturnData()
+				returnData, _ := subflow.GetReturnData()
+				fc.ReturnData = util.DeepCopyMap(returnData)
 				sct.currentStep.FlowChanges[subflow.subflowId] = fc
 			}
 		}
@@ -238,7 +243,7 @@ func (sct *SimpleChangeTracker) TaskUpdated(taskInst *TaskInst) {
 	task.Status = int(taskInst.status)
 	// Store input for debugger mode
 	if sct.mode == state.RecordingModeDebugger {
-		task.Input = taskInst.inputs
+		task.Input = util.DeepCopyMap(taskInst.inputs)
 	}
 }
 
