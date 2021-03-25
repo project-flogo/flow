@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/project-flogo/flow/state"
 
@@ -32,6 +33,7 @@ type IndependentInstance struct {
 
 	subflowCtr int
 	subflows   map[int]*Instance
+	startTime  time.Time
 }
 
 // New creates a new Flow Instance from the specified Flow
@@ -92,6 +94,14 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	//inst.ChangeTracker.SubFlowChange(taskInst.flowInst.subFlowId, CtAdd, embeddedInst.subFlowId, "")
 
 	return embeddedInst
+}
+
+func (inst *IndependentInstance) UpdateStartTime() {
+	inst.startTime = time.Now()
+}
+
+func (inst *IndependentInstance) ExecutionTime() time.Duration {
+	return time.Since(inst.startTime)
 }
 
 func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {

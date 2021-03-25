@@ -3,6 +3,7 @@ package instance
 import (
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
@@ -278,10 +279,11 @@ func (ti *TaskInst) HasActivity() bool {
 
 // EvalActivity implements activity.ActivityContext.EvalActivity method
 func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
-
+	startTime := time.Now()
 	actCfg := ti.task.ActivityConfig()
-
 	defer func() {
+		ti.logger.Infof("Eval activity [%s] on instance [%s] done, took: %s", ti.Name(), ti.flowInst.ID(), time.Since(startTime).String())
+
 		if r := recover(); r != nil {
 
 			ref := activity.GetRef(actCfg.Activity)
@@ -399,7 +401,6 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 	}
-
 	return done, nil
 }
 
