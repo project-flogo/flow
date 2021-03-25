@@ -281,8 +281,9 @@ func (ti *TaskInst) HasActivity() bool {
 func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 	startTime := time.Now()
 	actCfg := ti.task.ActivityConfig()
-
 	defer func() {
+		ti.logger.Infof("Eval activity [%s] on instance [%s] done, took: %s", ti.Name(), ti.flowInst.ID(), time.Since(startTime).String())
+
 		if r := recover(); r != nil {
 
 			ref := activity.GetRef(actCfg.Activity)
@@ -400,8 +401,6 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 	}
-	ti.logger.Infof("Eval activity [%s] on instance [%s] done, took: %dms", ti.Name(), ti.InstanceId(), int64(time.Since(startTime)/time.Millisecond))
-
 	return done, nil
 }
 

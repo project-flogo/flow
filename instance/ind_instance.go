@@ -20,7 +20,6 @@ type IndependentInstance struct {
 	*Instance
 
 	id            string
-	eventId       string
 	stepID        int
 	workItemQueue *support.SyncQueue //todo: change to faster non-threadsafe queue
 	wiCounter     int
@@ -38,7 +37,7 @@ type IndependentInstance struct {
 }
 
 // New creates a new Flow Instance from the specified Flow
-func NewIndependentInstance(instanceID string, eventId string, flowURI string, flow *definition.Definition, logger log.Logger) (*IndependentInstance, error) {
+func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, logger log.Logger) (*IndependentInstance, error) {
 	var err error
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}

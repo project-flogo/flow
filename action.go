@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/lixingwang/core/trigger"
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
@@ -15,6 +14,7 @@ import (
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/service"
 	"github.com/project-flogo/core/support/trace"
+	"github.com/project-flogo/core/trigger"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
@@ -22,7 +22,6 @@ import (
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
 	"strings"
-	"time"
 )
 
 func init() {
@@ -230,16 +229,15 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 		instanceID := idGenerator.NextAsString()
 		logger.Debug("Creating Flow Instance: ", instanceID)
-		eventId := trigger.GetHandlerEventIdFromContext(ctx)
-		logger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, eventId)
+		logger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
 
 		instLogger := logger
 
 		if log.CtxLoggingEnabled() {
-			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID), log.FieldString("eventId", eventId))
+			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID), log.FieldString("eventId", trigger.GetHandlerEventIdFromContext(ctx)))
 		}
 
-		inst, err = instance.NewIndependentInstance(instanceID, eventId, flowURI, flowDef, instLogger)
+		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
 		if err != nil {
 			return err
 		}
@@ -296,7 +294,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	//todo how do we check if debug is enabled?
 	//logInputs(inputs)
-	logger.Info("Executing Flow Instance: %s along with event id: %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
+	logger.Infof("Executing Flow Instance: %s along with event id: %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
 
 	if op == instance.OpStart {
 		inst.Start(inputs)
@@ -349,12 +347,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(nil, inst.GetError())
 		}
 
-		logger.Debugf("Done Executing flow instance [%s] with event id [%s] - Status: %d", inst.ID(), inst.EventId(), inst.Status())
+		logger.Debugf("Done Executing flow instance [%s] with event id [%s] - Status: %d", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.Status())
 
 		if inst.Status() == model.FlowStatusCompleted {
-			logger.Infof("Instance [%s] with event id [%s] Done, took [%d]ms", inst.ID(), inst.EventId(), int64(inst.ExecutionTime()/time.Millisecond))
+			logger.Infof("Instance [%s] with event id [%s] Done, took:%s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		} else if inst.Status() == model.FlowStatusFailed {
-			logger.Infof("Instance [%s] with event id [%s] Failed, took [%d]ms", inst.ID(), inst.EventId(), int64(inst.ExecutionTime()/time.Millisecond))
+			logger.Infof("Instance [%s] with event id [%s] Failed, took:%s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		}
 	}()
 

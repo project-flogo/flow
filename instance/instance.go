@@ -60,10 +60,6 @@ func (inst *Instance) ID() string {
 	return inst.master.id
 }
 
-func (inst *Instance) EventId() string {
-	return inst.master.eventId
-}
-
 func (inst *Instance) TracingContext() trace.TracingContext {
 
 	return inst.tracingCtx
