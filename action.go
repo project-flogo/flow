@@ -294,7 +294,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	//todo how do we check if debug is enabled?
 	//logInputs(inputs)
-	logger.Infof("Executing Flow Instance: %s along with event id: %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
+	logger.Infof("Executing Flow Instance [%s] for event id [%s]", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
 
 	if op == instance.OpStart {
 		inst.Start(inputs)
@@ -347,12 +347,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(nil, inst.GetError())
 		}
 
-		logger.Debugf("Done Executing flow instance [%s] with event id [%s] - Status: %d", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.Status())
+		logger.Debugf("Executing flow instance [%s] for event id [%s] - Status: %d", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.Status())
 
 		if inst.Status() == model.FlowStatusCompleted {
-			logger.Infof("Instance [%s] with event id [%s] Done, took:%s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
+			logger.Infof("Flow Instance [%s] for event id [%s] completed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		} else if inst.Status() == model.FlowStatusFailed {
-			logger.Infof("Instance [%s] with event id [%s] Failed, took:%s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
+			logger.Infof("Flow Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		}
 	}()
 

@@ -282,7 +282,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 	startTime := time.Now()
 	actCfg := ti.task.ActivityConfig()
 	defer func() {
-		ti.logger.Infof("Eval activity [%s] on instance [%s] done, took: %s", ti.Name(), ti.flowInst.ID(), time.Since(startTime).String())
+		ti.logger.Infof("Activity [%s] for instance [%s] completed in %s", ti.Name(), ti.flowInst.ID(), time.Since(startTime).String())
 
 		if r := recover(); r != nil {
 
