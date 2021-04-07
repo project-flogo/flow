@@ -364,6 +364,11 @@ func (link *Link) ID() int {
 	return link.id
 }
 
+// Label gets the Label of the link
+func (link *Link) Label() string {
+	return link.label
+}
+
 // Type gets the link type
 func (link *Link) Type() LinkType {
 	return link.linkType
