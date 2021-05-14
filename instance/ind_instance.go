@@ -104,6 +104,19 @@ func (inst *IndependentInstance) ExecutionTime() time.Duration {
 	return time.Since(inst.startTime)
 }
 
+func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
+	return &state.FlowState{
+		UserId:         flowsupport.GetUserName(),
+		AppId:          flowsupport.GetAppId(),
+		HostId:         flowsupport.GetHostId(),
+		FlowName:       inst.Name(),
+		FlowInstanceId: inst.id,
+		FlowStats:      string(convertFlowStatus(inst.status)),
+		StartTime:      inst.startTime,
+		EndTime:        time.Now(),
+	}
+}
+
 func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
 	return inst.startInstance(inst.Instance, startAttrs)
 }
@@ -266,7 +279,6 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	}()
 
 	var err error
-
 	var evalResult model.EvalResult
 
 	if taskInst.status == model.TaskStatusWaiting {
@@ -706,7 +718,9 @@ func (inst *Instance) SpanConfig() trace.Config {
 }
 
 func (inst *IndependentInstance) CurrentStep(reset bool) *state.Step {
-	return inst.changeTracker.ExtractStep(reset)
+	step := inst.changeTracker.ExtractStep(reset)
+	//step.SetMasterData(state.GetMasterData(inst.ID()))
+	return step
 }
 
 func (inst *IndependentInstance) Snapshot() *state.Snapshot {
@@ -729,6 +743,7 @@ func (inst *IndependentInstance) Snapshot() *state.Snapshot {
 		}
 	}
 
+	//fs.SetMasterData(state.GetMasterData(inst.ID()))
 	return fs
 }
 

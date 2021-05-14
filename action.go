@@ -209,7 +209,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	//todo: consider switch to URI to dictate flow operation (ex. flow://blah/resume)
 
 	var inst *instance.IndependentInstance
-
 	switch op {
 	case instance.OpStart:
 
@@ -284,6 +283,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 	//Update flow starting time
 	inst.UpdateStartTime()
+	if stateRecorder != nil {
+		stateRecorder.RecordStart(inst.GetFlowState(inputs))
+	}
+
 	if trace.Enabled() {
 		tc, err := trace.GetTracer().StartTrace(inst.SpanConfig(), trace.ExtractTracingContext(ctx))
 		if err != nil {
@@ -354,6 +357,11 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		} else if inst.Status() == model.FlowStatusFailed {
 			logger.Infof("Flow Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		}
+
+		if stateRecorder != nil {
+			stateRecorder.RecordDone(inst.GetFlowState(inputs))
+		}
+
 	}()
 
 	return nil
