@@ -55,7 +55,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
-	inst.changeTracker = NewInstanceChangeTracker(inst.id)
+	inst.changeTracker = NewInstanceChangeTracker(inst.id, 0)
 	inst.changeTracker.FlowCreated(inst)
 
 	inst.taskInsts = make(map[string]*TaskInst)
@@ -79,6 +79,36 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.linkInsts = make(map[int]*LinkInst)
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
+	//
+	//handler := &subFlowAsyncResultHandler{done: make(chan bool, 1), result: make(chan map[string]interface{}, 1)}
+	//embeddedInst.resultHandler = handler
+	//var done bool
+	//go func() {
+	//	for !done {
+	//		select {
+	//		case result := <-handler.result:
+	//			host, ok := embeddedInst.host.(*TaskInst)
+	//			if ok {
+	//				//if the flow failed, set the error
+	//				for name, value := range result {
+	//					//todo review how we should handle an error encountered here
+	//					_ = host.SetOutput(name, value)
+	//				}
+	//				//if the flow failed, set the error
+	//				inst.scheduleEval(host)
+	//				//
+	//				////Sub flow done
+	//				//containerInst.master.GetChanges().SubflowDone(containerInst)
+	//				//inst.scheduleEval(host)
+	//			}
+	//		case <-handler.done:
+	//			//if !replied {
+	//			//	actionData.arc <- &ActionResult{}
+	//			//}
+	//			done = true
+	//		}
+	//	}
+	//}()
 
 	if trace.Enabled() {
 		tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), taskInst.traceContext) //TODO handle error
@@ -660,7 +690,7 @@ func getFlowModel(flow *definition.Definition) (*model.FlowModel, error) {
 }
 
 //// Restart indicates that this FlowInstance was restarted
-func (inst *IndependentInstance) Restart(logger log.Logger, id string) error {
+func (inst *IndependentInstance) Restart(logger log.Logger, id string, initStepId int) error {
 	inst.id = id
 	inst.logger = logger
 
@@ -680,7 +710,7 @@ func (inst *IndependentInstance) Restart(logger log.Logger, id string) error {
 	inst.master = inst
 	inst.init(inst.Instance)
 
-	inst.changeTracker = NewInstanceChangeTracker(inst.id)
+	inst.changeTracker = NewInstanceChangeTracker(inst.id, initStepId)
 	inst.changeTracker.FlowCreated(inst)
 
 	return nil
@@ -772,4 +802,20 @@ func populateBaseSnapshot(inst *Instance, base *state.SnapshotBase) {
 			base.Links = append(base.Links, &state.Link{Id: id, Status: int(link.status)})
 		}
 	}
+}
+
+// AsyncResultHandler simple ResultHandler to use in the asynchronous case
+type subFlowAsyncResultHandler struct {
+	done   chan bool
+	result chan map[string]interface{}
+}
+
+// HandleResult implements action.ResultHandler.HandleResult
+func (rh *subFlowAsyncResultHandler) HandleResult(results map[string]interface{}, err error) {
+	rh.result <- results
+}
+
+// Done implements action.ResultHandler.Done
+func (rh *subFlowAsyncResultHandler) Done() {
+	rh.done <- true
 }

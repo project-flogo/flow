@@ -12,11 +12,13 @@ const (
 
 // RunOptions the options when running a FlowAction
 type RunOptions struct {
-	Op           int
-	ReturnID     bool
-	FlowURI      string
-	InitialState *IndependentInstance
-	ExecOptions  *ExecOptions
+	Op                  int
+	ReturnID            bool
+	FlowURI             string
+	PreservedInstanceId string
+	InitStepId          int
+	InitialState        *IndependentInstance
+	ExecOptions         *ExecOptions
 }
 
 // ExecOptions are optional Patch & Interceptor to be used during instance execution

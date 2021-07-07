@@ -176,20 +176,22 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	retID := false
 	var initialState *instance.IndependentInstance
 	var flowURI string
-
+	var preserveInstanceId string
+	var initStepId int
 	runOptions, exists := inputs["_run_options"]
 
 	var execOptions *instance.ExecOptions
 
 	if exists {
 		ro, ok := runOptions.(*instance.RunOptions)
-
 		if ok {
 			op = ro.Op
 			retID = ro.ReturnID
+			preserveInstanceId = ro.PreservedInstanceId
 			initialState = ro.InitialState
 			flowURI = ro.FlowURI
 			execOptions = ro.ExecOptions
+			initStepId = ro.InitStepId
 		}
 	}
 
@@ -226,7 +228,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			}
 		}
 
-		instanceID := idGenerator.NextAsString()
+		var instanceID string
+		if len(preserveInstanceId) > 0 {
+			instanceID = preserveInstanceId
+		} else {
+			instanceID = idGenerator.NextAsString()
+		}
+
 		logger.Debug("Creating Flow Instance: ", instanceID)
 		logger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
 
@@ -244,7 +252,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if initialState != nil {
 
 			inst = initialState
-			instanceID := idGenerator.NextAsString()
+			var instanceID string
+
+			if len(preserveInstanceId) > 0 {
+				instanceID = preserveInstanceId
+			} else {
+				instanceID = idGenerator.NextAsString()
+			}
 
 			logger.Debug("Restarting Flow Instance: ", instanceID)
 
@@ -253,7 +267,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
 			}
 
-			err := inst.Restart(instLogger, instanceID)
+			err := inst.Restart(instLogger, instanceID, initStepId)
 			if err != nil {
 				return err
 			}
@@ -306,6 +320,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 
 	stepCount := 0
+	if initStepId > 0 {
+		stepCount = initStepId
+	}
 	hasWork := true
 
 	inst.SetResultHandler(handler)
