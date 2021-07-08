@@ -80,7 +80,7 @@ func (dw *DoWhileTaskBehavior) checkDoWhileCondition(ctx model.TaskContext) (eva
 // Evaluates condition set for do while task
 func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, condition expression.Expr) (evalResult model.EvalResult, err error) {
 	if t, ok := ctx.(*instance.TaskInst); ok {
-		result, err := condition.Eval(getScope(ctx, t))
+		result, err := condition.Eval(getScope(t))
 		if err != nil {
 			return model.EvalFail, err
 		}
@@ -98,7 +98,7 @@ func (dw *DoWhileTaskBehavior) evaluateCondition(ctx model.TaskContext, conditio
 	return model.EvalDone, nil
 }
 
-func getScope(ctx model.TaskContext, t *instance.TaskInst) data.Scope {
+func getScope(t *instance.TaskInst) data.Scope {
 	if t.GetWorkingDataScope() != nil {
 		return t.GetWorkingDataScope()
 	}

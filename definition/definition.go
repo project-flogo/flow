@@ -1,8 +1,8 @@
 package definition
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/project-flogo/core/data/coerce"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
@@ -210,44 +210,72 @@ func (l *LoopConfig) Delay() int {
 	return l.delay
 }
 
-type RetryOnErrConfig struct {
-	count    int
-	interval int
+type RetryOnError interface {
+	Count(scope data.Scope) (int, error)
+	Interval(scope data.Scope) (int, error)
+}
+type retryOnErrConfig struct {
+	count    interface{}
+	interval interface{}
 }
 
-func (r *RetryOnErrConfig) Count() int {
-	return r.count
-}
-
-func (r *RetryOnErrConfig) Interval() int {
-	return r.interval
-}
-
-func (r *RetryOnErrConfig) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		Count    int `md:"count"`
-		Interval int `md:"interval"`
-	}{
-		Count:    r.count,
-		Interval: r.interval,
-	})
-}
-
-// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON
-func (r *RetryOnErrConfig) UnmarshalJSON(data []byte) error {
-
-	ser := &struct {
-		Count    int `md:"count"`
-		Interval int `md:"interval"`
-	}{}
-
-	if err := json.Unmarshal(data, ser); err != nil {
-		return err
+func (r *retryOnErrConfig) Count(scope data.Scope) (int, error) {
+	if r.count != nil {
+		switch t := r.count.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return coerce.ToInt(data)
+		default:
+			return coerce.ToInt(t)
+		}
 	}
-	r.count = ser.Count
-	r.interval = ser.Interval
-	return nil
+	return 0, nil
 }
+
+func (r *retryOnErrConfig) Interval(scope data.Scope) (int, error) {
+	if r.interval != nil {
+		switch t := r.interval.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return coerce.ToInt(data)
+		default:
+			return coerce.ToInt(t)
+		}
+	}
+	return 0, nil
+}
+
+//func (r *RetryOnErrConfig) MarshalJSON() ([]byte, error) {
+//	return json.Marshal(&struct {
+//		Count    int `md:"count"`
+//		Interval int `md:"interval"`
+//	}{
+//		Count:    r.count,
+//		Interval: r.interval,
+//	})
+//}
+//
+//// UnmarshalJSON implements json.Unmarshaler.UnmarshalJSON
+//func (r *RetryOnErrConfig) UnmarshalJSON(data []byte) error {
+//
+//	ser := &struct {
+//		Count    int `md:"count"`
+//		Interval int `md:"interval"`
+//	}{}
+//
+//	if err := json.Unmarshal(data, ser); err != nil {
+//		return err
+//	}
+//	r.count = ser.Count
+//	r.interval = ser.Interval
+//	return nil
+//}
 
 // Task is the object that describes the definition of
 // a task.  It contains its data (attributes) and its
@@ -264,7 +292,7 @@ type Task struct {
 	settingsMapper mapper.Mapper
 
 	loopCfg          *LoopConfig
-	retryOnErrConfig *RetryOnErrConfig
+	retryOnErrConfig RetryOnError
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -294,7 +322,7 @@ func (task *Task) SettingsMapper() mapper.Mapper {
 	return task.settingsMapper
 }
 
-func (task *Task) RetryOnErrConfig() *RetryOnErrConfig {
+func (task *Task) RetryOnErrConfig() RetryOnError {
 	return task.retryOnErrConfig
 }
 

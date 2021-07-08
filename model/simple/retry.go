@@ -3,6 +3,7 @@ package simple
 import (
 	"errors"
 	"fmt"
+	"github.com/project-flogo/flow/instance"
 	"time"
 
 	"github.com/project-flogo/flow/model"
@@ -30,8 +31,16 @@ func getRetryData(ctx model.TaskContext) (retryData *RetryData, err error) {
 		retryData = &RetryData{}
 
 		retryCfg := ctx.Task().RetryOnErrConfig()
-		retryData.Count = retryCfg.Count()
-		retryData.Interval = retryCfg.Interval()
+		if t, ok := ctx.(*instance.TaskInst); ok {
+			retryData.Count, err = retryCfg.Count(getScope(t))
+			if err != nil {
+				return nil, err
+			}
+			retryData.Interval, err = retryCfg.Interval(getScope(t))
+			if err != nil {
+				return nil, err
+			}
+		}
 		ctx.SetWorkingData(retryOnErrorAttr, retryData)
 	} else {
 		retryData, ok = rd.(*RetryData)
