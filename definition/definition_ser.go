@@ -162,7 +162,7 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 		return nil, err
 	}
 
-	task.retryOnErrConfig, err = getRetryOnErrCfg(rep.Settings)
+	task.retryOnErrConfig, err = getRetryOnErrCfg(rep.Settings, ef)
 	if err != nil {
 		return nil, err
 	}
@@ -425,14 +425,14 @@ func createLink(tasks map[string]*Task, linkRep *LinkRep, id int, ef expression.
 	return link, nil
 }
 
-func getRetryOnErrCfg(settings map[string]interface{}) (*RetryOnErrConfig, error) {
+func getRetryOnErrCfg(settings map[string]interface{}, ef expression.Factory) (RetryOnError, error) {
 
 	retrySetting, ok := settings["retryOnError"]
 	if !ok {
 		return nil, nil
 	}
 
-	retryErr := &RetryOnErrConfig{}
+	retryErr := &retryOnErrConfig{}
 
 	retryCfgMap, err := coerce.ToObject(retrySetting)
 	if err != nil {
@@ -442,32 +442,43 @@ func getRetryOnErrCfg(settings map[string]interface{}) (*RetryOnErrConfig, error
 	if exist && count != nil {
 		strVal, ok := count.(string)
 		if ok && len(strVal) > 0 && strVal[0] == '=' {
-			count, err = resolve.Resolve(strVal[1:], nil)
-			if err != nil {
-				return nil, err
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
 			}
+			conditionExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile retry on error condition error: %s", err.Error())
+			}
+			retryErr.count = conditionExpr
+		} else {
+			cnt, err := coerce.ToInt(count)
+			if err != nil {
+				return nil, fmt.Errorf("retryOnError count must be int")
+			}
+			retryErr.count = cnt
 		}
-		cnt, err := coerce.ToInt(count)
-		if err != nil {
-			return nil, fmt.Errorf("retryOnError count must be int")
-		}
-		retryErr.count = cnt
+
 	}
 
 	interval, exist := retryCfgMap["interval"]
 	if exist && interval != nil {
 		strVal, ok := interval.(string)
 		if ok && len(strVal) > 0 && strVal[0] == '=' {
-			interval, err = resolve.Resolve(strVal[1:], nil)
-			if err != nil {
-				return nil, err
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
 			}
+			intervalExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile retry on error condition error: %s", err.Error())
+			}
+			retryErr.interval = intervalExpr
+		} else {
+			intervalInt, err := coerce.ToInt(interval)
+			if err != nil {
+				return nil, fmt.Errorf("retryOnError interval must be int")
+			}
+			retryErr.interval = intervalInt
 		}
-		intervalInt, err := coerce.ToInt(interval)
-		if err != nil {
-			return nil, fmt.Errorf("retryOnError interval must be int")
-		}
-		retryErr.interval = intervalInt
 	}
 
 	return retryErr, nil
