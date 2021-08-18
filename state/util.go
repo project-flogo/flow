@@ -8,6 +8,8 @@ type FlowInfo struct {
 	FlowName   string `json:"flowName,omitempty"`
 	Status     int    `json:"status,omitempty"`
 	FlowStatus string `json:"flowStatus,omitempty"`
+	StartTime  string `json:"starttime,omitempty"`
+	EndTime    string `json:"endtime,omitempty"`
 }
 
 func StepsToSnapshot(flowId string, steps []*Step) *Snapshot {
