@@ -7,6 +7,7 @@ type FlowInfo struct {
 	FlowURI    string `json:"flowURI,omitempty"`
 	FlowName   string `json:"flowName,omitempty"`
 	Status     int    `json:"status,omitempty"`
+	HostId     string `json:"hostid,omitempty"`
 	FlowStatus string `json:"flowStatus,omitempty"`
 	StartTime  string `json:"starttime,omitempty"`
 	EndTime    string `json:"endtime,omitempty"`
