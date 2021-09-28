@@ -137,7 +137,8 @@ func (inst *IndependentInstance) ExecutionTime() time.Duration {
 func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
 	return &state.FlowState{
 		UserId:         flowsupport.GetUserName(),
-		AppId:          flowsupport.GetAppId(),
+		AppName:        flowsupport.GetAppName(),
+		AppVersion:     flowsupport.GetAppVerison(),
 		HostId:         flowsupport.GetHostId(),
 		FlowName:       inst.Name(),
 		FlowInstanceId: inst.id,
@@ -611,7 +612,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
-
 		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
 		taskInst.id = taskInst.taskID
 

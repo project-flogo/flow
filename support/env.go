@@ -6,12 +6,13 @@ import (
 )
 
 const (
-	UserName = "FLOGO_APP_USERNAME"
-	HostName = "FLOGO_HOST_NAME"
-	AppName  = "FLOGO_APP_NAME"
+	UserName   = "FLOGO_APP_USERNAME"
+	HostName   = "FLOGO_HOST_NAME"
+	AppName    = "FLOGO_APP_NAME"
+	AppVersion = "FLOGO_APP_VERSION"
 )
 
-var username, hostName, appId string
+var username, hostName, appName, appVersion string
 
 func GetUserName() string {
 	if len(username) > 0 {
@@ -36,13 +37,24 @@ func GetHostId() string {
 	return h
 }
 
-func GetAppId() string {
-	if len(appId) > 0 {
-		return appId
+func GetAppName() string {
+	if len(appName) > 0 {
+		return appName
 	}
-	appId = os.Getenv(AppName)
-	if len(appId) <= 0 {
+	appName = os.Getenv(AppName)
+	if len(appName) <= 0 {
 		return engine.GetAppName()
 	}
-	return appId
+	return appName
+}
+
+func GetAppVerison() string {
+	if len(appVersion) > 0 {
+		return appVersion
+	}
+	appVersion = os.Getenv(AppVersion)
+	if len(appVersion) <= 0 {
+		return engine.GetAppVersion()
+	}
+	return appVersion
 }

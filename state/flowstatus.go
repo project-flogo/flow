@@ -6,7 +6,8 @@ import (
 
 type FlowState struct {
 	UserId         string `json:"user_id"`
-	AppId          string `json:"app_id"`
+	AppName        string `json:"app_name"`
+	AppVersion     string `json:"app_version"`
 	HostId         string `json:"host_id"`
 	FlowName       string `json:"flow_name"`
 	FlowInstanceId string `json:"flow_instance_id"`
