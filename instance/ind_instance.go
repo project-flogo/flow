@@ -127,7 +127,15 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 }
 
 func (inst *IndependentInstance) UpdateStartTime() {
-	inst.startTime = time.Now()
+	var utctz, errLoc = time.LoadLocation("UTC")
+	if errLoc != nil {
+		tz, _ := time.Now().Zone()
+		log.RootLogger().Warnf("Time will be in %s timezone as UTC time zone not supported", tz)
+		inst.startTime = time.Now()
+	} else {
+		inst.startTime = time.Now().In(utctz)
+	}
+
 }
 
 func (inst *IndependentInstance) ExecutionTime() time.Duration {
@@ -135,6 +143,15 @@ func (inst *IndependentInstance) ExecutionTime() time.Duration {
 }
 
 func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
+	var utctz, errLoc = time.LoadLocation("UTC")
+	var endTime time.Time
+	if errLoc != nil {
+		tz, _ := time.Now().Zone()
+		log.RootLogger().Warnf("Time will be in %s timezone as UTC time zone not supported", tz)
+		endTime = time.Now()
+	} else {
+		endTime = time.Now().In(utctz)
+	}
 	return &state.FlowState{
 		UserId:         flowsupport.GetUserName(),
 		AppName:        flowsupport.GetAppName(),
@@ -144,7 +161,7 @@ func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *st
 		FlowInstanceId: inst.id,
 		FlowStats:      string(convertFlowStatus(inst.status)),
 		StartTime:      inst.startTime,
-		EndTime:        time.Now(),
+		EndTime:        endTime,
 	}
 }
 
