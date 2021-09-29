@@ -3,14 +3,15 @@ package state
 import "github.com/project-flogo/flow/state/change"
 
 type FlowInfo struct {
-	Id         string `json:"id"`
-	FlowURI    string `json:"flowURI,omitempty"`
-	FlowName   string `json:"flowName,omitempty"`
-	Status     int    `json:"status,omitempty"`
-	HostId     string `json:"hostid,omitempty"`
-	FlowStatus string `json:"flowStatus,omitempty"`
-	StartTime  string `json:"starttime,omitempty"`
-	EndTime    string `json:"endtime,omitempty"`
+	Id            string `json:"id"`
+	FlowURI       string `json:"flowURI,omitempty"`
+	FlowName      string `json:"flowName,omitempty"`
+	Status        int    `json:"status,omitempty"`
+	HostId        string `json:"hostid,omitempty"`
+	FlowStatus    string `json:"flowStatus,omitempty"`
+	StartTime     string `json:"starttime,omitempty"`
+	EndTime       string `json:"endtime,omitempty"`
+	ExecutionTime string `json:"executiontime,omitempty"`
 }
 
 func StepsToSnapshot(flowId string, steps []*Step) *Snapshot {
