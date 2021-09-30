@@ -127,7 +127,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 }
 
 func (inst *IndependentInstance) UpdateStartTime() {
-		inst.startTime = time.Now().UTC()
+	inst.startTime = time.Now().UTC()
 }
 
 func (inst *IndependentInstance) ExecutionTime() time.Duration {
