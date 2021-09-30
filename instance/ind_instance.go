@@ -127,7 +127,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 }
 
 func (inst *IndependentInstance) UpdateStartTime() {
-	inst.startTime = time.Now()
+	inst.startTime = time.Now().UTC()
 }
 
 func (inst *IndependentInstance) ExecutionTime() time.Duration {
@@ -144,7 +144,7 @@ func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *st
 		FlowInstanceId: inst.id,
 		FlowStats:      string(convertFlowStatus(inst.status)),
 		StartTime:      inst.startTime,
-		EndTime:        time.Now(),
+		EndTime:        time.Now().UTC(),
 	}
 }
 
