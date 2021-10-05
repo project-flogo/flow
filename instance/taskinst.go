@@ -120,6 +120,17 @@ func (ti *TaskInst) SetOutput(name string, value interface{}) error {
 	return nil
 }
 
+func (ti *TaskInst) SetOutputs(outputs map[string]interface{}) error {
+
+	if ti.logger.DebugEnabled() {
+		ti.logger.Debugf("Task[%s] - Set Outputs: %v", ti.taskID, outputs)
+	}
+
+	ti.outputs = outputs
+
+	return nil
+}
+
 // GetInputObject implements activity.Context.GetInputObject
 func (ti *TaskInst) GetInputObject(input data.StructValue) error {
 	err := input.FromMap(ti.inputs)

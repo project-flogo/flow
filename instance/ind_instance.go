@@ -368,11 +368,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 			host, ok := containerInst.host.(*TaskInst)
 
 			if ok {
-				//if the flow failed, set the error
-				for name, value := range containerInst.returnData {
-					//todo review how we should handle an error encountered here
-					_ = host.SetOutput(name, value)
-				}
+				host.SetOutputs(containerInst.returnData)
 				//Sub flow done
 				containerInst.master.GetChanges().SubflowDone(containerInst)
 				inst.scheduleEval(host)
