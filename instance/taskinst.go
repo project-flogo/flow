@@ -571,7 +571,7 @@ func (ti *TaskInst) copyOutputs() map[string]interface{} {
 
 func (ti *TaskInst) SpanConfig() trace.Config {
 	config := trace.Config{}
-	config.Operation = ti.flowInst.Name()
+	config.Operation = ti.task.Name()
 	config.Tags = make(map[string]interface{})
 	config.Tags["flow_id"] = ti.flowInst.ID()
 	config.Tags["flow_name"] = ti.flowInst.Name()
