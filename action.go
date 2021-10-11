@@ -328,10 +328,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	hasWork := true
 
 	inst.SetResultHandler(handler)
-	var logOnlyEndtime bool
 	if stateRecorder != nil {
-		recordStateWithStartEndTime(inst, time.Now().UTC(), nilTime)
-		logOnlyEndtime = true
+		recordStateWithStartEndTime(inst, time.Now().UTC(), time.Now().UTC())
 	}
 
 	go func() {
@@ -351,15 +349,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			stepCount++
 			logger.Debugf("Step: %d", stepCount)
 			taskStartTime := time.Now().UTC()
-			if logOnlyEndtime {
-				taskStartTime = nilTime
-			}
 			hasWork = inst.DoStep()
-
 			if stateRecorder != nil {
 				recordStateWithStartEndTime(inst, taskStartTime, time.Now().UTC())
 			}
-			logOnlyEndtime = false
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {
