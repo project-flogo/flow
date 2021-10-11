@@ -22,6 +22,7 @@ import (
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -43,6 +44,7 @@ var logger log.Logger
 var flowManager *flowsupport.FlowManager
 var stateRecorder state.Recorder
 var stateRecordingMode = state.RecordingModeOff
+var nilTime = time.Time{}
 
 type ActionFactory struct {
 	resManager *resource.Manager
@@ -326,9 +328,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	hasWork := true
 
 	inst.SetResultHandler(handler)
-
+	var logOnlyEndtime bool
 	if stateRecorder != nil {
-		recordState(inst)
+		recordStateWithStartEndTime(inst, time.Now().UTC(), nilTime)
+		logOnlyEndtime = true
 	}
 
 	go func() {
@@ -347,11 +350,16 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
 			stepCount++
 			logger.Debugf("Step: %d", stepCount)
+			taskStartTime := time.Now().UTC()
+			if logOnlyEndtime {
+				taskStartTime = nilTime
+			}
 			hasWork = inst.DoStep()
 
 			if stateRecorder != nil {
-				recordState(inst)
+				recordStateWithStartEndTime(inst, taskStartTime, time.Now().UTC())
 			}
+			logOnlyEndtime = false
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {
@@ -394,6 +402,29 @@ func recordState(inst *instance.IndependentInstance) {
 
 	if state.RecordSteps(stateRecordingMode) {
 		err := stateRecorder.RecordStep(inst.CurrentStep(true))
+		if err != nil {
+			logger.Warnf("unable to record step: %v", err)
+		}
+	}
+}
+
+func recordStateWithStartEndTime(inst *instance.IndependentInstance, strtTime time.Time, endTime time.Time) {
+	if state.RecordSnapshot(stateRecordingMode) {
+		err := stateRecorder.RecordSnapshot(inst.Snapshot())
+		if err != nil {
+			logger.Warnf("unable to record snapshot: %v", err)
+		}
+	}
+
+	if state.RecordSteps(stateRecordingMode) {
+		currStep := inst.CurrentStep(true)
+		if strtTime != nilTime {
+			currStep.StartTime = strtTime
+		}
+		if endTime != nilTime {
+			currStep.EndTime = endTime
+		}
+		err := stateRecorder.RecordStep(currStep)
 		if err != nil {
 			logger.Warnf("unable to record step: %v", err)
 		}
