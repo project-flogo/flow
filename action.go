@@ -22,6 +22,7 @@ import (
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -326,9 +327,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	hasWork := true
 
 	inst.SetResultHandler(handler)
-
 	if stateRecorder != nil {
-		recordState(inst)
+		recordState(inst, time.Now().UTC())
 	}
 
 	go func() {
@@ -347,10 +347,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
 			stepCount++
 			logger.Debugf("Step: %d", stepCount)
+			taskStartTime := time.Now().UTC()
 			hasWork = inst.DoStep()
-
 			if stateRecorder != nil {
-				recordState(inst)
+				recordState(inst, taskStartTime)
 			}
 		}
 
@@ -384,7 +384,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	return nil
 }
 
-func recordState(inst *instance.IndependentInstance) {
+func recordState(inst *instance.IndependentInstance, strtTime time.Time) {
 	if state.RecordSnapshot(stateRecordingMode) {
 		err := stateRecorder.RecordSnapshot(inst.Snapshot())
 		if err != nil {
@@ -393,7 +393,10 @@ func recordState(inst *instance.IndependentInstance) {
 	}
 
 	if state.RecordSteps(stateRecordingMode) {
-		err := stateRecorder.RecordStep(inst.CurrentStep(true))
+		currStep := inst.CurrentStep(true)
+		currStep.StartTime = strtTime
+		currStep.EndTime = time.Now().UTC()
+		err := stateRecorder.RecordStep(currStep)
 		if err != nil {
 			logger.Warnf("unable to record step: %v", err)
 		}
