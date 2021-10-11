@@ -34,10 +34,12 @@ type IndependentInstance struct {
 	subflowCtr int
 	subflows   map[int]*Instance
 	startTime  time.Time
+	//Instance recorder
+	instRecorder *stateInstanceRecorder
 }
 
 // New creates a new Flow Instance from the specified Flow
-func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, logger log.Logger) (*IndependentInstance, error) {
+func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, instRecorder *stateInstanceRecorder, logger log.Logger) (*IndependentInstance, error) {
 	var err error
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}
@@ -60,6 +62,8 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 
 	inst.taskInsts = make(map[string]*TaskInst)
 	inst.linkInsts = make(map[int]*LinkInst)
+
+	inst.instRecorder = instRecorder
 
 	return inst, nil
 }
@@ -522,6 +526,10 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 					_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 				}
 
+				//Finished Subflow with error
+				if containerInst != nil && containerInst.master != nil {
+					containerInst.master.RecordState(time.Now())
+				}
 				// spawned from task instance
 				host, ok := containerInst.host.(*TaskInst)
 
@@ -585,6 +593,9 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 				_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 			}
 
+			if containerInst != nil && containerInst.master != nil {
+				containerInst.master.RecordState(time.Now())
+			}
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)
 

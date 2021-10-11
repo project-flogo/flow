@@ -245,7 +245,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID), log.FieldString("eventId", trigger.GetHandlerEventIdFromContext(ctx)))
 		}
 
-		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
+		instRecorder := instance.NewStateInstnaceRecorder(stateRecorder, stateRecordingMode)
+		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instRecorder, instLogger)
 		if err != nil {
 			return err
 		}
@@ -328,7 +329,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	inst.SetResultHandler(handler)
 	if stateRecorder != nil {
-		recordState(inst, time.Now().UTC())
+		inst.RecordState(time.Now().UTC())
 	}
 
 	go func() {
@@ -350,7 +351,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			taskStartTime := time.Now().UTC()
 			hasWork = inst.DoStep()
 			if stateRecorder != nil {
-				recordState(inst, taskStartTime)
+				inst.RecordState(taskStartTime)
 			}
 		}
 
@@ -382,23 +383,4 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}()
 
 	return nil
-}
-
-func recordState(inst *instance.IndependentInstance, strtTime time.Time) {
-	if state.RecordSnapshot(stateRecordingMode) {
-		err := stateRecorder.RecordSnapshot(inst.Snapshot())
-		if err != nil {
-			logger.Warnf("unable to record snapshot: %v", err)
-		}
-	}
-
-	if state.RecordSteps(stateRecordingMode) {
-		currStep := inst.CurrentStep(true)
-		currStep.StartTime = strtTime
-		currStep.EndTime = time.Now().UTC()
-		err := stateRecorder.RecordStep(currStep)
-		if err != nil {
-			logger.Warnf("unable to record step: %v", err)
-		}
-	}
 }
