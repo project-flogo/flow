@@ -328,7 +328,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	inst.SetResultHandler(handler)
 	if stateRecorder != nil {
-		recordState(inst, time.Now().UTC(), time.Now().UTC())
+		recordState(inst, time.Now().UTC())
 	}
 
 	go func() {
@@ -350,7 +350,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			taskStartTime := time.Now().UTC()
 			hasWork = inst.DoStep()
 			if stateRecorder != nil {
-				recordState(inst, taskStartTime, time.Now().UTC())
+				recordState(inst, taskStartTime)
 			}
 		}
 
@@ -384,7 +384,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	return nil
 }
 
-func recordState(inst *instance.IndependentInstance, strtTime time.Time, endTime time.Time) {
+func recordState(inst *instance.IndependentInstance, strtTime time.Time) {
 	if state.RecordSnapshot(stateRecordingMode) {
 		err := stateRecorder.RecordSnapshot(inst.Snapshot())
 		if err != nil {
@@ -395,7 +395,7 @@ func recordState(inst *instance.IndependentInstance, strtTime time.Time, endTime
 	if state.RecordSteps(stateRecordingMode) {
 		currStep := inst.CurrentStep(true)
 		currStep.StartTime = strtTime
-		currStep.EndTime = endTime
+		currStep.EndTime = time.Now().UTC()
 		err := stateRecorder.RecordStep(currStep)
 		if err != nil {
 			logger.Warnf("unable to record step: %v", err)
