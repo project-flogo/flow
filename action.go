@@ -245,8 +245,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID), log.FieldString("eventId", trigger.GetHandlerEventIdFromContext(ctx)))
 		}
 
-		instRecorder := instance.NewStateInstnaceRecorder(stateRecorder, stateRecordingMode)
-		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instRecorder, instLogger)
+		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode), instLogger)
 		if err != nil {
 			return err
 		}

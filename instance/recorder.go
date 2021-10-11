@@ -10,7 +10,7 @@ type stateInstanceRecorder struct {
 	externalRecorder state.Recorder
 }
 
-func NewStateInstnaceRecorder(recorder state.Recorder, mod state.RecordingMode) *stateInstanceRecorder {
+func NewStateInstanceRecorder(recorder state.Recorder, mod state.RecordingMode) *stateInstanceRecorder {
 	return &stateInstanceRecorder{
 		mod:              mod,
 		externalRecorder: recorder,
