@@ -364,6 +364,9 @@ func isExpr(v interface{}) bool {
 			return true
 		}
 	default:
+		if ok := mapper.IsConditionalMapping(t); ok {
+			return true
+		}
 		if _, ok := mapper.GetObjectMapping(t); ok {
 			return true
 		}
