@@ -14,6 +14,7 @@ type Step struct {
 	QueueChanges map[int]*change.Queue `json:"queueChanges,omitempty"`
 	StartTime    time.Time             `json:"starttime"`
 	EndTime      time.Time             `json:"endtime"`
+	Rerun        bool                  `json:"rerun"`
 }
 
 //func (s *Step) SetMasterData(m *Master) {

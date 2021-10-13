@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
@@ -21,8 +24,6 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
-	"strings"
-	"time"
 )
 
 func init() {
@@ -179,6 +180,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	var flowURI string
 	var preserveInstanceId string
 	var initStepId int
+	var rerun bool
 	runOptions, exists := inputs["_run_options"]
 
 	var execOptions *instance.ExecOptions
@@ -193,6 +195,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			flowURI = ro.FlowURI
 			execOptions = ro.ExecOptions
 			initStepId = ro.InitStepId
+			rerun = ro.Rerun
 		}
 	}
 
@@ -245,7 +248,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID), log.FieldString("eventId", trigger.GetHandlerEventIdFromContext(ctx)))
 		}
 
-		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode), instLogger)
+		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun), instLogger)
 		if err != nil {
 			return err
 		}
@@ -267,7 +270,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			if log.CtxLoggingEnabled() {
 				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
 			}
-
+			inst.SetInstanceRecorder(instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun))
 			err := inst.Restart(instLogger, instanceID, initStepId)
 			if err != nil {
 				return err
