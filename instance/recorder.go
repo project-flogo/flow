@@ -8,12 +8,14 @@ import (
 type stateInstanceRecorder struct {
 	mod              state.RecordingMode
 	externalRecorder state.Recorder
+	rerun            bool
 }
 
-func NewStateInstanceRecorder(recorder state.Recorder, mod state.RecordingMode) *stateInstanceRecorder {
+func NewStateInstanceRecorder(recorder state.Recorder, mod state.RecordingMode, rerunstate bool) *stateInstanceRecorder {
 	return &stateInstanceRecorder{
 		mod:              mod,
 		externalRecorder: recorder,
+		rerun: rerunstate,
 	}
 }
 
@@ -29,6 +31,7 @@ func (inst *IndependentInstance) RecordState(strtTime time.Time) error {
 		currStep := inst.CurrentStep(true)
 		currStep.StartTime = strtTime
 		currStep.EndTime = time.Now().UTC()
+		currStep.Rerun = inst.instRecorder.rerun
 		err := inst.instRecorder.externalRecorder.RecordStep(currStep)
 		if err != nil {
 			inst.logger.Warnf("unable to record step: %v", err)

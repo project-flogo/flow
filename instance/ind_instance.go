@@ -68,6 +68,10 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	return inst, nil
 }
 
+func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanceRecorder) {
+	inst.instRecorder = stateRecorder
+}
+
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
 
 	inst.subflowCtr++
