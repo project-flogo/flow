@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
@@ -21,7 +24,6 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
-	"strings"
 )
 
 func init() {
@@ -176,20 +178,24 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	retID := false
 	var initialState *instance.IndependentInstance
 	var flowURI string
-
+	var preserveInstanceId string
+	var initStepId int
+	var rerun bool
 	runOptions, exists := inputs["_run_options"]
 
 	var execOptions *instance.ExecOptions
 
 	if exists {
 		ro, ok := runOptions.(*instance.RunOptions)
-
 		if ok {
 			op = ro.Op
 			retID = ro.ReturnID
+			preserveInstanceId = ro.PreservedInstanceId
 			initialState = ro.InitialState
 			flowURI = ro.FlowURI
 			execOptions = ro.ExecOptions
+			initStepId = ro.InitStepId
+			rerun = ro.Rerun
 		}
 	}
 
@@ -209,7 +215,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	//todo: consider switch to URI to dictate flow operation (ex. flow://blah/resume)
 
 	var inst *instance.IndependentInstance
-
 	switch op {
 	case instance.OpStart:
 
@@ -227,7 +232,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			}
 		}
 
-		instanceID := idGenerator.NextAsString()
+		var instanceID string
+		if len(preserveInstanceId) > 0 {
+			instanceID = preserveInstanceId
+		} else {
+			instanceID = idGenerator.NextAsString()
+		}
+
 		logger.Debug("Creating Flow Instance: ", instanceID)
 		logger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
 
@@ -237,7 +248,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID), log.FieldString("eventId", trigger.GetHandlerEventIdFromContext(ctx)))
 		}
 
-		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instLogger)
+		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun), instLogger)
 		if err != nil {
 			return err
 		}
@@ -245,7 +256,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if initialState != nil {
 
 			inst = initialState
-			instanceID := idGenerator.NextAsString()
+			var instanceID string
+
+			if len(preserveInstanceId) > 0 {
+				instanceID = preserveInstanceId
+			} else {
+				instanceID = idGenerator.NextAsString()
+			}
 
 			logger.Debug("Restarting Flow Instance: ", instanceID)
 
@@ -253,8 +270,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			if log.CtxLoggingEnabled() {
 				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
 			}
-
-			err := inst.Restart(instLogger, instanceID)
+			inst.SetInstanceRecorder(instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun))
+			err := inst.Restart(instLogger, instanceID, initStepId)
 			if err != nil {
 				return err
 			}
@@ -284,6 +301,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 	//Update flow starting time
 	inst.UpdateStartTime()
+	if stateRecorder != nil {
+		stateRecorder.RecordStart(inst.GetFlowState(inputs))
+	}
+
 	if trace.Enabled() {
 		tc, err := trace.GetTracer().StartTrace(inst.SpanConfig(), trace.ExtractTracingContext(ctx))
 		if err != nil {
@@ -303,12 +324,20 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 
 	stepCount := 0
+	if initStepId > 0 {
+		stepCount = initStepId
+	}
 	hasWork := true
 
 	inst.SetResultHandler(handler)
-
 	if stateRecorder != nil {
-		recordState(inst)
+		//We don't need record step 0 if restart from activity
+		if initStepId <= 0 {
+			inst.RecordState(time.Now().UTC())
+		} else {
+			//Just increase the step number
+			inst.CurrentStep(true)
+		}
 	}
 
 	go func() {
@@ -327,10 +356,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
 			stepCount++
 			logger.Debugf("Step: %d", stepCount)
+			taskStartTime := time.Now().UTC()
 			hasWork = inst.DoStep()
-
 			if stateRecorder != nil {
-				recordState(inst)
+				inst.RecordState(taskStartTime)
 			}
 		}
 
@@ -354,23 +383,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		} else if inst.Status() == model.FlowStatusFailed {
 			logger.Infof("Flow Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		}
+
+		if stateRecorder != nil {
+			stateRecorder.RecordDone(inst.GetFlowState(inputs))
+		}
+
 	}()
 
 	return nil
-}
-
-func recordState(inst *instance.IndependentInstance) {
-	if state.RecordSnapshot(stateRecordingMode) {
-		err := stateRecorder.RecordSnapshot(inst.Snapshot())
-		if err != nil {
-			logger.Warnf("unable to record snapshot: %v", err)
-		}
-	}
-
-	if state.RecordSteps(stateRecordingMode) {
-		err := stateRecorder.RecordStep(inst.CurrentStep(true))
-		if err != nil {
-			logger.Warnf("unable to record step: %v", err)
-		}
-	}
 }

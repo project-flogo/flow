@@ -30,7 +30,6 @@ type WorkItem struct {
 type Task struct {
 	Id     string `json:"id"`
 	Status int    `json:"status"`
-	//Attrs  map[string]interface{} `json:"attrs"`
 }
 
 type Link struct {

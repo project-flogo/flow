@@ -34,10 +34,12 @@ type IndependentInstance struct {
 	subflowCtr int
 	subflows   map[int]*Instance
 	startTime  time.Time
+	//Instance recorder
+	instRecorder *stateInstanceRecorder
 }
 
 // New creates a new Flow Instance from the specified Flow
-func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, logger log.Logger) (*IndependentInstance, error) {
+func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, instRecorder *stateInstanceRecorder, logger log.Logger) (*IndependentInstance, error) {
 	var err error
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}
@@ -55,13 +57,19 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
-	inst.changeTracker = NewInstanceChangeTracker(inst.id)
+	inst.changeTracker = NewInstanceChangeTracker(inst.id, 0)
 	inst.changeTracker.FlowCreated(inst)
 
 	inst.taskInsts = make(map[string]*TaskInst)
 	inst.linkInsts = make(map[int]*LinkInst)
 
+	inst.instRecorder = instRecorder
+
 	return inst, nil
+}
+
+func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanceRecorder) {
+	inst.instRecorder = stateRecorder
 }
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
@@ -97,11 +105,25 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 }
 
 func (inst *IndependentInstance) UpdateStartTime() {
-	inst.startTime = time.Now()
+	inst.startTime = time.Now().UTC()
 }
 
 func (inst *IndependentInstance) ExecutionTime() time.Duration {
 	return time.Since(inst.startTime)
+}
+
+func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
+	return &state.FlowState{
+		UserId:         flowsupport.GetUserName(),
+		AppName:        flowsupport.GetAppName(),
+		AppVersion:     flowsupport.GetAppVerison(),
+		HostId:         flowsupport.GetHostId(),
+		FlowName:       inst.Name(),
+		FlowInstanceId: inst.id,
+		FlowStats:      string(convertFlowStatus(inst.status)),
+		StartTime:      inst.startTime,
+		EndTime:        time.Now().UTC(),
+	}
 }
 
 func (inst *IndependentInstance) Start(startAttrs map[string]interface{}) bool {
@@ -266,7 +288,6 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	}()
 
 	var err error
-
 	var evalResult model.EvalResult
 
 	if taskInst.status == model.TaskStatusWaiting {
@@ -475,6 +496,10 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 					_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 				}
 
+				//Finished Subflow with error
+				if containerInst != nil && containerInst.master != nil {
+					containerInst.master.RecordState(time.Now())
+				}
 				// spawned from task instance
 				host, ok := containerInst.host.(*TaskInst)
 
@@ -538,6 +563,9 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 				_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 			}
 
+			if containerInst != nil && containerInst.master != nil {
+				containerInst.master.RecordState(time.Now())
+			}
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)
 
@@ -565,7 +593,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
-
 		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
 		taskInst.id = taskInst.taskID
 
@@ -644,7 +671,7 @@ func getFlowModel(flow *definition.Definition) (*model.FlowModel, error) {
 }
 
 //// Restart indicates that this FlowInstance was restarted
-func (inst *IndependentInstance) Restart(logger log.Logger, id string) error {
+func (inst *IndependentInstance) Restart(logger log.Logger, id string, initStepId int) error {
 	inst.id = id
 	inst.logger = logger
 
@@ -664,7 +691,7 @@ func (inst *IndependentInstance) Restart(logger log.Logger, id string) error {
 	inst.master = inst
 	inst.init(inst.Instance)
 
-	inst.changeTracker = NewInstanceChangeTracker(inst.id)
+	inst.changeTracker = NewInstanceChangeTracker(inst.id, initStepId)
 	inst.changeTracker.FlowCreated(inst)
 
 	return nil
@@ -702,7 +729,8 @@ func (inst *Instance) SpanConfig() trace.Config {
 }
 
 func (inst *IndependentInstance) CurrentStep(reset bool) *state.Step {
-	return inst.changeTracker.ExtractStep(reset)
+	step := inst.changeTracker.ExtractStep(reset)
+	return step
 }
 
 func (inst *IndependentInstance) Snapshot() *state.Snapshot {
@@ -724,7 +752,6 @@ func (inst *IndependentInstance) Snapshot() *state.Snapshot {
 			populateBaseSnapshot(subflow, sfs.SnapshotBase)
 		}
 	}
-
 	return fs
 }
 

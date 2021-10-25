@@ -1,8 +1,12 @@
 package flow
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
+	"testing"
 )
 
 const FlowRef = "github.com/project-flogo/flow"
@@ -350,3 +354,12 @@ var jsonRestartRequest = `{
 //
 //	//results, err := rp.RestartFlow(req)
 //}
+
+func TestActionRun(t *testing.T) {
+	var data interface{}
+	reader := bytes.NewReader([]byte(`{"abc":1223}`))
+	decode := json.NewDecoder(reader)
+	decode.UseNumber()
+	decode.Decode(&data)
+	fmt.Println("%+v", data)
+}

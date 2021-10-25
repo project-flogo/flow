@@ -45,9 +45,9 @@ type ChangeTracker interface {
 	ExtractStep(reset bool) *state.Step
 }
 
-func NewInstanceChangeTracker(flowId string) ChangeTracker {
+func NewInstanceChangeTracker(flowId string, startStepId int) ChangeTracker {
 	if chgTrackingEnabled {
-		return chgTrackerFactory.NewChangeTracker(flowId, stateMode)
+		return chgTrackerFactory.NewChangeTracker(flowId, stateMode, startStepId)
 	}
 	return defaultChgTracker
 }
@@ -109,14 +109,12 @@ func (nct *NoopChangeTracker) ExtractStep(reset bool) *state.Step {
 type SimpleChangeTrackerFactory struct {
 }
 
-func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode) ChangeTracker {
-
-	ct := &SimpleChangeTracker{flowId: flowId, mode: mode}
+func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode, startStepId int) ChangeTracker {
+	ct := &SimpleChangeTracker{flowId: flowId, mode: mode, stepCtr: startStepId}
 	ct.currentStep = &state.Step{
 		FlowId:      flowId,
 		FlowChanges: make(map[int]*change.Flow),
 	}
-
 	return ct
 }
 
@@ -124,6 +122,7 @@ type SimpleChangeTracker struct {
 	flowId      string
 	mode        state.RecordingMode
 	stepCtr     int
+	partialRun  bool
 	currentStep *state.Step
 }
 
@@ -233,12 +232,12 @@ func (sct *SimpleChangeTracker) WorkItemRemoved(wi *WorkItem) {
 }
 
 func (sct *SimpleChangeTracker) TaskAdded(taskInst *TaskInst) {
-	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID)
+	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID, taskInst.flowInst.flowURI)
 	task.Status = int(taskInst.status)
 }
 
 func (sct *SimpleChangeTracker) TaskUpdated(taskInst *TaskInst) {
-	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID)
+	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID, taskInst.flowInst.flowURI)
 	task.ChgType = change.Update
 	task.Status = int(taskInst.status)
 	// Store input for debugger mode
@@ -248,7 +247,7 @@ func (sct *SimpleChangeTracker) TaskUpdated(taskInst *TaskInst) {
 }
 
 func (sct *SimpleChangeTracker) TaskRemoved(subflowId int, taskId string) {
-	task := getTaskChange(sct.currentStep, subflowId, taskId)
+	task := getTaskChange(sct.currentStep, subflowId, taskId, "")
 	task.ChgType = change.Delete
 }
 
@@ -304,14 +303,17 @@ func getQueueChange(step *state.Step, workItemId int) *change.Queue {
 	return wc
 }
 
-func getTaskChange(step *state.Step, subflowId int, taskId string) *change.Task {
+func getTaskChange(step *state.Step, subflowId int, taskId string, flowname string) *change.Task {
 
 	fc, exists := step.FlowChanges[subflowId]
 	if !exists {
-		fc = &change.Flow{TaskId: taskId}
+		fc = &change.Flow{TaskId: taskId, FlowURI: flowname}
 		step.FlowChanges[subflowId] = fc
 	} else {
 		fc.TaskId = taskId
+		if fc.FlowURI == "" {
+			fc.FlowURI = flowname
+		}
 	}
 
 	if fc.Tasks == nil {
