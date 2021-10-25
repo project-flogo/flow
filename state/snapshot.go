@@ -14,7 +14,6 @@ type Subflow struct {
 }
 
 type SnapshotBase struct {
-	//*Master
 	FlowURI string                 `json:"flowURI"`
 	Status  int                    `json:"status"`
 	Attrs   map[string]interface{} `json:"attrs,omitempty"`
@@ -31,14 +30,9 @@ type WorkItem struct {
 type Task struct {
 	Id     string `json:"id"`
 	Status int    `json:"status"`
-	//Attrs  map[string]interface{} `json:"attrs"`
 }
 
 type Link struct {
 	Id     int `json:"id"`
 	Status int `json:"status"`
 }
-
-//func (s *Snapshot) SetMasterData(m *Master) {
-//	s.Master = m
-//}

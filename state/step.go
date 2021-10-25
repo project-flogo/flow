@@ -16,16 +16,3 @@ type Step struct {
 	EndTime      time.Time             `json:"endtime"`
 	Rerun        bool                  `json:"rerun"`
 }
-
-//func (s *Step) SetMasterData(m *Master) {
-//	s.Master = m
-//}
-
-//func GetMasterData(flowInstanceId string) *Master {
-//	return &Master{
-//		UserId:     support.GetUserName(),
-//		AppId:      support.GetAppId(),
-//		HostId:     support.GetHostId(),
-//		FlowInstId: flowInstanceId,
-//	}
-//}

@@ -87,36 +87,6 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.linkInsts = make(map[int]*LinkInst)
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
-	//
-	//handler := &subFlowAsyncResultHandler{done: make(chan bool, 1), result: make(chan map[string]interface{}, 1)}
-	//embeddedInst.resultHandler = handler
-	//var done bool
-	//go func() {
-	//	for !done {
-	//		select {
-	//		case result := <-handler.result:
-	//			host, ok := embeddedInst.host.(*TaskInst)
-	//			if ok {
-	//				//if the flow failed, set the error
-	//				for name, value := range result {
-	//					//todo review how we should handle an error encountered here
-	//					_ = host.SetOutput(name, value)
-	//				}
-	//				//if the flow failed, set the error
-	//				inst.scheduleEval(host)
-	//				//
-	//				////Sub flow done
-	//				//containerInst.master.GetChanges().SubflowDone(containerInst)
-	//				//inst.scheduleEval(host)
-	//			}
-	//		case <-handler.done:
-	//			//if !replied {
-	//			//	actionData.arc <- &ActionResult{}
-	//			//}
-	//			done = true
-	//		}
-	//	}
-	//}()
 
 	if trace.Enabled() {
 		tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), taskInst.traceContext) //TODO handle error
@@ -764,7 +734,6 @@ func (inst *Instance) SpanConfig() trace.Config {
 
 func (inst *IndependentInstance) CurrentStep(reset bool) *state.Step {
 	step := inst.changeTracker.ExtractStep(reset)
-	//step.SetMasterData(state.GetMasterData(inst.ID()))
 	return step
 }
 
@@ -787,8 +756,6 @@ func (inst *IndependentInstance) Snapshot() *state.Snapshot {
 			populateBaseSnapshot(subflow, sfs.SnapshotBase)
 		}
 	}
-
-	//fs.SetMasterData(state.GetMasterData(inst.ID()))
 	return fs
 }
 
@@ -817,20 +784,4 @@ func populateBaseSnapshot(inst *Instance, base *state.SnapshotBase) {
 			base.Links = append(base.Links, &state.Link{Id: id, Status: int(link.status)})
 		}
 	}
-}
-
-// AsyncResultHandler simple ResultHandler to use in the asynchronous case
-type subFlowAsyncResultHandler struct {
-	done   chan bool
-	result chan map[string]interface{}
-}
-
-// HandleResult implements action.ResultHandler.HandleResult
-func (rh *subFlowAsyncResultHandler) HandleResult(results map[string]interface{}, err error) {
-	rh.result <- results
-}
-
-// Done implements action.ResultHandler.Done
-func (rh *subFlowAsyncResultHandler) Done() {
-	rh.done <- true
 }
