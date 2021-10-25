@@ -331,7 +331,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	inst.SetResultHandler(handler)
 	if stateRecorder != nil {
-		inst.RecordState(time.Now().UTC())
+		//We don't need record step 0 if restart from activity
+		if initStepId <= 0 {
+			inst.RecordState(time.Now().UTC())
+		} else {
+			//Just increase the step number
+			inst.CurrentStep(true)
+		}
 	}
 
 	go func() {
