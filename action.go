@@ -271,7 +271,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
 			}
 			inst.SetInstanceRecorder(instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun))
-			err := inst.Restart(instLogger, instanceID, initStepId)
+			//Engine should set init step id one step before current restart step
+			err := inst.Restart(instLogger, instanceID, initStepId-1)
 			if err != nil {
 				return err
 			}
@@ -323,10 +324,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		inst.UpdateAttrs(inputs)
 	}
 
+	//initStepId cannot less than 1. restart must start with 1 to xxxx
 	stepCount := 0
 	if initStepId > 0 {
-		stepCount = initStepId
+		stepCount = initStepId - 1
 	}
+
 	hasWork := true
 
 	inst.SetResultHandler(handler)
