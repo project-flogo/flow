@@ -498,7 +498,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 				//Finished Subflow with error
 				if containerInst != nil && containerInst.master != nil {
-					containerInst.master.RecordState(time.Now())
+					containerInst.master.RecordState(time.Now().UTC())
 				}
 				// spawned from task instance
 				host, ok := containerInst.host.(*TaskInst)
@@ -564,7 +564,7 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 			}
 
 			if containerInst != nil && containerInst.master != nil {
-				containerInst.master.RecordState(time.Now())
+				containerInst.master.RecordState(time.Now().UTC())
 			}
 			// spawned from task instance
 			host, ok := containerInst.host.(*TaskInst)
