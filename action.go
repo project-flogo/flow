@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
@@ -21,7 +23,6 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
-	"strings"
 )
 
 func init() {
@@ -317,6 +318,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		inst.Start(inputs)
 	} else {
 		inst.UpdateAttrs(inputs)
+		// Set status to active when restarted/resumed
+		inst.SetStatus(model.FlowStatusActive)
 	}
 
 	stepCount := 0
