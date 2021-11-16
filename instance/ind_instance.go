@@ -693,8 +693,7 @@ func (inst *IndependentInstance) Restart(logger log.Logger, id string, initStepI
 
 	inst.changeTracker = NewInstanceChangeTracker(inst.id, initStepId)
 	inst.changeTracker.FlowCreated(inst)
-	// Set flow status to active
-	inst.SetStatus(model.FlowStatusActive)
+
 	if initStepId+1 > 0 {
 		// Restart from activity. Read the item from queue
 		step, ok := inst.workItemQueue.Pop()
