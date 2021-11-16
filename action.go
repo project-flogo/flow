@@ -322,8 +322,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		inst.Start(inputs)
 	} else {
 		inst.UpdateAttrs(inputs)
-		// Set flow status to active
-		inst.SetStatus(model.FlowStatusActive)
 	}
 
 	//initStepId cannot less than 1. restart must start with 1 to xxxx
