@@ -1,10 +1,11 @@
 package instance
 
 import (
+	"testing"
+
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 
@@ -12,12 +13,12 @@ func TestSimpleChange(t *testing.T) {
 	def := getDef()
 	//fmt.Println(def.ModelID())
 
-	ind , err := NewIndependentInstance("test","", def, log.RootLogger())
+	ind , err := NewIndependentInstance("test","", def, nil, log.RootLogger())
 	assert.Nil(t, err)
 	assert.NotNil(t, ind)
 
 	chgTrackingEnabled = true
-	chgTrack := NewInstanceChangeTracker("test")
+	chgTrack := NewInstanceChangeTracker("test", 0)
 	assert.NotNil(t, chgTrack)
 
 	assert.NotNil(t,chgTrack.ExtractStep(false))

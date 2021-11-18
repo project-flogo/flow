@@ -1,16 +1,17 @@
 package instance
 
 import (
+	"testing"
+
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestTaskInst(t *testing.T) {
 
 	def := getDef()
-	ind , _ := NewIndependentInstance("test","", def, log.RootLogger())
+	ind , _ := NewIndependentInstance("test","", def, nil, log.RootLogger())
 	flowInst := &Instance{master: ind}
 	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
 
