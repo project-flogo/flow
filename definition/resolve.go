@@ -16,6 +16,7 @@ var defResolver = resolve.NewCompositeResolver(map[string]resolve.Resolver{
 	"loop":      &resolve.LoopResolver{},
 	"iteration": &IteratorResolver{}, //todo should we create a separate resolver to use in iterations?
 	"activity":  &ActivityResolver{},
+	"flowctx":   &FlowContextResolver{},
 	"error":     &ErrorResolver{},
 	"flow":      &FlowResolver{}})
 
@@ -66,6 +67,23 @@ func (r *ActivityResolver) Resolve(scope data.Scope, itemName, valueName string)
 		}
 	}
 
+	return value, nil
+}
+
+type FlowContextResolver struct {
+}
+
+func (r *FlowContextResolver) GetResolverInfo() *resolve.ResolverInfo {
+	return dynamicItemResolver
+}
+
+func (r *FlowContextResolver) Resolve(scope data.Scope, itemName, valueName string) (interface{}, error) {
+
+	value, exists := scope.GetValue(itemName)
+
+	if !exists {
+		return nil, fmt.Errorf("failed to resolve flow context variable: '%s'", itemName)
+	}
 	return value, nil
 }
 
