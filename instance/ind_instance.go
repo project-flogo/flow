@@ -142,12 +142,40 @@ func (inst *IndependentInstance) startEmbedded(embedded *Instance, startAttrs ma
 
 func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map[string]interface{}) bool {
 
+	if inst.logger.DebugEnabled() {
+		inst.logger.Debugf("Flow Name: %s", toStart.Name())
+		inst.logger.Debugf("Flow Id: %s", toStart.ID())
+	}
+
+	//Set the flow Name and Flow Id for the current flow.
+	_ = toStart.SetValue("_fctx.Name", toStart.Name())
+	_ = toStart.SetValue("_fctx.Id", toStart.ID())
+
+	// If the flow is a sub flow then the flow name and flow id  of the parent flow of the current flow needs to be set.
+	// The parent flow can be main flow or sub flow.
+	if toStart.host != nil {
+		hostInstance := toStart.host.(*TaskInst)
+
+		if inst.logger.DebugEnabled() {
+			inst.logger.Debugf("Parent Flow Name: %s", hostInstance.flowInst.Name())
+			inst.logger.Debugf("Parent Flow Id: %s", hostInstance.flowInst.ID())
+		}
+		//Set the flow Name and Flow Id for the current flow.
+		_ = toStart.SetValue("_fctx.ParentName", hostInstance.flowInst.Name())
+		_ = toStart.SetValue("_fctx.ParentId", hostInstance.flowInst.ID())
+	} else {
+		// Set Empty in case of Main Flow.
+		_ = toStart.SetValue("_fctx.ParentName", "")
+		_ = toStart.SetValue("_fctx.ParentId", "")
+	}
+
 	md := toStart.flowDef.Metadata()
 
 	if md != nil && md.Input != nil {
 
-		toStart.attrs = make(map[string]interface{}, len(md.Input))
-
+		if toStart.attrs == nil {
+			toStart.attrs = make(map[string]interface{}, len(md.Input))
+		}
 		for name, value := range md.Input {
 			if value != nil {
 				toStart.attrs[name] = value.Value()
@@ -157,7 +185,9 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 			}
 		}
 	} else {
-		toStart.attrs = make(map[string]interface{}, len(startAttrs))
+		if toStart.attrs == nil {
+			toStart.attrs = make(map[string]interface{}, len(md.Input))
+		}
 	}
 
 	for name, value := range startAttrs {
