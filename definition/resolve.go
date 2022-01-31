@@ -82,7 +82,7 @@ func (r *FlowContextResolver) Resolve(scope data.Scope, itemName, valueName stri
 	value, exists := scope.GetValue("_fctx." + itemName)
 
 	if !exists {
-		return nil, fmt.Errorf("unknown flow context variable: '%s'. supported flow context variables are 'FlowName', 'FlowId', 'ParentFlowName' 'ParentFlowId'", itemName)
+		return nil, fmt.Errorf("unknown flow context variable: '%s'. supported flow context variables are 'Name', 'Id', 'ParentName' 'ParentId'", itemName)
 	}
 	return value, nil
 }
