@@ -38,6 +38,14 @@ type IndependentInstance struct {
 	instRecorder *stateInstanceRecorder
 }
 
+const (
+	flowCtxPrefix  = "_fctx."
+	flowName       = "FlowName"
+	flowId         = "FlowId"
+	parentFlowName = "ParentFlowName"
+	parentFlowId   = "ParentFlowId"
+)
+
 // New creates a new Flow Instance from the specified Flow
 func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, instRecorder *stateInstanceRecorder, logger log.Logger) (*IndependentInstance, error) {
 	var err error
@@ -148,8 +156,8 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	}
 
 	//Set the flow Name and Flow Id for the current flow.
-	_ = toStart.SetValue("_fctx.Name", toStart.Name())
-	_ = toStart.SetValue("_fctx.Id", toStart.ID())
+	_ = toStart.SetValue(flowCtxPrefix+flowName, toStart.Name())
+	_ = toStart.SetValue(flowCtxPrefix+flowId, toStart.ID())
 
 	// If the flow is a sub flow then the flow name and flow id  of the parent flow of the current flow needs to be set.
 	// The parent flow can be main flow or sub flow.
@@ -161,12 +169,12 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 			inst.logger.Debugf("Parent Flow Id: %s", hostInstance.flowInst.ID())
 		}
 		//Set the flow Name and Flow Id for the current flow.
-		_ = toStart.SetValue("_fctx.ParentName", hostInstance.flowInst.Name())
-		_ = toStart.SetValue("_fctx.ParentId", hostInstance.flowInst.ID())
+		_ = toStart.SetValue(flowCtxPrefix+parentFlowName, hostInstance.flowInst.Name())
+		_ = toStart.SetValue(flowCtxPrefix+parentFlowId, hostInstance.flowInst.ID())
 	} else {
 		// Set Empty in case of Main Flow.
-		_ = toStart.SetValue("_fctx.ParentName", "")
-		_ = toStart.SetValue("_fctx.ParentId", "")
+		_ = toStart.SetValue(flowCtxPrefix+parentFlowName, "")
+		_ = toStart.SetValue(flowCtxPrefix+parentFlowId, "")
 	}
 
 	md := toStart.flowDef.Metadata()
