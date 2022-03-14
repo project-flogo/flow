@@ -789,6 +789,7 @@ func (inst *IndependentInstance) SetTracingContext(tracingCtx trace.TracingConte
 func (inst *Instance) SpanConfig() trace.Config {
 	config := trace.Config{}
 	config.Operation = inst.Name()
+	config.Logger = inst.Logger()
 	config.Tags = make(map[string]interface{})
 	config.Tags["flow_id"] = inst.ID()
 	config.Tags["flow_name"] = inst.Name()

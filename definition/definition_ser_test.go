@@ -281,8 +281,11 @@ func validate(t *testing.T, defJson string) {
 
 	retryOnErrCfg := task.RetryOnErrConfig()
 	assert.NotNil(t, retryOnErrCfg)
-	assert.Equal(t, 1, retryOnErrCfg.Count())
-	assert.Equal(t, 100, retryOnErrCfg.Interval())
+	count, _ := retryOnErrCfg.Count(nil)
+	assert.Equal(t, 1, count)
+
+	interval, _ := retryOnErrCfg.Interval(nil)
+	assert.Equal(t, 100, interval)
 
 	ac := task.ActivityConfig()
 	assert.NotNil(t, ac)
@@ -313,8 +316,11 @@ func validate(t *testing.T, defJson string) {
 
 	retryOnErrCfg = task.RetryOnErrConfig()
 	assert.NotNil(t, retryOnErrCfg)
-	assert.Equal(t, 2, retryOnErrCfg.Count())
-	assert.Equal(t, 500, retryOnErrCfg.Interval())
+	count, _ = retryOnErrCfg.Count(nil)
+	assert.Equal(t, 2, count)
+
+	interval, _ = retryOnErrCfg.Interval(nil)
+	assert.Equal(t, 500, interval)
 
 	ac = task.ActivityConfig()
 	assert.NotNil(t, ac)
