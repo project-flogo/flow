@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"testing"
+
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
-	"testing"
 )
 
 const FlowRef = "github.com/project-flogo/flow"
@@ -361,5 +362,5 @@ func TestActionRun(t *testing.T) {
 	decode := json.NewDecoder(reader)
 	decode.UseNumber()
 	decode.Decode(&data)
-	fmt.Println("%+v", data)
+	fmt.Println(data)
 }
