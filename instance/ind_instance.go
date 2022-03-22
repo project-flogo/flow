@@ -44,6 +44,8 @@ const (
 	flowId         = "FlowId"
 	parentFlowName = "ParentFlowName"
 	parentFlowId   = "ParentFlowId"
+	traceId        = "TraceId"
+	spanId         = "SpanId"
 )
 
 // New creates a new Flow Instance from the specified Flow
@@ -158,6 +160,11 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	//Set the flow Name and Flow Id for the current flow.
 	_ = toStart.SetValue(flowCtxPrefix+flowName, toStart.Name())
 	_ = toStart.SetValue(flowCtxPrefix+flowId, toStart.ID())
+	// If tracing is enabled, inject traceId and flowId in flow context
+	if trace.Enabled() {
+		_ = toStart.SetValue(flowCtxPrefix+traceId, toStart.tracingCtx.TraceID())
+		_ = toStart.SetValue(flowCtxPrefix+spanId, toStart.tracingCtx.SpanID())
+	}
 
 	// If the flow is a sub flow then the flow name and flow id  of the parent flow of the current flow needs to be set.
 	// The parent flow can be main flow or sub flow.
