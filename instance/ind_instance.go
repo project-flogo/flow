@@ -160,10 +160,14 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	//Set the flow Name and Flow Id for the current flow.
 	_ = toStart.SetValue(flowCtxPrefix+flowName, toStart.Name())
 	_ = toStart.SetValue(flowCtxPrefix+flowId, toStart.ID())
-	// If tracing is enabled, inject traceId and flowId in flow context
+
+	// If tracing is enabled, inject traceId and spanId in flow context
 	if trace.Enabled() {
 		_ = toStart.SetValue(flowCtxPrefix+traceId, toStart.tracingCtx.TraceID())
 		_ = toStart.SetValue(flowCtxPrefix+spanId, toStart.tracingCtx.SpanID())
+	} else {
+		_ = toStart.SetValue(flowCtxPrefix+traceId, "")
+		_ = toStart.SetValue(flowCtxPrefix+spanId, "")
 	}
 
 	// If the flow is a sub flow then the flow name and flow id  of the parent flow of the current flow needs to be set.
