@@ -152,11 +152,6 @@ func (inst *IndependentInstance) startEmbedded(embedded *Instance, startAttrs ma
 
 func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map[string]interface{}) bool {
 
-	if inst.logger.DebugEnabled() {
-		inst.logger.Debugf("Flow Name: %s", toStart.Name())
-		inst.logger.Debugf("Flow Id: %s", toStart.ID())
-	}
-
 	//Set the flow Name and Flow Id for the current flow.
 	_ = toStart.SetValue(flowCtxPrefix+flowName, toStart.Name())
 	_ = toStart.SetValue(flowCtxPrefix+flowId, toStart.ID())
@@ -168,6 +163,13 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	} else {
 		_ = toStart.SetValue(flowCtxPrefix+traceId, "")
 		_ = toStart.SetValue(flowCtxPrefix+spanId, "")
+	}
+
+	if inst.logger.DebugEnabled() {
+		inst.logger.Debugf("Flow Name: %s", toStart.Name())
+		inst.logger.Debugf("Flow Id: %s", toStart.ID())
+		inst.logger.Debugf("Trace Id: %s", toStart.tracingCtx.TraceID())
+		inst.logger.Debugf("Span Id: %s", toStart.tracingCtx.SpanID())
 	}
 
 	// If the flow is a sub flow then the flow name and flow id  of the parent flow of the current flow needs to be set.
