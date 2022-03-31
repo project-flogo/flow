@@ -311,6 +311,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if err != nil {
 			return err
 		}
+		eventID := trigger.GetHandlerEventIdFromContext(ctx)
+		if eventID != "" {
+			tc.SetTag("flogo_event_id", eventID)
+		}
 		inst.SetTracingContext(tc)
 	}
 
