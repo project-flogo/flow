@@ -168,8 +168,10 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	if inst.logger.DebugEnabled() {
 		inst.logger.Debugf("Flow Name: %s", toStart.Name())
 		inst.logger.Debugf("Flow Id: %s", toStart.ID())
-		inst.logger.Debugf("Trace Id: %s", toStart.tracingCtx.TraceID())
-		inst.logger.Debugf("Span Id: %s", toStart.tracingCtx.SpanID())
+		if trace.Enabled() {
+			inst.logger.Debugf("Trace Id: %s", toStart.tracingCtx.TraceID())
+			inst.logger.Debugf("Span Id: %s", toStart.tracingCtx.SpanID())
+		}
 	}
 
 	// If the flow is a sub flow then the flow name and flow id  of the parent flow of the current flow needs to be set.
