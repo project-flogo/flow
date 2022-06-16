@@ -2,6 +2,7 @@ package instance
 
 import (
 	"fmt"
+	"github.com/project-flogo/flow/support"
 	"runtime/debug"
 	"time"
 
@@ -279,6 +280,7 @@ func (ti *TaskInst) EvalLink(link *definition.Link) (result bool, err error) {
 
 		return coerce.ToBool(result)
 	}
+	ti.flowInst.master.interceptor.AddCoverage(link.Label(), support.Link)
 
 	return true, nil
 }
@@ -357,15 +359,21 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			ctx = &LegacyCtx{task: ti}
 		}
 
-		done, evalErr = actCfg.Activity.Eval(ctx)
+		// If output interceptor is there then the activity should be mocked and activity evaluation should be skipped.
+		// In the applyOutputInterceptor step the mock data will be applied to the activity
+		if !hasOutputInterceptor(ti) {
+			done, evalErr = actCfg.Activity.Eval(ctx)
 
-		if evalErr != nil {
-			e, ok := evalErr.(*activity.Error)
-			if ok {
-				e.SetActivityName(ti.task.Name())
+			if evalErr != nil {
+				e, ok := evalErr.(*activity.Error)
+				if ok {
+					e.SetActivityName(ti.task.Name())
+				}
+
+				return false, evalErr
 			}
-
-			return false, evalErr
+		} else {
+			done = true
 		}
 
 	} else {
@@ -411,7 +419,15 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 				return done, err
 			}
 		}
+
+		err = applyAssertionInterceptor(ti)
+		if err != nil {
+			return false, err
+		}
 	}
+
+	ti.flowInst.master.interceptor.AddCoverage(ti.task.ID(), support.Activity)
+
 	return done, nil
 }
 

@@ -2,11 +2,16 @@ package instance
 
 import (
 	"errors"
+	"fmt"
+	"github.com/project-flogo/core/data/expression"
+	"reflect"
+	"strconv"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/support"
 )
 
@@ -111,6 +116,79 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 	}
 
 	return true
+}
+
+func applyAssertionInterceptor(taskInst *TaskInst) error {
+
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Applying Interceptor - Assertion")
+
+		// check if this task has assertion interceptor
+		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
+		if taskInterceptor != nil && len(taskInterceptor.Assertions) > 0 {
+			ef := expression.NewFactory(definition.GetDataResolver())
+
+			for name, assertion := range taskInterceptor.Assertions {
+				if taskInst.logger.DebugEnabled() {
+					taskInst.logger.Debugf("Executing Assertion Attr: %s = %s", name, assertion)
+				}
+				result := false
+				if assertion.Type == support.Primitive {
+					result = applyPrimitiveAssertion(taskInst, ef, assertion)
+				} else if assertion.Type == support.Activity {
+					result = applyActivityAssertion(taskInst, assertion)
+				} else {
+					taskInst.Logger().Errorf("Invalid Assertion Mode")
+				}
+
+				taskInst.logger.Infof("Assertion Execution Result => Name: %s, Type: %s, Result: %s ",
+					assertion.Name, assertion.Type, strconv.FormatBool(result))
+
+				//Set the result back in the Interceptor.
+				taskInterceptor.Assertions[name].Result = result
+
+			}
+		}
+	}
+
+	return nil
+}
+
+func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion support.Assertion) bool {
+	expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
+	result, err := expr.Eval(taskInst.flowInst)
+	if err != nil {
+		taskInst.logger.Error(err)
+		return false
+	}
+	res, _ := coerce.ToBool(result)
+	return res
+}
+
+func applyActivityAssertion(taskInst *TaskInst, assertion support.Assertion) bool {
+
+	// Gold output will be always be JSON.
+	goldOutput := assertion.Expression.(map[string]interface{})
+	equal := reflect.DeepEqual(goldOutput, taskInst.outputs)
+	return equal
+}
+
+func hasOutputInterceptor(taskInst *TaskInst) bool {
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Checking for Interceptor - Output")
+
+		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
+		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func applyOutputInterceptor(taskInst *TaskInst) error {
