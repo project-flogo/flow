@@ -2,7 +2,6 @@ package instance
 
 import (
 	"fmt"
-	"github.com/project-flogo/flow/support"
 	"runtime/debug"
 	"time"
 
@@ -280,7 +279,7 @@ func (ti *TaskInst) EvalLink(link *definition.Link) (result bool, err error) {
 
 		return coerce.ToBool(result)
 	}
-	ti.flowInst.master.interceptor.AddCoverage(link.Label(), support.Link)
+	//ti.flowInst.master.interceptor.AddCoverage(link.Label(), support.Link)
 
 	return true, nil
 }
@@ -426,7 +425,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		}
 	}
 
-	ti.flowInst.master.interceptor.AddCoverage(ti.task.ID(), support.Activity)
+	//ti.flowInst.master.interceptor.AddCoverage(ti.task.ID(), support.Activity)
 
 	return done, nil
 }
