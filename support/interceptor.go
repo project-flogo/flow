@@ -68,6 +68,7 @@ type Assertion struct {
 	Type       int
 	Expression interface{}
 	Result     bool
+	Executed   bool
 }
 
 type FlowCoverage struct {

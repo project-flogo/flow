@@ -380,16 +380,19 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			}
 
 			interceptor := inst.GetInterceptor().GetTaskInterceptor("__flowOutput")
-			ef := expression.NewFactory(definition.GetDataResolver())
-			for _, assertion := range interceptor.Assertions {
-				expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
-				result, err := expr.Eval(inst.Instance)
-				if err != nil {
-					fmt.Println("error")
+			if interceptor != nil {
+				ef := expression.NewFactory(definition.GetDataResolver())
+				for _, assertion := range interceptor.Assertions {
+					expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
+					result, err := expr.Eval(inst.Instance)
+					if err != nil {
+						fmt.Println("error")
+					}
+					res, _ := coerce.ToBool(result)
+					fmt.Println(res)
 				}
-				res, _ := coerce.ToBool(result)
-				fmt.Println(res)
 			}
+
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
 			if inst.TracingContext() != nil {

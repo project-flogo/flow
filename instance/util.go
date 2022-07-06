@@ -149,6 +149,7 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 
 				//Set the result back in the Interceptor.
 				taskInterceptor.Assertions[name].Result = result
+				taskInterceptor.Assertions[name].Executed = true
 
 			}
 		}
