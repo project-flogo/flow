@@ -382,14 +382,18 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			interceptor := inst.GetInterceptor().GetTaskInterceptor("__flowOutput")
 			if interceptor != nil {
 				ef := expression.NewFactory(definition.GetDataResolver())
-				for _, assertion := range interceptor.Assertions {
+				for id, assertion := range interceptor.Assertions {
 					expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 					result, err := expr.Eval(inst.Instance)
 					if err != nil {
 						fmt.Println("error")
 					}
 					res, _ := coerce.ToBool(result)
-					fmt.Println(res)
+					if res {
+						interceptor.Assertions[id].Result = 1
+					} else {
+						interceptor.Assertions[id].Result = 2
+					}
 				}
 			}
 

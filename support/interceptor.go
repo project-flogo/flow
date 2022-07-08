@@ -6,6 +6,12 @@ const (
 	Link      = 3
 )
 
+const (
+	NotExecuted = 0
+	Pass        = 1
+	Fail        = 2
+)
+
 // Interceptor contains a set of task interceptor, this can be used to override
 // runtime data of an instance of the corresponding Flow.  This can be used to
 // modify runtime execution of a flow or in test/debug for implementing mocks
@@ -67,8 +73,7 @@ type Assertion struct {
 	Name       string
 	Type       int
 	Expression interface{}
-	Result     bool
-	Executed   bool
+	Result     int
 }
 
 type FlowCoverage struct {

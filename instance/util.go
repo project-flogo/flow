@@ -148,8 +148,11 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 					assertion.Name, assertion.Type, strconv.FormatBool(result))
 
 				//Set the result back in the Interceptor.
-				taskInterceptor.Assertions[name].Result = result
-				taskInterceptor.Assertions[name].Executed = true
+				if result {
+					taskInterceptor.Assertions[name].Result = 1
+				} else {
+					taskInterceptor.Assertions[name].Result = 2
+				}
 
 			}
 		}
