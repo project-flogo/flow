@@ -379,23 +379,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				inst.SetValue(k, v)
 			}
 
-			interceptor := inst.GetInterceptor().GetTaskInterceptor("__flowOutput")
-			if interceptor != nil {
-				ef := expression.NewFactory(definition.GetDataResolver())
-				for id, assertion := range interceptor.Assertions {
-					expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
-					result, err := expr.Eval(inst.Instance)
-					if err != nil {
-						fmt.Println("error")
-					}
-					res, _ := coerce.ToBool(result)
-					if res {
-						interceptor.Assertions[id].Result = 1
-					} else {
-						interceptor.Assertions[id].Result = 2
-					}
-				}
-			}
+			fa.applyAssertionInterceptor(inst)
 
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
@@ -420,4 +404,28 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}()
 
 	return nil
+}
+
+func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance) {
+
+	if inst.GetInterceptor() != nil {
+		interceptor := inst.GetInterceptor().GetTaskInterceptor("__flowOutput")
+		if interceptor != nil {
+			ef := expression.NewFactory(definition.GetDataResolver())
+			for id, assertion := range interceptor.Assertions {
+				expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
+				result, err := expr.Eval(inst.Instance)
+				if err != nil {
+					fmt.Println("error")
+				}
+				res, _ := coerce.ToBool(result)
+				if res {
+					interceptor.Assertions[id].Result = 1
+				} else {
+					interceptor.Assertions[id].Result = 2
+				}
+			}
+		}
+	}
+
 }

@@ -74,6 +74,7 @@ type Assertion struct {
 	Type       int
 	Expression interface{}
 	Result     int
+	Message    string
 }
 
 type FlowCoverage struct {

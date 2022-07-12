@@ -136,8 +136,9 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 					taskInst.logger.Debugf("Executing Assertion Attr: %s = %s", name, assertion)
 				}
 				result := false
+				var message string
 				if assertion.Type == support.Primitive {
-					result = applyPrimitiveAssertion(taskInst, ef, assertion)
+					result, message = applyPrimitiveAssertion(taskInst, ef, assertion)
 				} else if assertion.Type == support.Activity {
 					result = applyActivityAssertion(taskInst, assertion)
 				} else {
@@ -147,6 +148,7 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 				taskInst.logger.Infof("Assertion Execution Result => Name: %s, Type: %s, Result: %s ",
 					assertion.Name, assertion.Type, strconv.FormatBool(result))
 
+				taskInterceptor.Assertions[name].Message = message
 				//Set the result back in the Interceptor.
 				if result {
 					taskInterceptor.Assertions[name].Result = 1
@@ -161,15 +163,44 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 	return nil
 }
 
-func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion support.Assertion) bool {
+func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion support.Assertion) (bool, string) {
 	expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
+	if expr == nil {
+		return false, "Failed to validate expression"
+	}
+
+	if checkForComparisonExpression(expr) {
+		return false, "Not a comparison expression"
+	}
 	result, err := expr.Eval(taskInst.flowInst)
 	if err != nil {
 		taskInst.logger.Error(err)
-		return false
+		return false, "Failed to evaluate expression"
 	}
 	res, _ := coerce.ToBool(result)
-	return res
+
+	if res {
+		return res, "Comparison success"
+	} else {
+		return res, "Comparison failure"
+	}
+
+}
+
+func checkForComparisonExpression(expr expression.Expr) bool {
+
+	of := reflect.TypeOf(expr)
+	fmt.Println(of)
+	switch of.String() {
+	case "*ast.cmpEqExpr":
+	case "*ast.cmpNotEqExpr":
+	case "*ast.cmpLtExpr":
+	case "*ast.cmpLtEqExpr":
+	case "*ast.cmpGtExpr":
+	case "*ast.cmpGtEqExpr":
+		return true
+	}
+	return false
 }
 
 func applyActivityAssertion(taskInst *TaskInst, assertion support.Assertion) bool {

@@ -506,6 +506,10 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 				ti.logger.Debug("Mapper not applied")
 			}
 		}
+		err = applyAssertionInterceptor(ti)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return done, nil
