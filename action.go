@@ -409,11 +409,21 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance) {
 
 	if inst.GetInterceptor() != nil {
-		interceptor := inst.GetInterceptor().GetTaskInterceptor("__flowOutput")
+		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-__flowOutput")
 		if interceptor != nil {
 			ef := expression.NewFactory(definition.GetDataResolver())
 			for id, assertion := range interceptor.Assertions {
+				if assertion.Expression == "" {
+					interceptor.Assertions[id].Message = "Empty expression"
+					continue
+				}
+
 				expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
+				if expr == nil {
+					interceptor.Assertions[id].Result = 2
+					interceptor.Assertions[id].Message = "Failed to validate expression"
+					continue
+				}
 				result, err := expr.Eval(inst.Instance)
 				if err != nil {
 					fmt.Println("error")

@@ -81,7 +81,6 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 
 		// check if this task as an interceptor
 		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
-
 		if taskInterceptor != nil {
 
 			taskInst.logger.Debug("Applying Interceptor - Input")
@@ -125,9 +124,8 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 	if master.interceptor != nil {
 
 		taskInst.logger.Debug("Applying Interceptor - Assertion")
-
 		// check if this task has assertion interceptor
-		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
+		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.flowInst.Name() + "-" + taskInst.task.ID())
 		if taskInterceptor != nil && len(taskInterceptor.Assertions) > 0 {
 			ef := expression.NewFactory(definition.GetDataResolver())
 
@@ -137,6 +135,12 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 				}
 				result := false
 				var message string
+
+				if assertion.Expression == "" {
+					taskInterceptor.Assertions[name].Message = "Empty expression"
+					continue
+				}
+
 				if assertion.Type == support.Primitive {
 					result, message = applyPrimitiveAssertion(taskInst, ef, assertion)
 				} else if assertion.Type == support.Activity {
@@ -164,6 +168,7 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 }
 
 func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion support.Assertion) (bool, string) {
+
 	expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 	if expr == nil {
 		return false, "Failed to validate expression"
