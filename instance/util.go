@@ -125,7 +125,8 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 
 		taskInst.logger.Debug("Applying Interceptor - Assertion")
 		// check if this task has assertion interceptor
-		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.flowInst.Name() + "-" + taskInst.task.ID())
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Assertions) > 0 {
 			ef := expression.NewFactory(definition.GetDataResolver())
 
@@ -149,9 +150,6 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 					taskInst.Logger().Errorf("Invalid Assertion Mode")
 				}
 
-				taskInst.logger.Infof("Assertion Execution Result => Name: %s, Type: %s, Result: %s ",
-					assertion.Name, assertion.Type, strconv.FormatBool(result))
-
 				taskInterceptor.Assertions[name].Message = message
 				//Set the result back in the Interceptor.
 				if result {
@@ -159,6 +157,8 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 				} else {
 					taskInterceptor.Assertions[name].Result = 2
 				}
+				taskInst.logger.Infof("Assertion Execution Result => Name: %s, Assertion Expression: %v, Result: %s, Message: %s ",
+					assertion.Name, assertion.Expression, strconv.FormatBool(result), message)
 
 			}
 		}
@@ -195,7 +195,6 @@ func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertio
 func checkForComparisonExpression(expr expression.Expr) bool {
 
 	of := reflect.TypeOf(expr)
-	fmt.Println(of)
 	switch of.String() {
 	case "*ast.cmpEqExpr":
 	case "*ast.cmpNotEqExpr":
