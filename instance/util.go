@@ -3,16 +3,15 @@ package instance
 import (
 	"errors"
 	"fmt"
-	"github.com/project-flogo/core/data/expression"
-	"reflect"
-	"strconv"
-
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
+	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/support"
+	"reflect"
+	"strconv"
 )
 
 func applySettingsMapper(taskInst *TaskInst) error {
@@ -157,9 +156,8 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 				} else {
 					taskInterceptor.Assertions[name].Result = 2
 				}
-				taskInst.logger.Infof("Assertion Execution Result => Name: %s, Assertion Expression: %v, Result: %s, Message: %s ",
+				taskInst.logger.Debugf("Assertion Execution Result => Name: %s, Assertion Expression: %v, Result: %s, Message: %s ",
 					assertion.Name, assertion.Expression, strconv.FormatBool(result), message)
-
 			}
 		}
 	}
