@@ -274,11 +274,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 							}
 						}
 					}
-					if os.Getenv("TEST_MODE") != "true" {
-						return nil, fmt.Errorf("unable to convert input [%s]'s value [%s] to type [%s]:%s", k, v, fieldMetaddata.Type(), err.Error())
-					} else {
-						fmt.Printf("Activity initialization failed for %s \n", activityCfg.Ref())
-					}
+					return nil, fmt.Errorf("unable to convert input [%s]'s value [%s] to type [%s]:%s", k, v, fieldMetaddata.Type(), err.Error())
 				}
 				input[k] = newVal
 			} else {
