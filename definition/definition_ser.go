@@ -3,6 +3,7 @@ package definition
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/project-flogo/core/app/resolve"
@@ -273,7 +274,11 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 							}
 						}
 					}
-					return nil, fmt.Errorf("unable to convert input [%s]'s value [%s] to type [%s]:%s", k, v, fieldMetaddata.Type(), err.Error())
+					if os.Getenv("TEST_MODE") != "true" {
+						return nil, fmt.Errorf("unable to convert input [%s]'s value [%s] to type [%s]:%s", k, v, fieldMetaddata.Type(), err.Error())
+					} else {
+						fmt.Printf("Activity initialization failed for %s \n", activityCfg.Ref())
+					}
 				}
 				input[k] = newVal
 			} else {
