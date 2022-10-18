@@ -3,7 +3,6 @@ package definition
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/project-flogo/core/app/resolve"
