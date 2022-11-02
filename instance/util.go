@@ -10,7 +10,6 @@ import (
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/support"
-	"reflect"
 	"strconv"
 )
 
@@ -119,9 +118,7 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 func applyAssertionInterceptor(taskInst *TaskInst) error {
 
 	master := taskInst.flowInst.master
-
 	if master.interceptor != nil {
-
 		taskInst.logger.Debug("Applying Interceptor - Assertion")
 		// check if this task has assertion interceptor
 		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
@@ -138,23 +135,23 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 
 				if assertion.Expression == "" {
 					taskInterceptor.Assertions[name].Message = "Empty expression"
+					taskInterceptor.Assertions[name].Result = support.NotExecuted
 					continue
 				}
 
 				if assertion.Type == support.Primitive {
 					result, message = applyPrimitiveAssertion(taskInst, ef, assertion)
-				} else if assertion.Type == support.Activity {
-					result = applyActivityAssertion(taskInst, assertion)
 				} else {
 					taskInst.Logger().Errorf("Invalid Assertion Mode")
+					return errors.New("Invalid Assertion Mode")
 				}
 
 				taskInterceptor.Assertions[name].Message = message
 				//Set the result back in the Interceptor.
 				if result {
-					taskInterceptor.Assertions[name].Result = 1
+					taskInterceptor.Assertions[name].Result = support.Pass
 				} else {
-					taskInterceptor.Assertions[name].Result = 2
+					taskInterceptor.Assertions[name].Result = support.Fail
 				}
 				taskInst.logger.Debugf("Assertion Execution Result => Name: %s, Assertion Expression: %v, Result: %s, Message: %s ",
 					assertion.Name, assertion.Expression, strconv.FormatBool(result), message)
@@ -172,9 +169,6 @@ func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertio
 		return false, "Failed to validate expression"
 	}
 
-	if checkForComparisonExpression(expr) {
-		return false, "Not a comparison expression"
-	}
 	result, err := expr.Eval(taskInst.flowInst)
 	if err != nil {
 		taskInst.logger.Error(err)
@@ -187,45 +181,6 @@ func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertio
 	} else {
 		return res, "Comparison failure"
 	}
-
-}
-
-func checkForComparisonExpression(expr expression.Expr) bool {
-
-	of := reflect.TypeOf(expr)
-	switch of.String() {
-	case "*ast.cmpEqExpr":
-	case "*ast.cmpNotEqExpr":
-	case "*ast.cmpLtExpr":
-	case "*ast.cmpLtEqExpr":
-	case "*ast.cmpGtExpr":
-	case "*ast.cmpGtEqExpr":
-		return true
-	}
-	return false
-}
-
-func applyActivityAssertion(taskInst *TaskInst, assertion support.Assertion) bool {
-
-	// Gold output will be always be JSON.
-	goldOutput := assertion.Expression.(map[string]interface{})
-	equal := reflect.DeepEqual(goldOutput, taskInst.outputs)
-	return equal
-}
-
-func hasOutputInterceptor(taskInst *TaskInst) bool {
-	master := taskInst.flowInst.master
-
-	if master.interceptor != nil {
-
-		taskInst.logger.Debug("Checking for Interceptor - Output")
-
-		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
-		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
-			return true
-		}
-	}
-	return false
 }
 
 func applyOutputInterceptor(taskInst *TaskInst) error {

@@ -409,31 +409,37 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance) {
 
 	if inst.GetInterceptor() != nil {
-		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-__flowOutput")
+		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-_flowOutput")
 		if interceptor != nil {
 			ef := expression.NewFactory(definition.GetDataResolver())
 			for id, assertion := range interceptor.Assertions {
 				if assertion.Expression == "" {
 					interceptor.Assertions[id].Message = "Empty expression"
+					interceptor.Assertions[id].Result = flowsupport.NotExecuted
 					continue
 				}
 
 				expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 				if expr == nil {
-					interceptor.Assertions[id].Result = 2
+					interceptor.Assertions[id].Result = flowsupport.Fail
 					interceptor.Assertions[id].Message = "Failed to validate expression"
 					continue
 				}
 				result, err := expr.Eval(inst.Instance)
 				if err != nil {
-					fmt.Println("error")
-				}
-				res, _ := coerce.ToBool(result)
-				if res {
-					interceptor.Assertions[id].Result = 1
+					interceptor.Assertions[id].Result = flowsupport.Fail
+					interceptor.Assertions[id].Message = "Failed to evaluate expression"
 				} else {
-					interceptor.Assertions[id].Result = 2
+					res, _ := coerce.ToBool(result)
+					if res {
+						interceptor.Assertions[id].Result = flowsupport.Pass
+						interceptor.Assertions[id].Message = "Comparison success"
+					} else {
+						interceptor.Assertions[id].Result = flowsupport.Fail
+						interceptor.Assertions[id].Message = "Comparison failure"
+					}
 				}
+
 			}
 		}
 	}
