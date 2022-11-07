@@ -411,6 +411,11 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 				return done, err
 			}
 		}
+
+		err = applyAssertionInterceptor(ti)
+		if err != nil {
+			return false, err
+		}
 	}
 	return done, nil
 }
@@ -490,6 +495,10 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 
 				ti.logger.Debug("Mapper not applied")
 			}
+		}
+		err = applyAssertionInterceptor(ti)
+		if err != nil {
+			return false, err
 		}
 	}
 
