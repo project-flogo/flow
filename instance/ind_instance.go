@@ -248,6 +248,10 @@ func (inst *IndependentInstance) ApplyInterceptor(interceptor *flowsupport.Inter
 	}
 }
 
+func (inst *IndependentInstance) GetInterceptor() *flowsupport.Interceptor {
+	return inst.interceptor
+}
+
 // GetChanges returns the Change Tracker object
 func (inst *IndependentInstance) GetChanges() ChangeTracker {
 	return inst.changeTracker

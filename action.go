@@ -371,6 +371,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), nil)
 			}
+			for k, v := range returnData {
+				inst.SetValue(k, v)
+			}
+
+			fa.applyAssertionInterceptor(inst)
+
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
 			if inst.TracingContext() != nil {
@@ -394,4 +400,44 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}()
 
 	return nil
+}
+
+func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance) {
+
+	if inst.GetInterceptor() != nil {
+		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-_flowOutput")
+		if interceptor != nil {
+			ef := expression.NewFactory(definition.GetDataResolver())
+			for id, assertion := range interceptor.Assertions {
+				if assertion.Expression == "" {
+					interceptor.Assertions[id].Message = "Empty expression"
+					interceptor.Assertions[id].Result = flowsupport.NotExecuted
+					continue
+				}
+
+				expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
+				if expr == nil {
+					interceptor.Assertions[id].Result = flowsupport.Fail
+					interceptor.Assertions[id].Message = "Failed to validate expression"
+					continue
+				}
+				result, err := expr.Eval(inst.Instance)
+				if err != nil {
+					interceptor.Assertions[id].Result = flowsupport.Fail
+					interceptor.Assertions[id].Message = "Failed to evaluate expression"
+				} else {
+					res, _ := coerce.ToBool(result)
+					if res {
+						interceptor.Assertions[id].Result = flowsupport.Pass
+						interceptor.Assertions[id].Message = "Comparison success"
+					} else {
+						interceptor.Assertions[id].Result = flowsupport.Fail
+						interceptor.Assertions[id].Message = "Comparison failure"
+					}
+				}
+
+			}
+		}
+	}
+
 }

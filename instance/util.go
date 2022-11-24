@@ -2,12 +2,15 @@ package instance
 
 import (
 	"errors"
-
+	"fmt"
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
+	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/support"
+	"strconv"
 )
 
 func applySettingsMapper(taskInst *TaskInst) error {
@@ -76,7 +79,6 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 
 		// check if this task as an interceptor
 		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
-
 		if taskInterceptor != nil {
 
 			taskInst.logger.Debug("Applying Interceptor - Input")
@@ -111,6 +113,74 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 	}
 
 	return true
+}
+
+func applyAssertionInterceptor(taskInst *TaskInst) error {
+
+	master := taskInst.flowInst.master
+	if master.interceptor != nil {
+		taskInst.logger.Debug("Applying Interceptor - Assertion")
+		// check if this task has assertion interceptor
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
+		if taskInterceptor != nil && len(taskInterceptor.Assertions) > 0 {
+			ef := expression.NewFactory(definition.GetDataResolver())
+
+			for name, assertion := range taskInterceptor.Assertions {
+				if taskInst.logger.DebugEnabled() {
+					taskInst.logger.Debugf("Executing Assertion Attr: %s = %s", name, assertion)
+				}
+				result := false
+				var message string
+
+				if assertion.Expression == "" {
+					taskInterceptor.Assertions[name].Message = "Empty expression"
+					taskInterceptor.Assertions[name].Result = support.NotExecuted
+					continue
+				}
+
+				if assertion.Type == support.Primitive {
+					result, message = applyPrimitiveAssertion(taskInst, ef, assertion)
+				} else {
+					taskInst.Logger().Errorf("Invalid Assertion Mode")
+					return errors.New("Invalid Assertion Mode")
+				}
+
+				taskInterceptor.Assertions[name].Message = message
+				//Set the result back in the Interceptor.
+				if result {
+					taskInterceptor.Assertions[name].Result = support.Pass
+				} else {
+					taskInterceptor.Assertions[name].Result = support.Fail
+				}
+				taskInst.logger.Debugf("Assertion Execution Result => Name: %s, Assertion Expression: %v, Result: %s, Message: %s ",
+					assertion.Name, assertion.Expression, strconv.FormatBool(result), message)
+			}
+		}
+	}
+
+	return nil
+}
+
+func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion support.Assertion) (bool, string) {
+
+	expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
+	if expr == nil {
+		return false, "Failed to validate expression"
+	}
+
+	result, err := expr.Eval(taskInst.flowInst)
+	if err != nil {
+		taskInst.logger.Error(err)
+		return false, "Failed to evaluate expression"
+	}
+	res, _ := coerce.ToBool(result)
+
+	if res {
+		return res, "Comparison success"
+	} else {
+		return res, "Comparison failure"
+	}
 }
 
 func applyOutputInterceptor(taskInst *TaskInst) error {
