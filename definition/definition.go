@@ -1,7 +1,10 @@
 package definition
 
 import (
+	"encoding/json"
 	"fmt"
+
+	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
 
 	"github.com/project-flogo/core/activity"
@@ -95,6 +98,72 @@ func (d *Definition) Cleanup() error {
 	return nil
 }
 
+func (d *Definition) Reconfigure(config *resource.Config) error {
+	var flowDefBytes []byte
+	flowDefBytes = config.Data
+	def := &struct {
+		Tasks        []*TaskRep       `json:"tasks"`
+		ErrorHandler *ErrorHandlerRep `json:"errorHandler,omitempty"`
+	}{}
+	err := json.Unmarshal(flowDefBytes, def)
+	if err != nil {
+		return fmt.Errorf("error loading flow resource with id '%s': %s", config.ID, err.Error())
+	}
+
+	ef := expression.NewFactory(GetDataResolver())
+
+	//TODO Update loop configuration
+
+	// Main flow tasks
+	if def.Tasks != nil {
+		for _, taskRep := range def.Tasks {
+			task := d.tasks[taskRep.ID]
+			if task != nil && len(task.activityCfg.settings) > 0 {
+				err = task.reconfigureTaskSettings(taskRep, ef)
+				if err != nil {
+					log.RootLogger().Errorf("%s", err.Error())
+					// Proceeding with next task
+				}
+			}
+		}
+	}
+	// Error handler tasks
+	if def.ErrorHandler != nil && d.errorHandler != nil {
+		for _, taskRep := range def.ErrorHandler.Tasks {
+			task := d.errorHandler.tasks[taskRep.ID]
+			if task != nil && len(task.activityCfg.settings) > 0 {
+				err = task.reconfigureTaskSettings(taskRep, ef)
+				if err != nil {
+					log.RootLogger().Errorf("%s", err.Error())
+					// Proceeding with next task
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (task *Task) reconfigureTaskSettings(taskRep *TaskRep, ef expression.Factory) error {
+	var err error
+	if reconfigurable, ok := task.activityCfg.Activity.(activity.ReconfigurableActivity); ok {
+		mdSettings := task.activityCfg.Activity.Metadata().Settings
+		for name, value := range taskRep.ActivityCfgRep.Settings {
+			task.activityCfg.settings[name], err = metadata.ResolveSettingValue(name, value, mdSettings, ef)
+			if err != nil {
+				return fmt.Errorf("unable to resolve setting [%s]'s value [%s]:%s", name, value, err.Error())
+			}
+		}
+		err = reconfigurable.Reconfigure(task.activityCfg.settings)
+		if err != nil {
+			return fmt.Errorf("failed to reconfigure activity [%s] due to error:%v", task.ID(), err)
+		} else {
+			log.RootLogger().Infof("Activity: %s successfully reconfigured", task.ID())
+		}
+	}
+	return err
+}
+
 // GetTask returns the task with the specified ID
 func (d *Definition) Tasks() []*Task {
 
@@ -139,7 +208,7 @@ func (ac *ActivityConfig) GetInputSchema(name string) schema.Schema {
 	return nil
 }
 
-//Deprecated
+// Deprecated
 func (ac *ActivityConfig) GetOutput(name string) interface{} {
 	if ac.outputs != nil {
 		return ac.outputs[name]

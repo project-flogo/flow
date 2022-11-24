@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/project-flogo/core/action"
-	"github.com/project-flogo/core/app"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/expression"
@@ -218,21 +217,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	var inst *instance.IndependentInstance
 	switch op {
 	case instance.OpStart:
-		var flowDef *definition.Definition
-		if app.AutoReconfigurationEnabled() {
-			// use latest flow definition when this feature is enabled
-			flowDef, _, _ = flowsupport.GetDefinition(flowURI)
-		}
+		flowDef := fa.resFlow
 		if flowDef == nil {
-			flowDef = fa.resFlow
-		}
-		if flowDef == nil {
-			var err error
 			flowDef, err = flowManager.GetFlow(flowURI)
 			if err != nil {
 				return err
 			}
-
 			if flowDef == nil {
 				return errors.New("flow not found for URI: " + flowURI)
 			}
