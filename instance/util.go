@@ -189,7 +189,8 @@ func hasOutputInterceptor(taskInst *TaskInst) bool {
 
 		taskInst.logger.Debug("Checking for Interceptor - Output")
 
-		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
 			return true
 		}
@@ -205,8 +206,9 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 
 		taskInst.logger.Debug("Applying Interceptor - Output")
 
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
 		// check if this task as an interceptor and overrides ouputs
-		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
 
 			mdOutput := taskInst.task.ActivityConfig().Activity.Metadata().Output
