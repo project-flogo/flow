@@ -182,6 +182,20 @@ func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertio
 		return res, "Comparison failure"
 	}
 }
+func hasOutputInterceptor(taskInst *TaskInst) bool {
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Checking for Interceptor - Output")
+
+		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
+		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
+			return true
+		}
+	}
+	return false
+}
 
 func applyOutputInterceptor(taskInst *TaskInst) error {
 
