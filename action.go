@@ -162,7 +162,7 @@ func (fa *FlowAction) Info() *action.Info {
 	return fa.info
 }
 
-//Metadata get the Action's metadata
+// Metadata get the Action's metadata
 func (fa *FlowAction) Metadata() *action.Metadata {
 	return actionMd
 }
@@ -217,16 +217,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	var inst *instance.IndependentInstance
 	switch op {
 	case instance.OpStart:
-
 		flowDef := fa.resFlow
-
 		if flowDef == nil {
-			var err error
 			flowDef, err = flowManager.GetFlow(flowURI)
 			if err != nil {
 				return err
 			}
-
 			if flowDef == nil {
 				return errors.New("flow not found for URI: " + flowURI)
 			}
