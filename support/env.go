@@ -1,15 +1,19 @@
 package support
 
 import (
-	"github.com/project-flogo/core/engine"
 	"os"
+
+	"github.com/project-flogo/core/data/coerce"
+	"github.com/project-flogo/core/engine"
 )
 
 const (
-	UserName   = "FLOGO_APP_USERNAME"
-	HostName   = "FLOGO_HOST_NAME"
-	AppName    = "FLOGO_APP_NAME"
-	AppVersion = "FLOGO_APP_VERSION"
+	UserName                  = "FLOGO_APP_USERNAME"
+	HostName                  = "FLOGO_HOST_NAME"
+	AppName                   = "FLOGO_APP_NAME"
+	AppVersion                = "FLOGO_APP_VERSION"
+	PropagateSkip             = "FLOGO_TASK_PROPAGATE_SKIP"
+	PropagateSkipDefault bool = true
 )
 
 var username, hostName, appName, appVersion string
@@ -57,4 +61,16 @@ func GetAppVerison() string {
 		return engine.GetAppVersion()
 	}
 	return appVersion
+}
+
+func GetPropagateSkip() bool {
+	v, ok := os.LookupEnv(PropagateSkip)
+	if !ok {
+		return PropagateSkipDefault
+	}
+	propagateSkip, err := coerce.ToBool(v)
+	if err != nil {
+		return PropagateSkipDefault
+	}
+	return propagateSkip
 }
