@@ -2,6 +2,7 @@ package instance
 
 import (
 	"fmt"
+	"github.com/project-flogo/flow/support"
 	"runtime/debug"
 	"time"
 
@@ -367,11 +368,15 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 				if ok {
 					e.SetActivityName(ti.task.Name())
 				}
-
+				setActivityExecutionStatus(ti, support.Fail)
 				return false, evalErr
+			} else {
+				setActivityExecutionStatus(ti, support.Pass)
 			}
 		} else {
+			ti.logger.Infof("Activity %s of type %s is mocked and not executed", ti.task.Name(), ti.task.ID())
 			done = true
+			setActivityExecutionStatus(ti, support.Mocked)
 		}
 
 	} else {

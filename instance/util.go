@@ -239,6 +239,20 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 	return nil
 }
 
+func setActivityExecutionStatus(taskInst *TaskInst, status int) {
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Setting activity execution status")
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
+		if taskInterceptor != nil {
+			taskInterceptor.Result = status
+		}
+	}
+}
+
 // applyOutputMapper applies the output mapper, returns flag indicating if
 // there was an output mapper
 func applyOutputMapper(taskInst *TaskInst) (bool, error) {

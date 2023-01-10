@@ -9,6 +9,7 @@ const (
 	NotExecuted = 0
 	Pass        = 1
 	Fail        = 2
+	Mocked      = 3
 )
 
 // Interceptor contains a set of task interceptor, this can be used to override
@@ -49,6 +50,7 @@ type TaskInterceptor struct {
 	Inputs     map[string]interface{} `json:"inputs,omitempty"`
 	Outputs    map[string]interface{} `json:"outputs,omitempty"`
 	Assertions []Assertion            `json:"assertions,omitempty"`
+	Result     int                    `json:"result,omitempty"`
 }
 
 type Assertion struct {
