@@ -369,6 +369,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 					e.SetActivityName(ti.task.Name())
 				}
 				setActivityExecutionStatus(ti, support.Fail)
+				setActivityExecutionMessage(ti, e.Error())
 				return false, evalErr
 			} else {
 				setActivityExecutionStatus(ti, support.Pass)

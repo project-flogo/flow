@@ -51,6 +51,7 @@ type TaskInterceptor struct {
 	Outputs    map[string]interface{} `json:"outputs,omitempty"`
 	Assertions []Assertion            `json:"assertions,omitempty"`
 	Result     int                    `json:"result,omitempty"`
+	Message    string                 `json:"message"`
 }
 
 type Assertion struct {

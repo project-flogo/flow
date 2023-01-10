@@ -253,6 +253,20 @@ func setActivityExecutionStatus(taskInst *TaskInst, status int) {
 	}
 }
 
+func setActivityExecutionMessage(taskInst *TaskInst, message string) {
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Setting activity execution status")
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
+		if taskInterceptor != nil {
+			taskInterceptor.Message = message
+		}
+	}
+}
+
 // applyOutputMapper applies the output mapper, returns flag indicating if
 // there was an output mapper
 func applyOutputMapper(taskInst *TaskInst) (bool, error) {
