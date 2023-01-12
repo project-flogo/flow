@@ -411,6 +411,7 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 	if inst.GetInterceptor() != nil {
 		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-_flowOutput")
 		if interceptor != nil {
+			interceptor.Result = flowsupport.Pass
 			ef := expression.NewFactory(definition.GetDataResolver())
 			for id, assertion := range interceptor.Assertions {
 				if assertion.Expression == "" {
