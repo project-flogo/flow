@@ -9,11 +9,12 @@ import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/model"
+	"github.com/project-flogo/flow/support"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const PropagateSkip = true
+var propagateSkip = support.GetPropagateSkip()
 
 // TaskBehavior implements model.TaskBehavior
 type TaskBehavior struct {
@@ -312,14 +313,14 @@ func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 			taskEntries = append(taskEntries, taskEntry)
 		}
 
-		return false, taskEntries, PropagateSkip
+		return false, taskEntries, propagateSkip
 	}
 
 	if logger.DebugEnabled() {
 		logger.Debugf("Notifying flow that end task '%s' is skipped", ctx.Task().ID())
 	}
 
-	return true, nil, PropagateSkip
+	return true, nil, propagateSkip
 }
 
 // Error implements model.TaskBehavior.Error
