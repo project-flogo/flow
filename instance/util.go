@@ -182,6 +182,21 @@ func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertio
 		return res, "Comparison failure"
 	}
 }
+func hasOutputInterceptor(taskInst *TaskInst) bool {
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Checking for Interceptor - Output")
+
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
+		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
+			return true
+		}
+	}
+	return false
+}
 
 func applyOutputInterceptor(taskInst *TaskInst) error {
 
@@ -191,8 +206,9 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 
 		taskInst.logger.Debug("Applying Interceptor - Output")
 
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
 		// check if this task as an interceptor and overrides ouputs
-		taskInterceptor := master.interceptor.GetTaskInterceptor(taskInst.task.ID())
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
 
 			mdOutput := taskInst.task.ActivityConfig().Activity.Metadata().Output
@@ -221,6 +237,34 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 	}
 
 	return nil
+}
+
+func setActivityExecutionStatus(taskInst *TaskInst, status int) {
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Setting activity execution status")
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
+		if taskInterceptor != nil {
+			taskInterceptor.Result = status
+		}
+	}
+}
+
+func setActivityExecutionMessage(taskInst *TaskInst, message string) {
+	master := taskInst.flowInst.master
+
+	if master.interceptor != nil {
+
+		taskInst.logger.Debug("Setting activity execution status")
+		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
+		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
+		if taskInterceptor != nil {
+			taskInterceptor.Message = message
+		}
+	}
 }
 
 // applyOutputMapper applies the output mapper, returns flag indicating if
