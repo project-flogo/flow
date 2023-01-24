@@ -388,14 +388,14 @@ func getEnterCode(linkInst model.LinkInstance) int {
 		Task with maximum enter code will execute first (except with enter code Skip i.e. 4)
 
 		Enter code (default)
-		0 -> Default or dependence link type
+		0 -> Default or dependency link type
 		1 -> Expression branches
 	    2 -> Otherwise branch
 		3 -> Label or success branch
 		4 -> Skip
 
 		New Enter Code
-		0 -> Default or dependence link type
+		0 -> Default or dependency link type
 		1 -> Label or success branch
 		2 -> Otherwise branch
 		3 -> Expression branches
