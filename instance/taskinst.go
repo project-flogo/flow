@@ -2,6 +2,7 @@ package instance
 
 import (
 	"fmt"
+	"github.com/project-flogo/flow/support"
 	"runtime/debug"
 	"time"
 
@@ -357,15 +358,26 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			ctx = &LegacyCtx{task: ti}
 		}
 
-		done, evalErr = actCfg.Activity.Eval(ctx)
+		// If output interceptor is there then the activity should be mocked and activity evaluation should be skipped.
+		// In the applyOutputInterceptor step the mock data will be applied to the activity
+		if !hasOutputInterceptor(ti) {
+			done, evalErr = actCfg.Activity.Eval(ctx)
 
-		if evalErr != nil {
-			e, ok := evalErr.(*activity.Error)
-			if ok {
-				e.SetActivityName(ti.task.Name())
+			if evalErr != nil {
+				e, ok := evalErr.(*activity.Error)
+				if ok {
+					e.SetActivityName(ti.task.Name())
+				}
+				setActivityExecutionStatus(ti, support.Fail)
+				setActivityExecutionMessage(ti, evalErr.Error())
+				return false, evalErr
+			} else {
+				setActivityExecutionStatus(ti, support.Pass)
 			}
-
-			return false, evalErr
+		} else {
+			ti.logger.Infof("Activity %s of type %s is mocked and not executed", ti.task.Name(), ti.task.ID())
+			done = true
+			setActivityExecutionStatus(ti, support.Mocked)
 		}
 
 	} else {
