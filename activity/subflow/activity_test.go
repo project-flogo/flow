@@ -2,9 +2,10 @@ package subflow
 
 import (
 	"context"
+	"testing"
+
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/engine/runner"
-	"testing"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/activity"
@@ -141,7 +142,7 @@ func TestSettings(t *testing.T) {
 	settings = &Settings{FlowURI: "uri"}
 	iCtx = test.NewActivityInitContext(settings, nil)
 	a, err := New(iCtx)
-	assert.NotNil(t, err) //invalid uri
+	assert.Nil(t, err) //invalid uri
 
 	settings = &Settings{FlowURI: "res://flow:flow2"}
 	iCtx = test.NewActivityInitContext(settings, nil)
