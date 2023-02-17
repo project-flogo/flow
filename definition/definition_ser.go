@@ -218,6 +218,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 
 	activityCfg := &ActivityConfig{}
 	activityCfg.Activity = act
+	activityCfg.Name = task.Name()
 	activityCfg.Logger = activity.GetLogger(rep.Ref)
 	activityCfg.IsLegacy = activity.HasLegacyActivities() && activity.IsLegacyActivity(rep.Ref)
 
@@ -245,7 +246,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 
 	f := activity.GetFactory(rep.Ref)
 	if f != nil {
-		ctx := &initCtxImpl{settings: activityCfg.settings, mapperFactory: mf, logger: activity.GetLogger(rep.Ref)}
+		ctx := &initCtxImpl{settings: activityCfg.settings, mapperFactory: mf, logger: activity.GetLogger(rep.Ref), name: task.name}
 		var err error
 		activityCfg.Activity, err = f(ctx)
 		if err != nil {
@@ -593,10 +594,15 @@ type initCtxImpl struct {
 	settings      map[string]interface{}
 	mapperFactory mapper.Factory
 	logger        log.Logger
+	name          string
 }
 
 func (ctx *initCtxImpl) Settings() map[string]interface{} {
 	return ctx.settings
+}
+
+func (ctx *initCtxImpl) Name() string {
+	return ctx.name
 }
 
 func (ctx *initCtxImpl) MapperFactory() mapper.Factory {

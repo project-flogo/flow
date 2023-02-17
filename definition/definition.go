@@ -185,6 +185,7 @@ func (d *Definition) Links() []*Link {
 type ActivityConfig struct {
 	Activity activity.Activity
 	Logger   log.Logger
+	Name     string
 
 	settings map[string]interface{}
 
