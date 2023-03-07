@@ -186,6 +186,7 @@ type ActivityConfig struct {
 	Activity activity.Activity
 	Logger   log.Logger
 	Name     string
+	HostName string
 
 	settings map[string]interface{}
 
