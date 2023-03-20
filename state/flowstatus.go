@@ -14,7 +14,7 @@ type FlowState struct {
 	FlowInputs     map[string]interface{} `json:"flow_inputs"`
 	FlowOutputs    map[string]interface{} `json:"flow_outputs"`
 	FlowStats      string                 `json:"flow_stats"`
-	RerunCount     int                    `json:rerun_count`
+	RerunCount     int                    `json:"rerun_count"`
 	StartTime      time.Time              `json:"start_time"`
 	EndTime        time.Time              `json:"end_time"`
 }
