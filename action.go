@@ -300,7 +300,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	//Update flow starting time
 	inst.UpdateStartTime()
 	if stateRecorder != nil {
-		stateRecorder.RecordStart(inst.GetFlowState(inputs))
+		flowState := inst.GetFlowState(inputs)
+		flowState.OriginalInstanceId = originalInstanceId
+		stateRecorder.RecordStart(flowState)
 	}
 
 	if trace.Enabled() {
@@ -395,9 +397,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if stateRecorder != nil {
-			flowState := inst.GetFlowState(inputs)
-			flowState.OriginalInstanceId = originalInstanceId
-			stateRecorder.RecordDone(flowState)
+			stateRecorder.RecordDone(inst.GetFlowState(inputs))
 		}
 	}()
 
