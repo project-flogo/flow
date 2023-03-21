@@ -342,7 +342,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			inst.CurrentStep(true)
 		}
 	}
-
+	// set cancelcontext
+	inst.SetCancelContext(ctx)
 	go func() {
 
 		defer handler.Done()
@@ -378,7 +379,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			fa.applyAssertionInterceptor(inst)
 
 			handler.HandleResult(returnData, err)
-		} else if inst.Status() == model.FlowStatusFailed {
+		} else if inst.Status() == model.FlowStatusFailed || inst.Status() == model.FlowStatusCancelled {
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), inst.GetError())
 			}
@@ -391,6 +392,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			logger.Infof("Flow Instance [%s] for event id [%s] completed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		} else if inst.Status() == model.FlowStatusFailed {
 			logger.Infof("Flow Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
+		} else if inst.Status() == model.FlowStatusCancelled {
+			logger.Infof("Flow Instance [%s] for event id [%s] cancelled in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		}
 
 		if stateRecorder != nil {
