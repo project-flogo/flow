@@ -9,7 +9,7 @@ type FlowInfo struct {
 	Status             int                    `json:"status,omitempty"`
 	HostId             string                 `json:"hostid,omitempty"`
 	FlowStatus         string                 `json:"flowStatus,omitempty"`
-	FlowInputs         map[string]interface{} `json:"flow_inputs"`
+	FlowInputs         map[string]interface{} `json:"flowInputs"`
 	StartTime          string                 `json:"starttime,omitempty"`
 	EndTime            string                 `json:"endtime,omitempty"`
 	ExecutionTime      string                 `json:"executiontime,omitempty"`
