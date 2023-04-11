@@ -1,7 +1,6 @@
 package instance
 
 import (
-	"fmt"
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/state"
 	"github.com/project-flogo/flow/state/change"
@@ -268,7 +267,6 @@ func (sct *SimpleChangeTracker) LinkUpdated(linkInst *LinkInst) {
 	if sct.mode == state.RecordingModeDebugger {
 		link.From = linkInst.link.FromTask().ID()
 		link.To = linkInst.link.ToTask().ID()
-		fmt.Println("######################## Update called")
 	}
 }
 
