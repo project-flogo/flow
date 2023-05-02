@@ -8,16 +8,12 @@ import (
 )
 
 const (
-	UserName   = "FLOGO_APP_USERNAME"
-	HostName   = "FLOGO_HOST_NAME"
-	AppName    = "FLOGO_APP_NAME"
-	AppVersion = "FLOGO_APP_VERSION"
-
+	UserName                  = "FLOGO_APP_USERNAME"
+	HostName                  = "FLOGO_HOST_NAME"
+	AppName                   = "FLOGO_APP_NAME"
+	AppVersion                = "FLOGO_APP_VERSION"
 	PropagateSkip             = "FLOGO_TASK_PROPAGATE_SKIP"
 	PropagateSkipDefault bool = true
-
-	PrioritizeExprLink             = "FLOGO_TASK_PRIORITIZE_EXPR_LINK"
-	PrioritizeExprLinkDefault bool = false
 )
 
 var username, hostName, appName, appVersion string
@@ -77,16 +73,4 @@ func GetPropagateSkip() bool {
 		return PropagateSkipDefault
 	}
 	return propagateSkip
-}
-
-func GetPrioritizeExprTask() bool {
-	v, ok := os.LookupEnv(PrioritizeExprLink)
-	if !ok {
-		return PrioritizeExprLinkDefault
-	}
-	prioritizeExpression, err := coerce.ToBool(v)
-	if err != nil {
-		return PrioritizeExprLinkDefault
-	}
-	return prioritizeExpression
 }

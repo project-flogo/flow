@@ -264,10 +264,6 @@ func (sct *SimpleChangeTracker) LinkUpdated(linkInst *LinkInst) {
 	link := getLinkChange(sct.currentStep, linkInst.flowInst.subflowId, linkInst.id)
 	link.ChgType = change.Update
 	link.Status = int(linkInst.status)
-	if sct.mode == state.RecordingModeDebugger {
-		link.From = linkInst.link.FromTask().ID()
-		link.To = linkInst.link.ToTask().ID()
-	}
 }
 
 func (sct *SimpleChangeTracker) LinkRemoved(subflowId int, linkId int) {

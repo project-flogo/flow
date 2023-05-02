@@ -227,13 +227,13 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 
 			if linkInst.Link().Type() == definition.LtDependency {
 				linkInst.SetStatus(model.LinkStatusTrue)
-				taskEntry.EnterCode = getEnterCode(linkInst)
+				taskEntry.EnterCode = 0
 				continue
 			}
 
 			if linkInst.Link().Type() == definition.LtLabel {
 				linkInst.SetStatus(model.LinkStatusTrue)
-				taskEntry.EnterCode = getEnterCode(linkInst)
+				taskEntry.EnterCode = 3
 				continue
 			}
 
@@ -254,7 +254,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 				if follow {
 					exprLinkFollowed = true
 					linkInst.SetStatus(model.LinkStatusTrue)
-					taskEntry.EnterCode = getEnterCode(linkInst)
+					taskEntry.EnterCode = 1
 					if logger.DebugEnabled() {
 						logger.Debugf("Task '%s': Following Expression Link to task '%s'", ctx.Task().ID(), linkInst.Link().ToTask().ID())
 					}
@@ -266,7 +266,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 		if exprOtherwiseLinkInst != nil && hasExprLink && !exprLinkFollowed {
 			exprOtherwiseLinkInst.SetStatus(model.LinkStatusTrue)
 			//TODO For now keep previous order, otherwise running first.
-			exprOtherwiseTaskEntry.EnterCode = getEnterCode(exprOtherwiseLinkInst)
+			exprOtherwiseTaskEntry.EnterCode = 2
 			if logger.DebugEnabled() {
 				logger.Debugf("Task '%s': Following Otherwise Link to task '%s'", ctx.Task().ID(), exprOtherwiseLinkInst.Link().ToTask().ID())
 			}
@@ -380,45 +380,6 @@ func linkStatus(inst model.LinkInstance) string {
 	}
 
 	return "unknown"
-}
-
-func getEnterCode(linkInst model.LinkInstance) int {
-	/**
-		Execution order will depend on the enter code
-		Task with maximum enter code will execute first (except with enter code Skip i.e. 4)
-
-		Enter code (default)
-		0 -> Default or dependency link type
-		1 -> Expression branches
-	    2 -> Otherwise branch
-		3 -> Label or success branch
-		4 -> Skip
-
-		New Enter Code
-		0 -> Default or dependency link type
-		1 -> Label or success branch
-		2 -> Otherwise branch
-		3 -> Expression branches
-		4 -> Skip
-	*/
-
-	switch linkInst.Link().Type() {
-	case definition.LtDependency:
-		return 0
-	case definition.LtExprOtherwise:
-		return 2
-	case definition.LtLabel:
-		if support.GetPrioritizeExprTask() {
-			return 1
-		}
-		return 3
-	case definition.LtExpression:
-		if support.GetPrioritizeExprTask() {
-			return 3
-		}
-		return 1
-	}
-	return 4
 }
 
 //SortTaskEntries Sort by EnterCode, keeping original order or equal elements.
