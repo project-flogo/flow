@@ -20,6 +20,7 @@ type RunOptions struct {
 	InitialState        *IndependentInstance
 	ExecOptions         *ExecOptions
 	Rerun               bool
+	OriginalInstanceId  string
 }
 
 // ExecOptions are optional Patch & Interceptor to be used during instance execution
