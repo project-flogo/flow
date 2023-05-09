@@ -178,7 +178,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	retID := false
 	var initialState *instance.IndependentInstance
 	var flowURI string
-	var preserveInstanceId string
+	var preserveInstanceId, originalInstanceId string
 	var initStepId int
 	var rerun bool
 	runOptions, exists := inputs["_run_options"]
@@ -196,6 +196,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			execOptions = ro.ExecOptions
 			initStepId = ro.InitStepId
 			rerun = ro.Rerun
+			originalInstanceId = ro.OriginalInstanceId
 		}
 	}
 
@@ -299,7 +300,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	//Update flow starting time
 	inst.UpdateStartTime()
 	if stateRecorder != nil {
-		stateRecorder.RecordStart(inst.GetFlowState(inputs))
+		flowState := inst.GetFlowState(inputs)
+		flowState.OriginalInstanceId = originalInstanceId
+		stateRecorder.RecordStart(flowState)
 	}
 
 	if trace.Enabled() {
@@ -399,7 +402,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if stateRecorder != nil {
 			stateRecorder.RecordDone(inst.GetFlowState(inputs))
 		}
-
 	}()
 
 	return nil

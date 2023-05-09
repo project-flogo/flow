@@ -133,6 +133,8 @@ func (inst *IndependentInstance) SetCancelContext(ctx context.Context) {
 }
 
 func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
+	retData, _ := inst.GetReturnData()
+
 	return &state.FlowState{
 		UserId:         flowsupport.GetUserName(),
 		AppName:        flowsupport.GetAppName(),
@@ -140,6 +142,8 @@ func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *st
 		HostId:         flowsupport.GetHostId(),
 		FlowName:       inst.Name(),
 		FlowInstanceId: inst.id,
+		FlowInputs:     inputs,
+		FlowOutputs:    retData,
 		FlowStats:      string(convertFlowStatus(inst.status)),
 		StartTime:      inst.startTime,
 		EndTime:        time.Now().UTC(),
