@@ -1,5 +1,7 @@
 module github.com/project-flogo/flow
 
+go 1.18
+
 require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
@@ -17,5 +19,3 @@ require (
 	go.uber.org/zap v1.16.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
-
-go 1.18
