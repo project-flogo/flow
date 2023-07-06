@@ -84,6 +84,8 @@ func convertTaskStatus(code model.TaskStatus) event.Status {
 		return event.STARTED
 	case model.TaskStatusFailed:
 		return event.FAILED
+	case model.TaskStatusCancelled:
+		return event.CANCELLED
 	case model.TaskStatusDone:
 		return event.COMPLETED
 	case model.TaskStatusWaiting:
