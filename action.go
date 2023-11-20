@@ -39,7 +39,7 @@ const (
 )
 
 var idGenerator *support.Generator
-var maxStepCount = 1000000
+var maxStepCount = 10000000
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
 var flowManager *flowsupport.FlowManager

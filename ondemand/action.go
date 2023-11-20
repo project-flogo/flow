@@ -55,8 +55,8 @@ var stateRecordingMode = state.RecordingModeOff
 
 var actionMd = action.ToMetadata(&Settings{})
 
-//todo expose and support this properly
-var maxStepCount = 1000000
+// todo expose and support this properly
+var maxStepCount = 10000000
 
 type Settings struct {
 }
@@ -139,7 +139,7 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 
 }
 
-//Metadata get the Action's metadata
+// Metadata get the Action's metadata
 func (fa *FlowAction) Metadata() *action.Metadata {
 	return actionMd
 }
