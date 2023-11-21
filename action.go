@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,10 +38,11 @@ const (
 	// Deprecated
 	RtSettingStepMode     = "stepRecordingMode"
 	RtSettingSnapshotMode = "snapshotRecordingMode"
+	FlogoStepCount        = "FLOGO_STEP_COUNT"
 )
 
 var idGenerator *support.Generator
-var maxStepCount = 10000000
+var maxStepCount = GetMaxStepCount()
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
 var flowManager *flowsupport.FlowManager
@@ -443,4 +446,17 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 		}
 	}
 
+}
+
+// GetMaxStepCount returns the step limit
+func GetMaxStepCount() int {
+	maxStepCount := 10000000
+	envStepCount := os.Getenv(FlogoStepCount)
+	if len(envStepCount) > 0 {
+		i, err := strconv.Atoi(envStepCount)
+		if err == nil {
+			return i
+		}
+	}
+	return maxStepCount
 }
