@@ -127,6 +127,7 @@ func (inst *Instance) IOMetadata() *metadata.IOMetadata {
 
 func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
 	if inst.resultHandler != nil {
+		inst.returnData = replyData
 		inst.resultHandler.HandleResult(replyData, err)
 	}
 }
