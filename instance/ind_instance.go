@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -36,6 +37,8 @@ type IndependentInstance struct {
 	startTime  time.Time
 	//Instance recorder
 	instRecorder *stateInstanceRecorder
+	// context with cancel
+	canctx context.Context
 }
 
 const (
@@ -120,6 +123,13 @@ func (inst *IndependentInstance) UpdateStartTime() {
 
 func (inst *IndependentInstance) ExecutionTime() time.Duration {
 	return time.Since(inst.startTime)
+}
+
+func (inst *IndependentInstance) GetCancelContext() context.Context {
+	return inst.canctx
+}
+func (inst *IndependentInstance) SetCancelContext(ctx context.Context) {
+	inst.canctx = ctx
 }
 
 func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
@@ -298,7 +308,8 @@ func (inst *IndependentInstance) DoStep() bool {
 
 			// track the fact that the work item was removed from the queue
 			inst.changeTracker.WorkItemRemoved(workItem)
-
+			// injecting cancelcontext further
+			workItem.taskInst.cancelContext = inst.GetCancelContext()
 			inst.execTask(behavior, workItem.taskInst)
 
 			hasNext = true
@@ -523,13 +534,15 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
-
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 	}
 	// Set task status to failed for subflow activity
-	taskInst.SetStatus(model.TaskStatusFailed)
-
+	if errors.Is(err, context.Canceled) {
+		taskInst.SetStatus(model.TaskStatusCancelled)
+	} else {
+		taskInst.SetStatus(model.TaskStatusFailed)
+	}
 	handled, taskEntries := taskBehavior.Error(taskInst, err)
 
 	containerInst := taskInst.flowInst
@@ -615,8 +628,11 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 	} else {
 		// Print error message if no error handler
 		inst.logger.Error(err)
-		containerInst.SetStatus(model.FlowStatusFailed)
-
+		if errors.Is(err, context.Canceled) {
+			containerInst.SetStatus(model.FlowStatusCancelled)
+		} else {
+			containerInst.SetStatus(model.FlowStatusFailed)
+		}
 		if containerInst != inst.Instance {
 
 			// Complete SubflowCreated trace

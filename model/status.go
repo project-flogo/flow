@@ -39,6 +39,9 @@ const (
 	TaskStatusSkipped TaskStatus = 50
 
 	// TaskStatusFailed indicates that the Task failed
+	TaskStatusCancelled TaskStatus = 70
+
+	// TaskStatusFailed indicates that the Task failed
 	TaskStatusFailed TaskStatus = 100
 
 	// LinkStatusFalse indicates that the Link evaluated to false
