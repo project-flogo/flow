@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -244,6 +245,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			}
 		}
 
+		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
+			handler.HandleResult(nil, fmt.Errorf("Flow instance [%s] failed due to max step count reached", inst.ID()))
+		}
+
 		if inst.Status() == model.FlowStatusCompleted {
 			returnData, err := inst.GetReturnData()
 
@@ -284,8 +289,8 @@ func ApplyMappings(mappings map[string]interface{}, inputs map[string]interface{
 // GetMaxStepCount returns the step limit
 func GetMaxStepCount() int {
 	maxStepCount := 10000000
-	envStepCount := os.Getenv(FlogoStepCount)
-	if len(envStepCount) > 0 {
+	envStepCount, exists := os.LookupEnv(FlogoStepCount)
+	if exists {
 		i, err := strconv.Atoi(envStepCount)
 		if err == nil {
 			return i
