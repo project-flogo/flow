@@ -371,6 +371,14 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				inst.RecordState(taskStartTime)
 			}
 		}
+		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
+			err := fmt.Errorf("Flow instance [%s] failed due to max step count reached", inst.ID())
+			if inst.TracingContext() != nil {
+				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
+			}
+			handler.HandleResult(nil, err)
+			return
+		}
 
 		if inst.Status() == model.FlowStatusCompleted {
 			returnData, err := inst.GetReturnData()
@@ -451,8 +459,8 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 // GetMaxStepCount returns the step limit
 func GetMaxStepCount() int {
 	maxStepCount := 10000000
-	envStepCount := os.Getenv(FlogoStepCount)
-	if len(envStepCount) > 0 {
+	envStepCount, exists := os.LookupEnv(FlogoStepCount)
+	if exists {
 		i, err := strconv.Atoi(envStepCount)
 		if err == nil {
 			return i
