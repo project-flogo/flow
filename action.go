@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +24,7 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
+	"github.com/project-flogo/flow/util"
 )
 
 func init() {
@@ -38,11 +37,10 @@ const (
 	// Deprecated
 	RtSettingStepMode     = "stepRecordingMode"
 	RtSettingSnapshotMode = "snapshotRecordingMode"
-	FlogoStepCount        = "FLOGO_STEP_COUNT"
 )
 
 var idGenerator *support.Generator
-var maxStepCount = GetMaxStepCount()
+var maxStepCount = util.GetMaxStepCount()
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
 var flowManager *flowsupport.FlowManager
@@ -372,7 +370,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			}
 		}
 		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
-			err := fmt.Errorf("Flow instance [%s] failed due to max step count reached", inst.ID())
+			err := fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCount)
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
 			}
@@ -454,17 +452,4 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 		}
 	}
 
-}
-
-// GetMaxStepCount returns the step limit
-func GetMaxStepCount() int {
-	maxStepCount := 10000000
-	envStepCount, exists := os.LookupEnv(FlogoStepCount)
-	if exists {
-		i, err := strconv.Atoi(envStepCount)
-		if err == nil {
-			return i
-		}
-	}
-	return maxStepCount
 }

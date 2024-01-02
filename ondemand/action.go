@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 
 	"github.com/project-flogo/core/action"
@@ -25,6 +23,7 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
+	"github.com/project-flogo/flow/util"
 )
 
 const (
@@ -36,7 +35,6 @@ const (
 	// Deprecated
 	RtSettingStepMode     = "stepRecordingMode"
 	RtSettingSnapshotMode = "snapshotRecordingMode"
-	FlogoStepCount        = "FLOGO_STEP_COUNT"
 )
 
 type FlowAction struct {
@@ -58,7 +56,7 @@ var stateRecorder state.Recorder
 var stateRecordingMode = state.RecordingModeOff
 
 var actionMd = action.ToMetadata(&Settings{})
-var maxStepCount = GetMaxStepCount()
+var maxStepCount = util.GetMaxStepCount()
 
 type Settings struct {
 }
@@ -246,7 +244,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
-			handler.HandleResult(nil, fmt.Errorf("Flow instance [%s] failed due to max step count reached", inst.ID()))
+			handler.HandleResult(nil, fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCount))
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {
@@ -284,17 +282,4 @@ func ApplyMappings(mappings map[string]interface{}, inputs map[string]interface{
 	out, err := m.Apply(inScope)
 
 	return out, nil
-}
-
-// GetMaxStepCount returns the step limit
-func GetMaxStepCount() int {
-	maxStepCount := 10000000
-	envStepCount, exists := os.LookupEnv(FlogoStepCount)
-	if exists {
-		i, err := strconv.Atoi(envStepCount)
-		if err == nil {
-			return i
-		}
-	}
-	return maxStepCount
 }
