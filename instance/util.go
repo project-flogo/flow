@@ -1,17 +1,24 @@
 package instance
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strconv"
+
+	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/engine/runner"
+	"github.com/project-flogo/core/trigger"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/support"
-	"strconv"
 )
+
+const EventIdAttr = "event.id"
 
 func applySettingsMapper(taskInst *TaskInst) error {
 
@@ -342,5 +349,33 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 		return err
 	}
 
+	return nil
+}
+
+func StartDetachedSubFlow(ctx activity.Context, flowURI string, inputs map[string]interface{}) error {
+	taskInst, ok := ctx.(*TaskInst)
+
+	if !ok {
+		return errors.New("unable to create subFlow using this context")
+	}
+	f := action.GetFactory("github.com/project-flogo/flow")
+	flowAction, err := f.New(&action.Config{Settings: map[string]interface{}{"flowURI": flowURI}})
+	if err != nil {
+		return err
+	}
+
+	ro := &RunOptions{}
+	ro.Op = OpStart
+	ro.DetachExecution = true
+	inputs["_run_options"] = ro
+	eventId, _ := taskInst.flowInst.GetValue(EventIdAttr)
+	gCtx := context.Background()
+	if eventId != "" {
+		gCtx = trigger.NewContextWithEventId(gCtx, eventId.(string))
+	}
+	_, err = runner.NewDirect().RunAction(gCtx, flowAction, inputs)
+	if err != nil {
+		return err
+	}
 	return nil
 }
