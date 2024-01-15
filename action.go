@@ -180,7 +180,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	var initialState *instance.IndependentInstance
 	var flowURI string
 	var preserveInstanceId, originalInstanceId string
-	var initStepId int
+	var initStepId int64
 	var rerun bool
 	runOptions, exists := inputs["_run_options"]
 
@@ -329,7 +329,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 
 	//initStepId cannot less than 1. restart must start with 1 to xxxx
-	stepCount := 0
+	var stepCount int64 = 0
 	if initStepId > 0 {
 		stepCount = initStepId - 1
 	}

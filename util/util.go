@@ -23,11 +23,11 @@ func DeepCopyMap(data map[string]interface{}) map[string]interface{} {
 }
 
 // GetMaxStepCount returns the step limit
-func GetMaxStepCount() int {
-	maxStepCount := 10000000
+func GetMaxStepCount() int64 {
+	var maxStepCount int64 = 10000000
 	envStepCount, exists := os.LookupEnv(FlogoStepCount)
 	if exists {
-		i, err := strconv.Atoi(envStepCount)
+		i, err := strconv.ParseInt(envStepCount, 10, 64)
 		if err == nil {
 			return i
 		}

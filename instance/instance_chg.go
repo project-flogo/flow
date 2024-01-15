@@ -45,7 +45,7 @@ type ChangeTracker interface {
 	ExtractStep(reset bool) *state.Step
 }
 
-func NewInstanceChangeTracker(flowId string, startStepId int) ChangeTracker {
+func NewInstanceChangeTracker(flowId string, startStepId int64) ChangeTracker {
 	if chgTrackingEnabled {
 		return chgTrackerFactory.NewChangeTracker(flowId, stateMode, startStepId)
 	}
@@ -109,7 +109,7 @@ func (nct *NoopChangeTracker) ExtractStep(reset bool) *state.Step {
 type SimpleChangeTrackerFactory struct {
 }
 
-func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode, startStepId int) ChangeTracker {
+func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode, startStepId int64) ChangeTracker {
 	ct := &SimpleChangeTracker{flowId: flowId, mode: mode, stepCtr: startStepId}
 	ct.currentStep = &state.Step{
 		FlowId:      flowId,
@@ -121,7 +121,7 @@ func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state
 type SimpleChangeTracker struct {
 	flowId      string
 	mode        state.RecordingMode
-	stepCtr     int
+	stepCtr     int64
 	partialRun  bool
 	currentStep *state.Step
 }
