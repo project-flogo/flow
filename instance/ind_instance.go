@@ -20,7 +20,7 @@ type IndependentInstance struct {
 	*Instance
 
 	id            string
-	stepID        int
+	stepID        int64
 	workItemQueue *support.SyncQueue //todo: change to faster non-threadsafe queue
 	wiCounter     int
 
@@ -267,7 +267,7 @@ func (inst *IndependentInstance) ResetChanges() {
 }
 
 // StepID returns the current step ID of the Flow Instance
-func (inst *IndependentInstance) StepID() int {
+func (inst *IndependentInstance) StepID() int64 {
 	return inst.stepID
 }
 

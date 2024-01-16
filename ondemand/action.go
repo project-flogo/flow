@@ -244,7 +244,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
-			handler.HandleResult(nil, fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCount))
+			handler.HandleResult(nil, fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv))
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {
