@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/project-flogo/core/action"
@@ -22,6 +23,7 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
+	"github.com/project-flogo/flow/util"
 )
 
 const (
@@ -54,9 +56,7 @@ var stateRecorder state.Recorder
 var stateRecordingMode = state.RecordingModeOff
 
 var actionMd = action.ToMetadata(&Settings{})
-
-//todo expose and support this properly
-var maxStepCount = 1000000
+var maxStepCount = util.GetMaxStepCount()
 
 type Settings struct {
 }
@@ -139,7 +139,7 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 
 }
 
-//Metadata get the Action's metadata
+// Metadata get the Action's metadata
 func (fa *FlowAction) Metadata() *action.Metadata {
 	return actionMd
 }
@@ -241,6 +241,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				//ep.GetStateRecorder().RecordSnapshot(inst)
 				//ep.GetStateRecorder().RecordStep(inst)
 			}
+		}
+
+		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
+			handler.HandleResult(nil, fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv))
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {

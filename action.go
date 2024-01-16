@@ -24,6 +24,7 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
+	"github.com/project-flogo/flow/util"
 )
 
 func init() {
@@ -39,7 +40,7 @@ const (
 )
 
 var idGenerator *support.Generator
-var maxStepCount = 1000000
+var maxStepCount = util.GetMaxStepCount()
 var actionMd = action.ToMetadata(&Settings{})
 var logger log.Logger
 var flowManager *flowsupport.FlowManager
@@ -367,6 +368,14 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			if stateRecorder != nil {
 				inst.RecordState(taskStartTime)
 			}
+		}
+		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
+			err := fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
+			if inst.TracingContext() != nil {
+				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
+			}
+			handler.HandleResult(nil, err)
+			return
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {
