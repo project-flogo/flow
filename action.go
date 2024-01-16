@@ -181,7 +181,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	var flowURI string
 	var preserveInstanceId, originalInstanceId string
 	var initStepId int
-	var rerun bool
+	var rerun, detachExecution bool
 	runOptions, exists := inputs["_run_options"]
 
 	var execOptions *instance.ExecOptions
@@ -198,6 +198,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			initStepId = ro.InitStepId
 			rerun = ro.Rerun
 			originalInstanceId = ro.OriginalInstanceId
+			detachExecution = ro.DetachExecution
 		}
 	}
 
@@ -298,6 +299,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		logger.Debugf("Applying Exec Options to instance: %s", inst.ID())
 		instance.ApplyExecOptions(inst, execOptions)
 	}
+
 	//Update flow starting time
 	inst.UpdateStartTime()
 	if stateRecorder != nil {
@@ -306,12 +308,16 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		stateRecorder.RecordStart(flowState)
 	}
 
+	eventID := trigger.GetHandlerEventIdFromContext(ctx)
+	if eventID != "" {
+		// Add eventId to the instance
+		_ = inst.SetValue(instance.EventIdAttr, eventID)
+	}
 	if trace.Enabled() {
 		tc, err := trace.GetTracer().StartTrace(inst.SpanConfig(), trace.ExtractTracingContext(ctx))
 		if err != nil {
 			return err
 		}
-		eventID := trigger.GetHandlerEventIdFromContext(ctx)
 		if eventID != "" {
 			tc.SetTag("flogo_event_id", eventID)
 		}
@@ -348,8 +354,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 
 	go func() {
-
-		defer handler.Done()
+		if detachExecution {
+			// In detached mode, no reply expected. So, notifying handler.
+			handler.Done()
+		} else {
+			defer handler.Done()
+		}
 
 		if retID {
 

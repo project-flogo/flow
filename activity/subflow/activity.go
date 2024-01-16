@@ -14,7 +14,8 @@ func init() {
 }
 
 type Settings struct {
-	FlowURI string `md:"flowURI,required"`
+	FlowURI            string `md:"flowURI,required"`
+	DetachedInvocation bool   `md:"detached"`
 }
 
 var activityMd = activity.ToMetadata(&Settings{})
@@ -35,7 +36,7 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 	//}
 
 	activityMd := activity.ToMetadata(&Settings{})
-	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd}
+	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd, detachedInvocation: s.DetachedInvocation}
 
 	ctx.Logger().Debugf("flowURI: %+v", s.FlowURI)
 
@@ -48,8 +49,9 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 // input : {sub-flow's input}
 // output: {sub-flow's output}
 type SubFlowActivity struct {
-	activityMd *activity.Metadata
-	flowURI    string
+	activityMd         *activity.Metadata
+	flowURI            string
+	detachedInvocation bool
 
 	mutex     sync.Mutex
 	mdUpdated uint32
@@ -96,7 +98,12 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 		}
 	}
 
-	err = instance.StartSubFlow(ctx, a.flowURI, input)
+	if a.detachedInvocation {
+		ctx.Logger().Infof("Starting SubFlow '%s' in detached mode", a.flowURI)
+		err = instance.StartDetachedSubFlow(ctx, a.flowURI, input)
+	} else {
+		err = instance.StartSubFlow(ctx, a.flowURI, input)
+	}
 
-	return false, nil
+	return a.detachedInvocation, err
 }

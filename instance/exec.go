@@ -21,6 +21,7 @@ type RunOptions struct {
 	ExecOptions         *ExecOptions
 	Rerun               bool
 	OriginalInstanceId  string
+	DetachExecution     bool
 }
 
 // ExecOptions are optional Patch & Interceptor to be used during instance execution
