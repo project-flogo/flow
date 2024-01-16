@@ -214,7 +214,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	inst.Start(flowInputs)
 
-	var stepCount int64 = 0
+	stepCount := 0
 	hasWork := true
 
 	inst.SetResultHandler(handler)

@@ -732,7 +732,7 @@ func getFlowModel(flow *definition.Definition) (*model.FlowModel, error) {
 }
 
 // // Restart indicates that this FlowInstance was restarted
-func (inst *IndependentInstance) Restart(logger log.Logger, id string, initStepId int64) error {
+func (inst *IndependentInstance) Restart(logger log.Logger, id string, initStepId int) error {
 	inst.id = id
 	inst.logger = logger
 

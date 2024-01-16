@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	FlogoStepCountEnv         = "FLOGO_MAX_STEP_COUNT"
-	MaxStepCountDefault int64 = 10000000
+	FlogoStepCountEnv   = "FLOGO_MAX_STEP_COUNT"
+	MaxStepCountDefault = 10000000
 )
 
 func DeepCopy(data interface{}) interface{} {
@@ -24,13 +24,13 @@ func DeepCopyMap(data map[string]interface{}) map[string]interface{} {
 }
 
 // GetMaxStepCount returns the step limit
-func GetMaxStepCount() int64 {
+func GetMaxStepCount() int {
 	envStepCount, exists := os.LookupEnv(FlogoStepCountEnv)
 	if !exists {
 		return MaxStepCountDefault
 	}
 
-	if i, err := strconv.ParseInt(envStepCount, 10, 64); err == nil {
+	if i, err := strconv.Atoi(envStepCount); err == nil {
 		return i
 	}
 

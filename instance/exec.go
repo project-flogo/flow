@@ -16,7 +16,7 @@ type RunOptions struct {
 	ReturnID            bool
 	FlowURI             string
 	PreservedInstanceId string
-	InitStepId          int64
+	InitStepId          int
 	InitialState        *IndependentInstance
 	ExecOptions         *ExecOptions
 	Rerun               bool

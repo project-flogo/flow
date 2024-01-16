@@ -8,7 +8,7 @@ import (
 
 type Step struct {
 	//*Master
-	Id           int64                 `json:"id"`
+	Id           int                   `json:"id"`
 	FlowId       string                `json:"flowId"`
 	FlowChanges  map[int]*change.Flow  `json:"flowChanges"`
 	QueueChanges map[int]*change.Queue `json:"queueChanges,omitempty"`

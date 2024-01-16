@@ -180,7 +180,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	var initialState *instance.IndependentInstance
 	var flowURI string
 	var preserveInstanceId, originalInstanceId string
-	var initStepId int64
+	var initStepId int
 	var rerun bool
 	runOptions, exists := inputs["_run_options"]
 
@@ -329,7 +329,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 
 	//initStepId cannot less than 1. restart must start with 1 to xxxx
-	var stepCount int64 = 0
+	stepCount := 0
 	if initStepId > 0 {
 		stepCount = initStepId - 1
 	}
@@ -370,7 +370,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			}
 		}
 		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
-			err := fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCount)
+			err := fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
 			}
