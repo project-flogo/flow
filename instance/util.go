@@ -198,7 +198,7 @@ func hasOutputInterceptor(taskInst *TaskInst) bool {
 
 		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
 		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
-		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
+		if taskInterceptor != nil && taskInterceptor.SkipExecution {
 			return true
 		}
 	}

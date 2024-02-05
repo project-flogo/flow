@@ -45,13 +45,14 @@ func (pi *Interceptor) GetTaskInterceptor(taskID string) *TaskInterceptor {
 // Also, a 'Skip' flag can be enabled to inform the runtime that the task should not
 // execute.
 type TaskInterceptor struct {
-	ID         string                 `json:"id"`
-	Skip       bool                   `json:"skip,omitempty"`
-	Inputs     map[string]interface{} `json:"inputs,omitempty"`
-	Outputs    map[string]interface{} `json:"outputs,omitempty"`
-	Assertions []Assertion            `json:"assertions,omitempty"`
-	Result     int                    `json:"result,omitempty"`
-	Message    string                 `json:"message"`
+	ID            string                 `json:"id"`
+	Skip          bool                   `json:"skip,omitempty"`
+	Inputs        map[string]interface{} `json:"inputs,omitempty"`
+	Outputs       map[string]interface{} `json:"outputs,omitempty"`
+	Assertions    []Assertion            `json:"assertions,omitempty"`
+	SkipExecution bool                   `json:"skipExecution"`
+	Result        int                    `json:"result,omitempty"`
+	Message       string                 `json:"message"`
 }
 
 type Assertion struct {
