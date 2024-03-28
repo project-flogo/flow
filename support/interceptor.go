@@ -6,6 +6,14 @@ const (
 )
 
 const (
+	AssertionActivity  = 1
+	AssertionException = 2
+	SkipActivity       = 3
+	MockActivity       = 4
+	MockException      = 5
+)
+
+const (
 	NotExecuted = 0
 	Pass        = 1
 	Fail        = 2
@@ -53,6 +61,7 @@ type TaskInterceptor struct {
 	SkipExecution bool                   `json:"skipExecution"`
 	Result        int                    `json:"result,omitempty"`
 	Message       string                 `json:"message"`
+	Type          int                    `json:"type"`
 }
 
 type Assertion struct {

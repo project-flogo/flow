@@ -370,6 +370,12 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 				}
 				setActivityExecutionStatus(ti, support.Fail)
 				setActivityExecutionMessage(ti, evalErr.Error())
+
+				errObj := ti.getErrorObject(evalErr)
+				_ = ti.flowInst.SetValue("_E", errObj)
+				_ = ti.flowInst.SetValue("_E."+ti.Task().ID(), errObj)
+
+				applyAssertionInterceptor(ti)
 				return false, evalErr
 			} else {
 				setActivityExecutionStatus(ti, support.Pass)
