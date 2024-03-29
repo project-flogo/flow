@@ -1,5 +1,7 @@
 package support
 
+import "github.com/project-flogo/core/data/expression/script/gocc/ast"
+
 const (
 	Primitive = 1
 	Activity  = 2
@@ -71,4 +73,5 @@ type Assertion struct {
 	Expression interface{}
 	Result     int
 	Message    string
+	EvalResult ast.ExprEvalData
 }

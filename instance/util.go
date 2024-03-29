@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/data/expression/script/gocc/ast"
 	"strconv"
 
 	"github.com/project-flogo/core/action"
@@ -181,6 +182,12 @@ func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertio
 		taskInst.logger.Error(err)
 		return false, "Failed to evaluate expression"
 	}
+
+	exp, ok := expr.(ast.ExprEvalResult)
+	if ok {
+		assertion.EvalResult = exp.Detail()
+	}
+
 	res, _ := coerce.ToBool(result)
 
 	if res {
@@ -218,28 +225,37 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
 
-			mdOutput := taskInst.task.ActivityConfig().Activity.Metadata().Output
-			var err error
+			if taskInterceptor.Type == support.MockActivity {
+				mdOutput := taskInst.task.ActivityConfig().Activity.Metadata().Output
+				var err error
 
-			// override output attributes
-			for name, value := range taskInterceptor.Outputs {
+				// override output attributes
+				for name, value := range taskInterceptor.Outputs {
 
-				if taskInst.logger.DebugEnabled() {
-					taskInst.logger.Debugf("Overriding Output Attr: %s = %s", name, value)
-				}
-
-				if taskInst.outputs == nil {
-					taskInst.outputs = make(map[string]interface{})
-				}
-				if mdAttr, ok := mdOutput[name]; ok {
-					taskInst.outputs[name], err = coerce.ToType(value, mdAttr.Type())
-					if err != nil {
-						return err
+					if taskInst.logger.DebugEnabled() {
+						taskInst.logger.Debugf("Overriding Output Attr: %s = %s", name, value)
 					}
-				} else {
-					taskInst.outputs[name] = value
+
+					if taskInst.outputs == nil {
+						taskInst.outputs = make(map[string]interface{})
+					}
+					if mdAttr, ok := mdOutput[name]; ok {
+						taskInst.outputs[name], err = coerce.ToType(value, mdAttr.Type())
+						if err != nil {
+							return err
+						}
+					} else {
+						taskInst.outputs[name] = value
+					}
 				}
 			}
+			if taskInterceptor.Type == support.MockException {
+				message := taskInterceptor.Outputs["message"].(string)
+				e := activity.NewError(message, "", nil)
+				e.SetActivityName(taskInst.id)
+				return e
+			}
+
 		}
 	}
 
