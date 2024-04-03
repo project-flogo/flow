@@ -140,7 +140,7 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 				}
 				result := false
 				var message string
-
+				var evalData ast.ExprEvalData
 				if assertion.Expression == "" {
 					taskInterceptor.Assertions[name].Message = "Empty expression"
 					taskInterceptor.Assertions[name].Result = support.NotExecuted
@@ -148,13 +148,14 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 				}
 
 				if assertion.Type == support.Primitive {
-					result, message = applyPrimitiveAssertion(taskInst, ef, assertion)
+					result, message, evalData = applyPrimitiveAssertion(taskInst, ef, &assertion)
 				} else {
 					taskInst.Logger().Errorf("Invalid Assertion Mode")
 					return errors.New("Invalid Assertion Mode")
 				}
 
 				taskInterceptor.Assertions[name].Message = message
+				taskInterceptor.Assertions[name].EvalResult = evalData
 				//Set the result back in the Interceptor.
 				if result {
 					taskInterceptor.Assertions[name].Result = support.Pass
@@ -170,30 +171,30 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 	return nil
 }
 
-func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion support.Assertion) (bool, string) {
+func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion *support.Assertion) (bool, string, ast.ExprEvalData) {
 
 	expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 	if expr == nil {
-		return false, "Failed to validate expression"
+		return false, "Failed to validate expression", ast.ExprEvalData{}
 	}
-
 	result, err := expr.Eval(taskInst.flowInst)
 	if err != nil {
 		taskInst.logger.Error(err)
-		return false, "Failed to evaluate expression"
+		return false, "Failed to evaluate expression", ast.ExprEvalData{}
 	}
 
 	exp, ok := expr.(ast.ExprEvalResult)
+	var resultData ast.ExprEvalData
 	if ok {
-		assertion.EvalResult = exp.Detail()
+		resultData = exp.Detail()
 	}
 
 	res, _ := coerce.ToBool(result)
 
 	if res {
-		return res, "Comparison success"
+		return res, "Comparison success", resultData
 	} else {
-		return res, "Comparison failure"
+		return res, "Comparison failure", resultData
 	}
 }
 func hasOutputInterceptor(taskInst *TaskInst) bool {
