@@ -368,10 +368,14 @@ func StartDetachedSubFlow(ctx activity.Context, flowURI string, inputs map[strin
 	ro.Op = OpStart
 	ro.DetachExecution = true
 	inputs["_run_options"] = ro
-	eventId, _ := taskInst.flowInst.GetValue(EventIdAttr)
+	eventIdAttr, ok := taskInst.flowInst.GetValue(EventIdAttr)
+	if !ok {
+		eventIdAttr, _ = taskInst.flowInst.master.Instance.GetValue(EventIdAttr)
+	}
+
 	gCtx := context.Background()
-	if eventId != "" {
-		gCtx = trigger.NewContextWithEventId(gCtx, eventId.(string))
+	if eventId, ok := eventIdAttr.(string); ok && eventId != "" {
+		gCtx = trigger.NewContextWithEventId(gCtx, eventId)
 	}
 	_, err = runner.NewDirect().RunAction(gCtx, flowAction, inputs)
 	if err != nil {
