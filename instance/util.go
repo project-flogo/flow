@@ -123,7 +123,7 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 	return true
 }
 
-func applyAssertionInterceptor(taskInst *TaskInst) error {
+func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 
 	master := taskInst.flowInst.master
 	if master.interceptor != nil {
@@ -135,6 +135,10 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 			ef := expression.NewFactory(definition.GetDataResolver())
 
 			for name, assertion := range taskInterceptor.Assertions {
+				if taskInterceptor.Type != assertType {
+					taskInterceptor.Assertions[name].Result = support.AssertionNotExecuted
+					continue
+				}
 				if taskInst.logger.DebugEnabled() {
 					taskInst.logger.Debugf("Executing Assertion Attr: %s = %s", name, assertion)
 				}
@@ -252,7 +256,7 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 			}
 			if taskInterceptor.Type == support.MockException {
 				message := taskInterceptor.Outputs["message"].(string)
-				e := activity.NewError(message, "", nil)
+				e := activity.NewError(message, "", struct{}{})
 				e.SetActivityName(taskInst.id)
 				return e
 			}

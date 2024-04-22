@@ -375,7 +375,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 				_ = ti.flowInst.SetValue("_E", errObj)
 				_ = ti.flowInst.SetValue("_E."+ti.Task().ID(), errObj)
 
-				applyAssertionInterceptor(ti)
+				applyAssertionInterceptor(ti, support.AssertionException)
 				return false, evalErr
 			} else {
 				setActivityExecutionStatus(ti, support.Pass)
@@ -430,7 +430,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 
-		err = applyAssertionInterceptor(ti)
+		err = applyAssertionInterceptor(ti, support.AssertionActivity)
 		if err != nil {
 			return false, err
 		}
@@ -514,7 +514,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 				ti.logger.Debug("Mapper not applied")
 			}
 		}
-		err = applyAssertionInterceptor(ti)
+		err = applyAssertionInterceptor(ti, support.AssertionActivity)
 		if err != nil {
 			return false, err
 		}
