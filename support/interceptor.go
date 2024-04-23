@@ -16,10 +16,11 @@ const (
 )
 
 const (
-	NotExecuted = 0
-	Pass        = 1
-	Fail        = 2
-	Mocked      = 3
+	NotExecuted          = 0
+	Pass                 = 1
+	Fail                 = 2
+	Mocked               = 3
+	AssertionNotExecuted = 4
 )
 
 // Interceptor contains a set of task interceptor, this can be used to override
