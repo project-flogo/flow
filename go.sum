@@ -23,8 +23,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/project-flogo/core v1.6.4 h1:MG4XNXqEmmY3qkPyUOmq5Ph0m8ycknnKcFqsH8avPa0=
 github.com/project-flogo/core v1.6.4/go.mod h1:fapTXUhLxDeAHyb6eMkuwnYswO8FpZJAMat055QVdJE=
-github.com/project-flogo/core v1.6.9 h1:8trX1vh+wSviMhlLN+pnz/aAD/8GGvrBd7qsf5/LNZg=
-github.com/project-flogo/core v1.6.9/go.mod h1:gKJsSjm/+uczBquIBEvdR4bXn8S2az2kW6uvKvDLxUE=
+github.com/project-flogo/core v1.6.10 h1:Vq6wVH4QZEDJCPVX9s/tAi1toFxekiJiLLPxuNWq5Dc=
+github.com/project-flogo/core v1.6.10/go.mod h1:gKJsSjm/+uczBquIBEvdR4bXn8S2az2kW6uvKvDLxUE=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/stretchr/objx v0.1.0 h1:4G4v2dO3VZwixGIRoQ5Lfboy6nUhCyYzaqnIAPPhYs4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
