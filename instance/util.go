@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/data/expression/script/gocc/ast"
 	"strconv"
 
 	"github.com/project-flogo/core/action"
@@ -122,7 +123,7 @@ func applyInputInterceptor(taskInst *TaskInst) bool {
 	return true
 }
 
-func applyAssertionInterceptor(taskInst *TaskInst) error {
+func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 
 	master := taskInst.flowInst.master
 	if master.interceptor != nil {
@@ -134,12 +135,16 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 			ef := expression.NewFactory(definition.GetDataResolver())
 
 			for name, assertion := range taskInterceptor.Assertions {
+				if taskInterceptor.Type != assertType {
+					taskInterceptor.Assertions[name].Result = support.AssertionNotExecuted
+					continue
+				}
 				if taskInst.logger.DebugEnabled() {
 					taskInst.logger.Debugf("Executing Assertion Attr: %s = %s", name, assertion)
 				}
 				result := false
 				var message string
-
+				var evalData ast.ExprEvalData
 				if assertion.Expression == "" {
 					taskInterceptor.Assertions[name].Message = "Empty expression"
 					taskInterceptor.Assertions[name].Result = support.NotExecuted
@@ -147,13 +152,14 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 				}
 
 				if assertion.Type == support.Primitive {
-					result, message = applyPrimitiveAssertion(taskInst, ef, assertion)
+					result, message, evalData = applyPrimitiveAssertion(taskInst, ef, &assertion)
 				} else {
 					taskInst.Logger().Errorf("Invalid Assertion Mode")
 					return errors.New("Invalid Assertion Mode")
 				}
 
 				taskInterceptor.Assertions[name].Message = message
+				taskInterceptor.Assertions[name].EvalResult = evalData
 				//Set the result back in the Interceptor.
 				if result {
 					taskInterceptor.Assertions[name].Result = support.Pass
@@ -169,24 +175,30 @@ func applyAssertionInterceptor(taskInst *TaskInst) error {
 	return nil
 }
 
-func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion support.Assertion) (bool, string) {
+func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion *support.Assertion) (bool, string, ast.ExprEvalData) {
 
 	expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 	if expr == nil {
-		return false, "Failed to validate expression"
+		return false, "Failed to validate expression", ast.ExprEvalData{}
 	}
-
 	result, err := expr.Eval(taskInst.flowInst)
 	if err != nil {
 		taskInst.logger.Error(err)
-		return false, "Failed to evaluate expression"
+		return false, "Failed to evaluate expression", ast.ExprEvalData{}
 	}
+
+	exp, ok := expr.(ast.ExprEvalResult)
+	var resultData ast.ExprEvalData
+	if ok {
+		resultData = exp.Detail()
+	}
+
 	res, _ := coerce.ToBool(result)
 
 	if res {
-		return res, "Comparison success"
+		return res, "Comparison success", resultData
 	} else {
-		return res, "Comparison failure"
+		return res, "Comparison failure", resultData
 	}
 }
 func hasOutputInterceptor(taskInst *TaskInst) bool {
@@ -218,28 +230,37 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
 
-			mdOutput := taskInst.task.ActivityConfig().Activity.Metadata().Output
-			var err error
+			if taskInterceptor.Type == support.MockActivity {
+				mdOutput := taskInst.task.ActivityConfig().Activity.Metadata().Output
+				var err error
 
-			// override output attributes
-			for name, value := range taskInterceptor.Outputs {
+				// override output attributes
+				for name, value := range taskInterceptor.Outputs {
 
-				if taskInst.logger.DebugEnabled() {
-					taskInst.logger.Debugf("Overriding Output Attr: %s = %s", name, value)
-				}
-
-				if taskInst.outputs == nil {
-					taskInst.outputs = make(map[string]interface{})
-				}
-				if mdAttr, ok := mdOutput[name]; ok {
-					taskInst.outputs[name], err = coerce.ToType(value, mdAttr.Type())
-					if err != nil {
-						return err
+					if taskInst.logger.DebugEnabled() {
+						taskInst.logger.Debugf("Overriding Output Attr: %s = %s", name, value)
 					}
-				} else {
-					taskInst.outputs[name] = value
+
+					if taskInst.outputs == nil {
+						taskInst.outputs = make(map[string]interface{})
+					}
+					if mdAttr, ok := mdOutput[name]; ok {
+						taskInst.outputs[name], err = coerce.ToType(value, mdAttr.Type())
+						if err != nil {
+							return err
+						}
+					} else {
+						taskInst.outputs[name] = value
+					}
 				}
 			}
+			if taskInterceptor.Type == support.MockException {
+				message := taskInterceptor.Outputs["message"].(string)
+				e := activity.NewError(message, "", struct{}{})
+				e.SetActivityName(taskInst.id)
+				return e
+			}
+
 		}
 	}
 

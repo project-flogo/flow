@@ -1,15 +1,26 @@
 package support
 
+import "github.com/project-flogo/core/data/expression/script/gocc/ast"
+
 const (
 	Primitive = 1
 	Activity  = 2
 )
 
 const (
-	NotExecuted = 0
-	Pass        = 1
-	Fail        = 2
-	Mocked      = 3
+	AssertionActivity  = 1
+	AssertionException = 2
+	SkipActivity       = 3
+	MockActivity       = 4
+	MockException      = 5
+)
+
+const (
+	NotExecuted          = 0
+	Pass                 = 1
+	Fail                 = 2
+	Mocked               = 3
+	AssertionNotExecuted = 4
 )
 
 // Interceptor contains a set of task interceptor, this can be used to override
@@ -53,6 +64,7 @@ type TaskInterceptor struct {
 	SkipExecution bool                   `json:"skipExecution"`
 	Result        int                    `json:"result,omitempty"`
 	Message       string                 `json:"message"`
+	Type          int                    `json:"type"`
 }
 
 type Assertion struct {
@@ -62,4 +74,5 @@ type Assertion struct {
 	Expression interface{}
 	Result     int
 	Message    string
+	EvalResult ast.ExprEvalData
 }
