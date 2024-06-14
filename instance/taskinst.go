@@ -1,8 +1,8 @@
 package instance
 
 import (
+	"context"
 	"fmt"
-	"github.com/project-flogo/flow/support"
 	"runtime/debug"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
+	"github.com/project-flogo/flow/support"
 )
 
 func NewTaskInst(flowInst *Instance, task *definition.Task) *TaskInst {
@@ -72,6 +73,8 @@ type TaskInst struct {
 	logger       log.Logger
 	returnError  error
 	traceContext trace.TracingContext
+
+	cancelContext context.Context
 
 	//needed for serialization
 	taskID string
@@ -147,6 +150,10 @@ func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
 // GetInputObject implements activity.Context.GetInputObject
 func (ti *TaskInst) GetTracingContext() trace.TracingContext {
 	return ti.traceContext
+}
+
+func (ti *TaskInst) GetCancelContext() context.Context {
+	return ti.cancelContext
 }
 
 func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
@@ -361,7 +368,27 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		// If output interceptor is there then the activity should be mocked and activity evaluation should be skipped.
 		// In the applyOutputInterceptor step the mock data will be applied to the activity
 		if !hasOutputInterceptor(ti) {
-			done, evalErr = actCfg.Activity.Eval(ctx)
+			type evalReturnObject struct {
+				done      bool
+				evalerror error
+			}
+
+			evalchan := make(chan evalReturnObject)
+
+			go func(evchan chan evalReturnObject) {
+				done, evalErr = actCfg.Activity.Eval(ctx)
+				evalchan <- evalReturnObject{done: done, evalerror: evalErr}
+			}(evalchan)
+
+			select {
+			case evalresult := <-evalchan:
+				done = evalresult.done
+				evalErr = evalresult.evalerror
+
+			case <-ctx.GetCancelContext().Done():
+				done = false
+				evalErr = ctx.GetCancelContext().Err()
+			}
 
 			if evalErr != nil {
 				e, ok := evalErr.(*activity.Error)
@@ -615,9 +642,13 @@ func NewErrorObj(taskId string, msg string) map[string]interface{} {
 	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": "", "data": nil}
 }
 
-//DEPRECATED
+// DEPRECATED
 type LegacyCtx struct {
 	task *TaskInst
+}
+
+func (l *LegacyCtx) GetCancelContext() context.Context {
+	return l.task.cancelContext
 }
 
 func (l *LegacyCtx) GetOutput(name string) interface{} {
