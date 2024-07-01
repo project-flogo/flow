@@ -252,6 +252,10 @@ func (inst *IndependentInstance) ApplyInterceptor(interceptor *flowsupport.Inter
 	}
 }
 
+func (inst *IndependentInstance) HasInterceptor() bool {
+	return inst.interceptor != nil
+}
+
 func (inst *IndependentInstance) GetInterceptor() *flowsupport.Interceptor {
 	return inst.interceptor
 }
@@ -415,6 +419,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		if taskInst.traceContext != nil {
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
 		}
+		inst.addActivityToCoverage(taskInst, nil)
 	}
 
 	if err != nil {
@@ -530,6 +535,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 	// Set task status to failed for subflow activity
 	taskInst.SetStatus(model.TaskStatusFailed)
 
+	inst.addActivityToCoverage(taskInst, err)
 	handled, taskEntries := taskBehavior.Error(taskInst, err)
 
 	containerInst := taskInst.flowInst
@@ -671,6 +677,47 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 	}
 
 	return nil
+}
+
+func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err error) {
+
+	if !inst.HasInterceptor() {
+		return
+	}
+	var errorObj map[string]interface{}
+	if err != nil {
+		errorObj = taskInst.getErrorObject(err)
+	}
+
+	var coverage flowsupport.ActivityCoverage
+	if inst.GetInterceptor().CollectIO {
+		coverage = flowsupport.ActivityCoverage{
+			ActivityName: taskInst.taskID,
+			LinkFrom:     inst.getLinks(taskInst.GetFromLinkInstances()),
+			LinkTo:       inst.getLinks(taskInst.GetToLinkInstances()),
+			Inputs:       taskInst.inputs,
+			Outputs:      taskInst.outputs,
+			Error:        errorObj,
+			FlowName:     taskInst.flowInst.Name(),
+			IsMainFlow:   !inst.isHandlingError,
+		}
+	} else {
+		coverage = flowsupport.ActivityCoverage{
+			ActivityName: taskInst.taskID,
+			FlowName:     taskInst.flowInst.Name(),
+			IsMainFlow:   !inst.isHandlingError,
+		}
+	}
+
+	inst.interceptor.AddToActivityCoverage(coverage)
+}
+
+func (inst *IndependentInstance) getLinks(instances []model.LinkInstance) []string {
+	var names []string
+	for _, linkInst := range instances {
+		names = append(names, linkInst.Link().Label())
+	}
+	return names
 }
 
 //////////////////////////////////////////////////////////////////

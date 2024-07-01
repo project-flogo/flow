@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/data/expression/script/gocc/ast"
 	"strings"
 	"time"
 
@@ -397,10 +398,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				inst.SetValue(k, v)
 			}
 
-			fa.applyAssertionInterceptor(inst)
+			fa.applyAssertionInterceptor(inst, flowsupport.AssertionActivity)
 
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
+			fa.applyAssertionInterceptor(inst, flowsupport.AssertionException)
+
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), inst.GetError())
 			}
@@ -423,7 +426,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	return nil
 }
 
-func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance) {
+func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance, assertType int) bool {
 
 	if inst.GetInterceptor() != nil {
 		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-_flowOutput")
@@ -448,6 +451,11 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 					interceptor.Assertions[id].Result = flowsupport.Fail
 					interceptor.Assertions[id].Message = "Failed to evaluate expression"
 				} else {
+					exp, ok := expr.(ast.ExprEvalResult)
+					var resultData ast.ExprEvalData
+					if ok {
+						resultData = exp.Detail()
+					}
 					res, _ := coerce.ToBool(result)
 					if res {
 						interceptor.Assertions[id].Result = flowsupport.Pass
@@ -456,10 +464,12 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 						interceptor.Assertions[id].Result = flowsupport.Fail
 						interceptor.Assertions[id].Message = "Comparison failure"
 					}
+					interceptor.Assertions[id].EvalResult = resultData
 				}
 
 			}
 		}
 	}
+	return false
 
 }
