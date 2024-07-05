@@ -402,10 +402,15 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
-			fa.applyAssertionInterceptor(inst, flowsupport.AssertionException)
+			hasFlowExceptionAssert := fa.applyAssertionInterceptor(inst, flowsupport.AssertionException)
 
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), inst.GetError())
+			}
+			// If we are in unit testing mode and flow has assertion exception then we dont make the flow fail
+			// The testcase will be passed or failed based on the assertions executed.
+			if hasFlowExceptionAssert {
+				handler.HandleResult(nil, nil)
 			}
 			handler.HandleResult(nil, inst.GetError())
 		}
@@ -428,12 +433,20 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance, assertType int) bool {
 
+	if !inst.HasInterceptor() {
+		return false
+	}
+	hasFlowExceptionAssertion := false
 	if inst.GetInterceptor() != nil {
 		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-_flowOutput")
 		if interceptor != nil {
 			interceptor.Result = flowsupport.Pass
 			ef := expression.NewFactory(definition.GetDataResolver())
 			for id, assertion := range interceptor.Assertions {
+				if interceptor.Type != assertType {
+					interceptor.Assertions[id].Result = flowsupport.AssertionNotExecuted
+					continue
+				}
 				if assertion.Expression == "" {
 					interceptor.Assertions[id].Message = "Empty expression"
 					interceptor.Assertions[id].Result = flowsupport.NotExecuted
@@ -465,11 +478,15 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 						interceptor.Assertions[id].Message = "Comparison failure"
 					}
 					interceptor.Assertions[id].EvalResult = resultData
+					if assertType == flowsupport.AssertionException {
+						hasFlowExceptionAssertion = true
+					}
+
 				}
 
 			}
 		}
 	}
-	return false
+	return hasFlowExceptionAssertion
 
 }
