@@ -3,6 +3,7 @@ package instance
 import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
+	"github.com/project-flogo/flow/support"
 )
 
 // LinkInst represents data associated with an instance of a Link
@@ -34,8 +35,42 @@ func (li *LinkInst) Status() model.LinkStatus {
 // SetStatus sets the current state indicator for the LinkInst
 func (li *LinkInst) SetStatus(status model.LinkStatus) {
 	li.status = status
+	if status == model.LinkStatusTrue {
+		li.addLinkToCoverage()
+	}
 	li.flowInst.master.changeTracker.LinkUpdated(li)
 	//ld.flowInst.master.ChangeTracker.trackLinkData(ld.flowInst.subFlowId, &LinkInstChange{ChgType: CtUpd, ID: ld.link.ID(), LinkInst: ld})
+}
+
+func (li *LinkInst) addLinkToCoverage() {
+
+	if !li.flowInst.master.HasInterceptor() {
+		return
+	}
+
+	t := li.Link().Type()
+	linkType := ""
+	switch t {
+	case definition.LtExpression:
+		linkType = "Expression"
+	case definition.LtLabel:
+		linkType = "Label"
+	case definition.LtError:
+		linkType = "Error"
+	case definition.LtExprOtherwise:
+		linkType = "Otherwise"
+	}
+	coverage := support.TransitionCoverage{
+
+		TransitionName:       li.Link().Label(),
+		TransitionType:       linkType,
+		TransitionExpression: li.Link().Value(),
+		TransitionFrom:       li.Link().FromTask().ID(),
+		TransitionTo:         li.Link().ToTask().ID(),
+		FlowName:             li.flowInst.Name(),
+		IsMainFlow:           !li.flowInst.isHandlingError,
+	}
+	li.flowInst.master.interceptor.AddToLinkCoverage(coverage)
 }
 
 // Link returns the Link associated with ld context

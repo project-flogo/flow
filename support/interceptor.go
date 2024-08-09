@@ -31,6 +31,8 @@ type Interceptor struct {
 	TaskInterceptors []*TaskInterceptor `json:"tasks"`
 
 	taskInterceptorMap map[string]*TaskInterceptor
+	Coverage           *Coverage `json:"coverage"`
+	CollectIO          bool
 }
 
 // Init initializes the FlowInterceptor, usually called after deserialization
@@ -50,6 +52,14 @@ func (pi *Interceptor) Init() {
 // GetTaskInterceptor get the TaskInterceptor for the specified task (referred to by ID)
 func (pi *Interceptor) GetTaskInterceptor(taskID string) *TaskInterceptor {
 	return pi.taskInterceptorMap[taskID]
+}
+
+func (pi *Interceptor) AddToActivityCoverage(coverage ActivityCoverage) {
+	pi.Coverage.ActivityCoverage = append(pi.Coverage.ActivityCoverage, &coverage)
+}
+
+func (pi *Interceptor) AddToLinkCoverage(coverage TransitionCoverage) {
+	pi.Coverage.TransitionCoverage = append(pi.Coverage.TransitionCoverage, &coverage)
 }
 
 // TaskInterceptor contains instance override information for a Task, such has attributes.
@@ -75,4 +85,30 @@ type Assertion struct {
 	Result     int
 	Message    string
 	EvalResult ast.ExprEvalData
+}
+
+type Coverage struct {
+	ActivityCoverage   []*ActivityCoverage   `json:"activityCoverage,omitempty"`
+	TransitionCoverage []*TransitionCoverage `json:"transitionCoverage,omitempty"`
+}
+
+type ActivityCoverage struct {
+	ActivityName string
+	LinkFrom     []string
+	LinkTo       []string
+	Inputs       map[string]interface{} `json:"inputs,omitempty"`
+	Outputs      map[string]interface{} `json:"outputs,omitempty"`
+	Error        map[string]interface{} `json:"errors,omitempty"`
+	FlowName     string                 `json:"flowName"`
+	IsMainFlow   bool                   `json:"scope"`
+}
+
+type TransitionCoverage struct {
+	TransitionName       string `json:"transitionName"`
+	TransitionType       string `json:"transitionType"`
+	TransitionFrom       string `json:"transitionFrom"`
+	TransitionTo         string `json:"transitionTo"`
+	TransitionExpression string `json:"transitionExpression"`
+	FlowName             string `json:"flowName"`
+	IsMainFlow           bool   `json:"scope"`
 }
