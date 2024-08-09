@@ -691,12 +691,18 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 
 	var coverage flowsupport.ActivityCoverage
 	if inst.GetInterceptor().CollectIO {
+		outputs := taskInst.outputs
+		if outputs == nil {
+			if inst.returnData != nil {
+				outputs = inst.returnData
+			}
+		}
 		coverage = flowsupport.ActivityCoverage{
 			ActivityName: taskInst.taskID,
 			LinkFrom:     inst.getLinks(taskInst.GetFromLinkInstances()),
 			LinkTo:       inst.getLinks(taskInst.GetToLinkInstances()),
 			Inputs:       taskInst.inputs,
-			Outputs:      taskInst.outputs,
+			Outputs:      outputs,
 			Error:        errorObj,
 			FlowName:     taskInst.flowInst.Name(),
 			IsMainFlow:   !inst.isHandlingError,
