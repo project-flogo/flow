@@ -571,11 +571,8 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 				host, ok := containerInst.host.(*TaskInst)
 
 				if ok {
-					behavior := inst.flowModel.GetDefaultTaskBehavior()
-					if typeID := host.task.TypeID(); typeID != "" {
-						behavior = inst.flowModel.GetTaskBehavior(typeID)
-					}
-					inst.handleTaskError(behavior, host, err)
+					host.returnError = err
+					inst.scheduleEval(host)
 				}
 			} else {
 				taskInst.appendErrorData(err)
@@ -637,16 +634,8 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 			host, ok := containerInst.host.(*TaskInst)
 
 			if ok {
-				behavior := inst.flowModel.GetDefaultTaskBehavior()
-				if typeID := host.task.TypeID(); typeID != "" {
-					behavior = inst.flowModel.GetTaskBehavior(typeID)
-				}
-
-				inst.handleTaskError(behavior, host, err)
-
-				//fail the task
-
-				//inst.scheduleEval(host)
+				host.returnError = err
+				inst.scheduleEval(host)
 			}
 		} else {
 			inst.returnError = err
