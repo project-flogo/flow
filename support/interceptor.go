@@ -58,6 +58,10 @@ func (pi *Interceptor) AddToActivityCoverage(coverage ActivityCoverage) {
 	pi.Coverage.ActivityCoverage = append(pi.Coverage.ActivityCoverage, &coverage)
 }
 
+func (pi *Interceptor) AddToSubFlowCoverage(coverage SubFlowCoverage) {
+	pi.Coverage.SubFlowCoverage = append(pi.Coverage.SubFlowCoverage, &coverage)
+}
+
 func (pi *Interceptor) AddToLinkCoverage(coverage TransitionCoverage) {
 	pi.Coverage.TransitionCoverage = append(pi.Coverage.TransitionCoverage, &coverage)
 }
@@ -90,6 +94,7 @@ type Assertion struct {
 type Coverage struct {
 	ActivityCoverage   []*ActivityCoverage   `json:"activityCoverage,omitempty"`
 	TransitionCoverage []*TransitionCoverage `json:"transitionCoverage,omitempty"`
+	SubFlowCoverage    []*SubFlowCoverage    `json:"subFlowCoverage,omitempty"`
 }
 
 type ActivityCoverage struct {
@@ -101,6 +106,12 @@ type ActivityCoverage struct {
 	Error        map[string]interface{} `json:"errors,omitempty"`
 	FlowName     string                 `json:"flowName"`
 	IsMainFlow   bool                   `json:"scope"`
+}
+
+type SubFlowCoverage struct {
+	HostFlow        string
+	SubFlowActivity string
+	SubFlowName     string
 }
 
 type TransitionCoverage struct {

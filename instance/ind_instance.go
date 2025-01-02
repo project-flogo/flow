@@ -707,6 +707,20 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 	inst.interceptor.AddToActivityCoverage(coverage)
 }
 
+func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivity, hostFlowName string) {
+
+	if !inst.HasInterceptor() {
+		return
+	}
+
+	coverage := flowsupport.SubFlowCoverage{
+		HostFlow:        hostFlowName,
+		SubFlowActivity: subFlowActivity,
+		SubFlowName:     subFlowName,
+	}
+	inst.interceptor.AddToSubFlowCoverage(coverage)
+}
+
 func (inst *IndependentInstance) getLinks(instances []model.LinkInstance) []string {
 	var names []string
 	for _, linkInst := range instances {
