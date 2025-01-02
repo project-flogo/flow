@@ -2,9 +2,10 @@ package instance
 
 import (
 	"fmt"
-	"github.com/project-flogo/flow/support"
 	"runtime/debug"
 	"time"
+
+	"github.com/project-flogo/flow/support"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
@@ -492,6 +493,9 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 			return false, evalErr
 		}
 	}
+	if ti.returnError != nil {
+		return false, ti.returnError
+	}
 
 	if done {
 
@@ -615,7 +619,7 @@ func NewErrorObj(taskId string, msg string) map[string]interface{} {
 	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": "", "data": nil}
 }
 
-//DEPRECATED
+// DEPRECATED
 type LegacyCtx struct {
 	task *TaskInst
 }

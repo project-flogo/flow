@@ -155,18 +155,38 @@ func evalActivity(ctx model.TaskContext) (bool, error) {
 func (tb *TaskBehavior) PostEval(ctx model.TaskContext) (evalResult model.EvalResult, err error) {
 	ctx.FlowLogger().Debugf("PostEval Task '%s'", ctx.Task().ID())
 	_, err = ctx.PostEvalActivity()
+
 	if err != nil {
 		//// check if error returned is retriable
-		//if errVal, ok := err.(*activity.Error); ok && errVal.Retriable() {
-		//	// check if task is configured to retry on error
-		//	retryData, rerr := getRetryData(ctx)
-		//	if rerr != nil {
-		//		return model.EvalFail, rerr
-		//	}
-		//	if retryData.Count > 0 {
-		//		return retryPostEval(ctx, retryData), nil
-		//	}
-		//}
+		if _, ok := err.(*activity.Error); ok && ctx.Task().RetryOnErrConfig() != nil {
+			retryData, rerr := getRetryData(ctx)
+			if rerr != nil {
+				return model.EvalFail, rerr
+			}
+
+			if t, ok := ctx.(*instance.TaskInst); ok {
+				if t.GetTracingContext() != nil {
+					t.GetTracingContext().SetTag("retry_enabled", true)
+					t.GetTracingContext().SetTag("retries_remaining", retryData.Count)
+					t.GetTracingContext().SetTag("retry_interval_ms", retryData.Interval)
+					// Complete previous trace except last. Last trace will completed in the caller.
+					if retryData.Count > 0 {
+						_ = trace.GetTracer().FinishTrace(t.GetTracingContext(), err)
+					}
+				}
+			}
+
+			if retryData != nil && retryData.Count > 0 {
+				done, err := retryEval(ctx, retryData)
+				if err != nil {
+					return model.EvalFail, err
+				} else if done {
+					return model.EvalDone, nil
+				} else {
+					return model.EvalWait, nil
+				}
+			}
+		}
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
 		//ctx.SetStatus(model.TaskStatusFailed)
@@ -421,7 +441,7 @@ func getEnterCode(linkInst model.LinkInstance) int {
 	return 4
 }
 
-//SortTaskEntries Sort by EnterCode, keeping original order or equal elements.
+// SortTaskEntries Sort by EnterCode, keeping original order or equal elements.
 func SortTaskEntries(entries []*model.TaskEntry) {
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].EnterCode < entries[j].EnterCode
