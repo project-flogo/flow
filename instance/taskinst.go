@@ -612,6 +612,7 @@ func (ti *TaskInst) SpanConfig() trace.Config {
 	config.Tags["flow_name"] = ti.flowInst.Name()
 	config.Tags["task_name"] = ti.task.Name()
 	config.Tags["task_instance_id"] = ti.id
+	config.Tags["task_type"] = ti.task.ActivityConfig().Type
 	return config
 }
 
