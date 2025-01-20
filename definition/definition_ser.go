@@ -212,13 +212,12 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		}
 	}
 
-	// In case type is not set, extract it from the ref
 	if rep.Type == "" {
 		refPath := strings.Split(rep.Ref, "/")
-		if len(refPath) > 1 {
-			rep.Type = "activity-" + refPath[len(refPath)-1]
+		if len(refPath) >= 3 {
+			rep.Type = strings.ToLower(strings.Join(refPath[len(refPath)-3:], ".")) // use last 3 parts of the ref as type
 		} else {
-			rep.Type = "activity-" + rep.Ref
+			rep.Type = strings.ToLower(strings.Replace(rep.Ref, "/", ".", -1)) // use all parts of the ref as type
 		}
 	}
 
