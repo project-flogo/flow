@@ -3,6 +3,7 @@ package instance
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -24,8 +25,8 @@ type IndependentInstance struct {
 	workItemQueue *support.SyncQueue //todo: change to faster non-threadsafe queue
 	wiCounter     int
 
-	//trackingChanges bool
-	changeTracker ChangeTracker
+	trackingChanges bool
+	changeTracker   ChangeTracker
 
 	flowModel   *model.FlowModel
 	patch       *flowsupport.Patch
@@ -67,6 +68,9 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
+	if os.Getenv("FLOGO_FLOW_SM_ENDPOINT") != "" {
+		inst.trackingChanges = true
+	}
 	inst.changeTracker = NewInstanceChangeTracker(inst.id, 0)
 	inst.changeTracker.FlowCreated(inst)
 
