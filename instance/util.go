@@ -366,6 +366,7 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
 
 	err = taskInst.flowInst.master.startEmbedded(flowInst, inputs)
+	taskInst.flowInst.master.addSubFlowToCoverage(def.Name(), taskInst.Name(), taskInst.flowInst.Name())
 	if err != nil {
 		return err
 	}
