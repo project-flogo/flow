@@ -460,6 +460,8 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 			if ok {
 				host.SetOutputs(containerInst.returnData)
+				// Reset error if any
+				host.returnError = nil
 				//Sub flow done
 				containerInst.master.GetChanges().SubflowDone(containerInst)
 				inst.scheduleEval(host)
