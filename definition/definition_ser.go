@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/project-flogo/core/app/resolve"
 	"github.com/project-flogo/core/data"
@@ -211,6 +212,15 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 		}
 	}
 
+	if rep.Type == "" {
+		refPath := strings.Split(rep.Ref, "/")
+		if len(refPath) >= 3 {
+			rep.Type = strings.ToLower(strings.Join(refPath[len(refPath)-3:], ".")) // use last 3 parts of the ref as type
+		} else {
+			rep.Type = strings.ToLower(strings.Replace(rep.Ref, "/", ".", -1)) // use all parts of the ref as type
+		}
+	}
+
 	act := activity.Get(rep.Ref)
 	if act == nil {
 		return nil, fmt.Errorf("unable to find activity with ref [%s]", rep.Ref)
@@ -222,6 +232,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 	activityCfg.Name = task.Name()
 	activityCfg.Logger = activity.GetLogger(rep.Ref)
 	activityCfg.IsLegacy = activity.HasLegacyActivities() && activity.IsLegacyActivity(rep.Ref)
+	activityCfg.Type = rep.Type
 
 	if hasDetails, ok := act.(activity.HasDetails); ok {
 		activityCfg.Details = hasDetails.Details()
