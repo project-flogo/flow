@@ -3,6 +3,7 @@ package instance
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -24,8 +25,8 @@ type IndependentInstance struct {
 	workItemQueue *support.SyncQueue //todo: change to faster non-threadsafe queue
 	wiCounter     int
 
-	//trackingChanges bool
-	changeTracker ChangeTracker
+	trackingChanges bool
+	changeTracker   ChangeTracker
 
 	flowModel   *model.FlowModel
 	patch       *flowsupport.Patch
@@ -67,6 +68,9 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
+	if os.Getenv("FLOGO_FLOW_SM_ENDPOINT") != "" {
+		inst.trackingChanges = true
+	}
 	inst.changeTracker = NewInstanceChangeTracker(inst.id, 0)
 	inst.changeTracker.FlowCreated(inst)
 
@@ -456,6 +460,8 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 			if ok {
 				host.SetOutputs(containerInst.returnData)
+				// Reset error if any
+				host.returnError = nil
 				//Sub flow done
 				containerInst.master.GetChanges().SubflowDone(containerInst)
 				inst.scheduleEval(host)
@@ -705,6 +711,20 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 	}
 
 	inst.interceptor.AddToActivityCoverage(coverage)
+}
+
+func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivity, hostFlowName string) {
+
+	if !inst.HasInterceptor() {
+		return
+	}
+
+	coverage := flowsupport.SubFlowCoverage{
+		HostFlow:        hostFlowName,
+		SubFlowActivity: subFlowActivity,
+		SubFlowName:     subFlowName,
+	}
+	inst.interceptor.AddToSubFlowCoverage(coverage)
 }
 
 func (inst *IndependentInstance) getLinks(instances []model.LinkInstance) []string {

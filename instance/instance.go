@@ -229,9 +229,9 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 
 	inst.attrs[name] = value
 
-	//if inst.master.trackingChanges {
-	inst.master.changeTracker.AttrChange(inst.subflowId, name, value)
-	//}
+	if inst.master.trackingChanges {
+		inst.master.changeTracker.AttrChange(inst.subflowId, name, value)
+	}
 
 	return nil
 }
