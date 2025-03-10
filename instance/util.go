@@ -256,7 +256,11 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 			}
 			if taskInterceptor.Type == support.MockException {
 				message := taskInterceptor.Outputs["message"].(string)
-				e := activity.NewError(message, "", struct{}{})
+				data := taskInterceptor.Outputs["data"]
+				if data == nil {
+					data = struct{}{}
+				}
+				e := activity.NewError(message, "", data)
 				e.SetActivityName(taskInst.id)
 				return e
 			}
