@@ -68,7 +68,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.logger = logger
 
 	inst.status = model.FlowStatusNotStarted
-	if os.Getenv("FLOGO_FLOW_SM_ENDPOINT") != "" {
+	if os.Getenv("FLOGO_FLOW_SM_ENDPOINT") != "" || os.Getenv("FLOGO_DEBUGGER_ENV") != "" {
 		inst.trackingChanges = true
 	}
 	inst.changeTracker = NewInstanceChangeTracker(inst.id, 0)
