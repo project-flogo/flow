@@ -324,8 +324,6 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 
 	var stepCount int
 
-	fmt.Println("### in DOStepinLoop")
-
 	for inst.status == model.FlowStatusActive {
 
 		// get item to be worked on

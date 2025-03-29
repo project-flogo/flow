@@ -374,9 +374,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if os.Getenv("FLOGO_FLOW_CONCURRENT_EXECUTION") == "true" {
-			fmt.Println("###Concurrent Execution###")
+			logger.Info("Concurrent flow execution feature is enabled. All independent activities will run concurrently.")
 			err := inst.DoStepInLoop()
-
 			if err != nil && inst.Status() != model.FlowStatusCompleted {
 				err := fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
 				if inst.TracingContext() != nil {
@@ -386,7 +385,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				return
 			}
 		} else {
-			fmt.Println("###Seuqenctial Execution###")
 			for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
 				stepCount++
 				logger.Debugf("Step: %d", stepCount)

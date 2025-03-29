@@ -235,13 +235,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if os.Getenv("FLOGO_FLOW_CONCURRENT_EXECUTION") == "true" {
-			fmt.Println("###Concurrent Execution###")
+			logger.Info("Concurrent flow execution feature is enabled. All independent activities will run concurrently.")
 			err := inst.DoStepInLoop()
 			if err != nil {
 				handler.HandleResult(nil, err)
 			}
 		} else {
-			fmt.Println("###Seuqenctial Execution###")
 			for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
 				stepCount++
 				logger.Debugf("Step: %d", stepCount)
