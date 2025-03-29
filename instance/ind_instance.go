@@ -15,6 +15,7 @@ import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	flowsupport "github.com/project-flogo/flow/support"
+	"github.com/project-flogo/flow/util"
 )
 
 type IndependentInstance struct {
@@ -317,6 +318,41 @@ func (inst *IndependentInstance) DoStep() bool {
 	}
 
 	return hasNext
+}
+
+func (inst *IndependentInstance) DoStepInLoop() error {
+
+	var stepCount int
+
+	fmt.Println("### in DOStepinLoop")
+
+	for inst.status == model.FlowStatusActive {
+
+		// get item to be worked on
+		item, ok := inst.workItemQueue.Pop()
+		if ok {
+			if stepCount > util.GetMaxStepCount() {
+				return fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), util.GetMaxStepCount(), util.FlogoStepCountEnv)
+			}
+			inst.ResetChanges()
+			inst.stepID++
+			stepCount++
+			go func(wi *WorkItem) {
+				// get the corresponding behavior
+				behavior := inst.flowModel.GetDefaultTaskBehavior()
+				if typeID := wi.taskInst.task.TypeID(); typeID != "" {
+					behavior = inst.flowModel.GetTaskBehavior(typeID)
+				}
+
+				// track the fact that the work item was removed from the queue
+				inst.changeTracker.WorkItemRemoved(wi)
+
+				inst.execTask(behavior, wi.taskInst)
+
+			}(item.(*WorkItem))
+		}
+	}
+	return nil
 }
 
 func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {

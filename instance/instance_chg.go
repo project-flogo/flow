@@ -1,6 +1,9 @@
 package instance
 
 import (
+	"os"
+	"sync"
+
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/state"
 	"github.com/project-flogo/flow/state/change"
@@ -110,10 +113,10 @@ type SimpleChangeTrackerFactory struct {
 }
 
 func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode, startStepId int) ChangeTracker {
-	ct := &SimpleChangeTracker{flowId: flowId, mode: mode, stepCtr: startStepId}
-	ct.currentStep = &state.Step{
-		FlowId:      flowId,
-		FlowChanges: make(map[int]*change.Flow),
+
+	ct := &SimpleChangeTracker{flowId: flowId, mode: mode, stepCtr: startStepId, currentStep: &state.Step{FlowId: flowId, FlowChanges: make(map[int]*change.Flow)}}
+	if os.Getenv("FLOGO_FLOW_CONCURRENT_EXECUTION") == "true" {
+		return &SimpleSyncChangeTracker{sct: ct, lock: &sync.RWMutex{}}
 	}
 	return ct
 }
@@ -122,12 +125,15 @@ type SimpleChangeTracker struct {
 	flowId      string
 	mode        state.RecordingMode
 	stepCtr     int
-	partialRun  bool
 	currentStep *state.Step
 }
 
-func (sct *SimpleChangeTracker) SetStatus(subflowId int, status model.FlowStatus) {
+type SimpleSyncChangeTracker struct {
+	sct  *SimpleChangeTracker
+	lock *sync.RWMutex
+}
 
+func (sct *SimpleChangeTracker) SetStatus(subflowId int, status model.FlowStatus) {
 	fc, exists := sct.currentStep.FlowChanges[subflowId]
 	if !exists {
 		fc = &change.Flow{}
@@ -176,14 +182,13 @@ func (sct *SimpleChangeTracker) FlowDone(flow *IndependentInstance) {
 				Status:  int(flow.status),
 			}
 			returnData, _ := flow.GetReturnData()
-			flowC.ReturnData = util.DeepCopyMap(returnData)
+			fc.ReturnData = util.DeepCopyMap(returnData)
 			sct.currentStep.FlowChanges[flow.subflowId] = fc
 		}
 	}
 }
 
 func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
-
 	host := subflow.host.(*TaskInst)
 
 	fc := &change.Flow{
@@ -276,7 +281,6 @@ func (sct *SimpleChangeTracker) LinkRemoved(subflowId int, linkId int) {
 }
 
 func (sct *SimpleChangeTracker) ExtractStep(reset bool) *state.Step {
-
 	step := sct.currentStep
 
 	if reset {
@@ -284,6 +288,109 @@ func (sct *SimpleChangeTracker) ExtractStep(reset bool) *state.Step {
 		sct.currentStep = &state.Step{
 			Id:           sct.stepCtr,
 			FlowId:       sct.flowId,
+			FlowChanges:  make(map[int]*change.Flow),
+			QueueChanges: make(map[int]*change.Queue),
+		}
+	}
+
+	return step
+}
+
+func (syncct *SimpleSyncChangeTracker) SetStatus(subflowId int, status model.FlowStatus) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.SetStatus(subflowId, status)
+}
+
+func (syncct *SimpleSyncChangeTracker) AttrChange(subflowId int, name string, value interface{}) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.AttrChange(subflowId, name, value)
+}
+
+func (syncct *SimpleSyncChangeTracker) FlowCreated(flow *IndependentInstance) {
+	fc := &change.Flow{
+		NewFlow: true,
+		FlowURI: flow.flowURI,
+		Status:  int(flow.status),
+	}
+	syncct.sct.currentStep.FlowChanges[0] = fc
+}
+
+func (syncct *SimpleSyncChangeTracker) FlowDone(flow *IndependentInstance) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.FlowDone(flow)
+}
+
+func (syncct *SimpleSyncChangeTracker) SubflowCreated(subflow *Instance) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.SubflowCreated(subflow)
+}
+
+func (syncct *SimpleSyncChangeTracker) SubflowDone(subflow *Instance) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.SubflowDone(subflow)
+}
+
+func (syncct *SimpleSyncChangeTracker) WorkItemAdded(wi *WorkItem) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.WorkItemAdded(wi)
+}
+
+func (syncct *SimpleSyncChangeTracker) WorkItemRemoved(wi *WorkItem) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.WorkItemRemoved(wi)
+}
+
+func (syncct *SimpleSyncChangeTracker) TaskAdded(taskInst *TaskInst) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.TaskAdded(taskInst)
+}
+
+func (syncct *SimpleSyncChangeTracker) TaskUpdated(taskInst *TaskInst) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.TaskUpdated(taskInst)
+}
+
+func (syncct *SimpleSyncChangeTracker) TaskRemoved(subflowId int, taskId string) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.TaskRemoved(subflowId, taskId)
+}
+
+func (syncct *SimpleSyncChangeTracker) LinkAdded(linkInst *LinkInst) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.LinkAdded(linkInst)
+}
+
+func (syncct *SimpleSyncChangeTracker) LinkUpdated(linkInst *LinkInst) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.LinkUpdated(linkInst)
+}
+
+func (syncct *SimpleSyncChangeTracker) LinkRemoved(subflowId int, linkId int) {
+	defer syncct.lock.Unlock()
+	syncct.lock.Lock()
+	syncct.sct.LinkRemoved(subflowId, linkId)
+}
+
+func (syncct *SimpleSyncChangeTracker) ExtractStep(reset bool) *state.Step {
+
+	step := syncct.sct.currentStep
+	if reset {
+		syncct.sct.stepCtr++
+		syncct.sct.currentStep = &state.Step{
+			Id:           syncct.sct.stepCtr,
+			FlowId:       syncct.sct.flowId,
 			FlowChanges:  make(map[int]*change.Flow),
 			QueueChanges: make(map[int]*change.Queue),
 		}

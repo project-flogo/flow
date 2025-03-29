@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/project-flogo/core/action"
@@ -52,6 +53,7 @@ var idGenerator *support.Generator
 var record bool
 var flowManager *flowsupport.FlowManager
 var logger log.Logger
+
 var stateRecorder state.Recorder
 var stateRecordingMode = state.RecordingModeOff
 
@@ -232,19 +234,27 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(results, nil)
 		}
 
-		for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
-			stepCount++
-			logger.Debugf("Step: %d", stepCount)
-			hasWork = inst.DoStep()
-
-			if record {
-				//ep.GetStateRecorder().RecordSnapshot(inst)
-				//ep.GetStateRecorder().RecordStep(inst)
+		if os.Getenv("FLOGO_FLOW_CONCURRENT_EXECUTION") == "true" {
+			fmt.Println("###Concurrent Execution###")
+			err := inst.DoStepInLoop()
+			if err != nil {
+				handler.HandleResult(nil, err)
 			}
-		}
+		} else {
+			fmt.Println("###Seuqenctial Execution###")
+			for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
+				stepCount++
+				logger.Debugf("Step: %d", stepCount)
+				hasWork = inst.DoStep()
 
-		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
-			handler.HandleResult(nil, fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv))
+				if record {
+					//ep.GetStateRecorder().RecordSnapshot(inst)
+					//ep.GetStateRecorder().RecordStep(inst)
+				}
+			}
+			if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
+				handler.HandleResult(nil, fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv))
+			}
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {
@@ -279,7 +289,7 @@ func ApplyMappings(mappings map[string]interface{}, inputs map[string]interface{
 
 	inScope := data.NewSimpleScope(inputs, nil)
 
-	out, err := m.Apply(inScope)
+	out, _ := m.Apply(inScope)
 
 	return out, nil
 }
