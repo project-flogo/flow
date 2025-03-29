@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/project-flogo/core/action"
@@ -234,8 +233,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(results, nil)
 		}
 
-		if os.Getenv("FLOGO_FLOW_CONCURRENT_EXECUTION") == "true" {
-			logger.Info("Concurrent flow execution feature is enabled. All independent activities will run concurrently.")
+		if instance.IsConcurrentTaskExcutionEnabled() {
+			logger.Info("Concurrent task execution feature is enabled. All independent activities will run concurrently.")
 			err := inst.DoStepInLoop()
 			if err != nil {
 				handler.HandleResult(nil, err)

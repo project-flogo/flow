@@ -325,7 +325,6 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 	var stepCount int
 
 	for inst.status == model.FlowStatusActive {
-
 		// get item to be worked on
 		item, ok := inst.workItemQueue.Pop()
 		if ok {
@@ -335,19 +334,21 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 			inst.ResetChanges()
 			inst.stepID++
 			stepCount++
+			wi := item.(*WorkItem)
 			go func(wi *WorkItem) {
+				defer func() {
+					log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
+				}()
+				log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
 				// get the corresponding behavior
 				behavior := inst.flowModel.GetDefaultTaskBehavior()
 				if typeID := wi.taskInst.task.TypeID(); typeID != "" {
 					behavior = inst.flowModel.GetTaskBehavior(typeID)
 				}
-
 				// track the fact that the work item was removed from the queue
 				inst.changeTracker.WorkItemRemoved(wi)
-
 				inst.execTask(behavior, wi.taskInst)
-
-			}(item.(*WorkItem))
+			}(wi)
 		}
 	}
 	return nil

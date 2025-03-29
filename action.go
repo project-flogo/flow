@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -373,7 +372,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(results, nil)
 		}
 
-		if os.Getenv("FLOGO_FLOW_CONCURRENT_EXECUTION") == "true" {
+		if instance.IsConcurrentTaskExcutionEnabled() {
 			logger.Info("Concurrent flow execution feature is enabled. All independent activities will run concurrently.")
 			err := inst.DoStepInLoop()
 			if err != nil && inst.Status() != model.FlowStatusCompleted {

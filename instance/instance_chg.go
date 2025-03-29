@@ -1,7 +1,6 @@
 package instance
 
 import (
-	"os"
 	"sync"
 
 	"github.com/project-flogo/flow/model"
@@ -115,7 +114,7 @@ type SimpleChangeTrackerFactory struct {
 func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode, startStepId int) ChangeTracker {
 
 	ct := &SimpleChangeTracker{flowId: flowId, mode: mode, stepCtr: startStepId, currentStep: &state.Step{FlowId: flowId, FlowChanges: make(map[int]*change.Flow)}}
-	if os.Getenv("FLOGO_FLOW_CONCURRENT_EXECUTION") == "true" {
+	if IsConcurrentTaskExcutionEnabled() {
 		return &SimpleSyncChangeTracker{sct: ct, lock: &sync.RWMutex{}}
 	}
 	return ct
