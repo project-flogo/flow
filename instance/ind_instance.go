@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/project-flogo/flow/state"
@@ -79,6 +80,9 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.linkInsts = make(map[int]*LinkInst)
 
 	inst.instRecorder = instRecorder
+	if IsConcurrentTaskExcutionEnabled() {
+		inst.Instance.lock = &sync.RWMutex{}
+	}
 
 	return inst, nil
 }
@@ -337,7 +341,8 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 			wi := item.(*WorkItem)
 			go func(wi *WorkItem) {
 				defer func() {
-					log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
+				    log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
+					wi = nil
 				}()
 				log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
 				// get the corresponding behavior

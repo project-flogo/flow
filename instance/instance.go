@@ -2,6 +2,7 @@ package instance
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
@@ -38,6 +39,7 @@ type Instance struct {
 
 	logger     log.Logger
 	tracingCtx trace.TracingContext
+	lock       *sync.RWMutex
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {
@@ -61,18 +63,25 @@ func (inst *Instance) ID() string {
 }
 
 func (inst *Instance) TracingContext() trace.TracingContext {
-
 	return inst.tracingCtx
 }
 
 // InitActionContext initialize the action context, should be initialized before execution
 func (inst *Instance) SetResultHandler(handler action.ResultHandler) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 	inst.resultHandler = handler
 }
 
 // FindOrCreateTaskInst finds an existing TaskInst or creates ones if not found for the
 // specified task the task environment
 func (inst *Instance) FindOrCreateTaskInst(task *definition.Task) (taskInst *TaskInst, created bool) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 
 	taskInst, ok := inst.taskInsts[task.ID()]
 
@@ -91,7 +100,10 @@ func (inst *Instance) FindOrCreateTaskInst(task *definition.Task) (taskInst *Tas
 // FindOrCreateLinkData finds an existing LinkInst or creates ones if not found for the
 // specified link the task environment
 func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *LinkInst, created bool) {
-
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 	linkInst, ok := inst.linkInsts[link.ID()]
 	created = false
 
@@ -106,6 +118,10 @@ func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *Lin
 }
 
 func (inst *Instance) releaseTask(task *definition.Task) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 	delete(inst.taskInsts, task.ID())
 	inst.master.changeTracker.TaskRemoved(inst.subflowId, task.ID())
 	links := task.FromLinks()
@@ -126,6 +142,10 @@ func (inst *Instance) IOMetadata() *metadata.IOMetadata {
 }
 
 func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 	if inst.resultHandler != nil {
 		inst.returnData = replyData
 		inst.resultHandler.HandleResult(replyData, err)
@@ -133,6 +153,10 @@ func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
 }
 
 func (inst *Instance) Return(returnData map[string]interface{}, err error) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 	inst.forceCompletion = true
 	inst.returnData = returnData
 	inst.returnError = err
@@ -147,6 +171,10 @@ func (inst *Instance) GetError() error {
 }
 
 func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
+	if inst.lock != nil {
+		inst.lock.RLock()
+		defer inst.lock.RUnlock()
+	}
 
 	if inst.returnData == nil {
 
@@ -176,10 +204,18 @@ func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
 
 // Status returns the current status of the Flow Instance
 func (inst *Instance) Status() model.FlowStatus {
+	if inst.lock != nil {
+		inst.lock.RLock()
+		defer inst.lock.RUnlock()
+	}
 	return inst.status
 }
 
 func (inst *Instance) SetStatus(status model.FlowStatus) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 
 	inst.status = status
 	inst.master.changeTracker.SetStatus(inst.subflowId, status)
@@ -188,11 +224,19 @@ func (inst *Instance) SetStatus(status model.FlowStatus) {
 
 // FlowDefinition returns the Flow definition associated with this context
 func (inst *Instance) FlowDefinition() *definition.Definition {
+	if inst.lock != nil {
+		inst.lock.RLock()
+		defer inst.lock.RUnlock()
+	}
 	return inst.flowDef
 }
 
 // TaskInstances get the task instances
 func (inst *Instance) TaskInstances() []model.TaskInstance {
+	if inst.lock != nil {
+		inst.lock.RLock()
+		defer inst.lock.RUnlock()
+	}
 
 	taskInsts := make([]model.TaskInstance, 0, len(inst.taskInsts))
 	for _, value := range inst.taskInsts {
@@ -209,6 +253,10 @@ func (inst *Instance) Logger() log.Logger {
 // Instance - data.Scope Implementation
 
 func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
+	if inst.lock != nil {
+		inst.lock.RLock()
+		defer inst.lock.RUnlock()
+	}
 
 	if inst.attrs != nil {
 		attr, found := inst.attrs[name]
@@ -222,6 +270,10 @@ func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
 }
 
 func (inst *Instance) SetValue(name string, value interface{}) error {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 
 	if inst.logger.DebugEnabled() {
 		inst.logger.Debugf("SetAttr - name: %s, value:%v\n", name, value)
@@ -240,8 +292,12 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 
 // UpdateAttrs updates the attributes of the Flow Instance
 func (inst *Instance) UpdateAttrs(attrs map[string]interface{}) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 
-	if attrs != nil {
+	if len(attrs) > 0 {
 		for name, value := range attrs {
 			_ = inst.SetValue(name, value)
 		}
