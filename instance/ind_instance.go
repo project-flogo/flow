@@ -83,6 +83,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	if IsConcurrentTaskExcutionEnabled() {
 		inst.Instance.lock = &sync.RWMutex{}
 		inst.Instance.actSchedLock = &sync.Mutex{}
+		inst.concurrentExec = true
 	}
 
 	return inst, nil
@@ -696,7 +697,8 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
-	if inst.actSchedLock != nil {
+	if inst.concurrentExec {
+		// Lock is set only when concurrent executaion is enabled
 		inst.actSchedLock.Lock()
 		defer inst.actSchedLock.Unlock()
 	}
@@ -705,7 +707,7 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
 		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
-		if IsConcurrentTaskExcutionEnabled() && taskInst.scheduled {
+		if inst.concurrentExec && taskInst.scheduled {
 			//task is already scheduled by other goroutine. Lets skip this task
 			continue
 		}

@@ -37,10 +37,11 @@ type Instance struct {
 
 	resultHandler action.ResultHandler
 
-	logger       log.Logger
-	tracingCtx   trace.TracingContext
-	lock         *sync.RWMutex
-	actSchedLock *sync.Mutex
+	logger         log.Logger
+	tracingCtx     trace.TracingContext
+	lock           *sync.RWMutex
+	actSchedLock   *sync.Mutex
+	concurrentExec bool
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {
