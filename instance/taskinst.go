@@ -75,7 +75,8 @@ type TaskInst struct {
 	traceContext trace.TracingContext
 
 	//needed for serialization
-	taskID string
+	taskID    string
+	scheduled bool
 }
 
 /////////////////////////////////////////

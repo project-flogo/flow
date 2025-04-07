@@ -82,6 +82,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.instRecorder = instRecorder
 	if IsConcurrentTaskExcutionEnabled() {
 		inst.Instance.lock = &sync.RWMutex{}
+		inst.Instance.actSchedLock = &sync.Mutex{}
 	}
 
 	return inst, nil
@@ -332,16 +333,21 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 		// get item to be worked on
 		item, ok := inst.workItemQueue.Pop()
 		if ok {
+			wi := item.(*WorkItem)
+			//if wi.taskInst.ready {
+			// Task is already scheduled by other goroutine. Lets skip this task
+			//continue
+			//}
 			if stepCount > util.GetMaxStepCount() {
 				return fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), util.GetMaxStepCount(), util.FlogoStepCountEnv)
 			}
 			inst.ResetChanges()
 			inst.stepID++
 			stepCount++
-			wi := item.(*WorkItem)
+			// Mark the task as scheduled so that we dont rerun same task multiple times
 			go func(wi *WorkItem) {
 				defer func() {
-				    log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
+					log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
 					wi = nil
 				}()
 				log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
@@ -401,7 +407,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	if taskInst.status == model.TaskStatusWaiting {
 		evalResult, err = behavior.PostEval(taskInst)
-	} else if taskInst.status == model.TaskStatusSkipped {
+	} else if taskInst.status == model.TaskStatusSkipped || taskInst.status == model.TaskStatusDone {
 		return
 	} else {
 		evalResult, err = behavior.Eval(taskInst)
@@ -690,21 +696,27 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
+	if inst.actSchedLock != nil {
+		inst.actSchedLock.Lock()
+		defer inst.actSchedLock.Unlock()
+	}
 
 	for _, taskEntry := range taskEntries {
-
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
 		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
+		if IsConcurrentTaskExcutionEnabled() && taskInst.scheduled {
+			//task is already scheduled by other goroutine. Lets skip this task
+			continue
+		}
 		taskInst.id = taskInst.taskID
-
 		enterResult := behavior.Enter(taskInst)
-
 		if enterResult == model.EREval {
 			err := applySettingsMapper(taskInst)
 			if err != nil {
 				return err
 			}
+			taskInst.scheduled = true
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {
 			inst.handleTaskDone(behavior, taskInst)

@@ -37,9 +37,10 @@ type Instance struct {
 
 	resultHandler action.ResultHandler
 
-	logger     log.Logger
-	tracingCtx trace.TracingContext
-	lock       *sync.RWMutex
+	logger       log.Logger
+	tracingCtx   trace.TracingContext
+	lock         *sync.RWMutex
+	actSchedLock *sync.Mutex
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {
@@ -171,10 +172,6 @@ func (inst *Instance) GetError() error {
 }
 
 func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
-	if inst.lock != nil {
-		inst.lock.RLock()
-		defer inst.lock.RUnlock()
-	}
 
 	if inst.returnData == nil {
 
@@ -204,10 +201,6 @@ func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
 
 // Status returns the current status of the Flow Instance
 func (inst *Instance) Status() model.FlowStatus {
-	if inst.lock != nil {
-		inst.lock.RLock()
-		defer inst.lock.RUnlock()
-	}
 	return inst.status
 }
 
@@ -216,7 +209,6 @@ func (inst *Instance) SetStatus(status model.FlowStatus) {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
 	}
-
 	inst.status = status
 	inst.master.changeTracker.SetStatus(inst.subflowId, status)
 	postFlowEvent(inst)
@@ -224,10 +216,6 @@ func (inst *Instance) SetStatus(status model.FlowStatus) {
 
 // FlowDefinition returns the Flow definition associated with this context
 func (inst *Instance) FlowDefinition() *definition.Definition {
-	if inst.lock != nil {
-		inst.lock.RLock()
-		defer inst.lock.RUnlock()
-	}
 	return inst.flowDef
 }
 
