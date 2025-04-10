@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -85,7 +84,6 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 		inst.Instance.lock = &sync.RWMutex{}
 		inst.Instance.actSchedLock = &sync.Mutex{}
 		inst.concurrentExec = true
-		log.RootLogger().Infof("CPU Threads: %d", runtime.NumCPU())
 	}
 
 	return inst, nil
