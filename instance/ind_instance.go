@@ -360,7 +360,6 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 				}(wi)
 			} else {
 				// Execute task on engine worker goroutine
-				log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
 				// get the corresponding behavior
 				behavior := inst.flowModel.GetDefaultTaskBehavior()
 				if typeID := wi.taskInst.task.TypeID(); typeID != "" {
