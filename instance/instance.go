@@ -121,9 +121,7 @@ func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *Lin
 
 func (inst *Instance) releaseTask(task *definition.Task) {
 	if inst.lock != nil {
-		log.RootLogger().Infof("Lock Requested: Releasing task %s", task.ID())
 		inst.lock.Lock()
-		log.RootLogger().Infof("Lock Granted: Releasing task %s", task.ID())
 		defer inst.lock.Unlock()
 	}
 	delete(inst.taskInsts, task.ID())
