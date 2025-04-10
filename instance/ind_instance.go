@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -84,6 +85,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 		inst.Instance.lock = &sync.RWMutex{}
 		inst.Instance.actSchedLock = &sync.Mutex{}
 		inst.concurrentExec = true
+		log.RootLogger().Infof("CPU Threads: %d", runtime.NumCPU())
 	}
 
 	return inst, nil
@@ -335,22 +337,31 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 		item, ok := inst.workItemQueue.Pop()
 		if ok {
 			wi := item.(*WorkItem)
-			//if wi.taskInst.ready {
-			// Task is already scheduled by other goroutine. Lets skip this task
-			//continue
-			//}
 			if stepCount > util.GetMaxStepCount() {
 				return fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), util.GetMaxStepCount(), util.FlogoStepCountEnv)
 			}
 			inst.ResetChanges()
 			inst.stepID++
 			stepCount++
-			// Mark the task as scheduled so that we dont rerun same task multiple times
-			go func(wi *WorkItem) {
-				defer func() {
-					log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
-					wi = nil
-				}()
+			if wi.taskInst.asyncExec {
+				// Execute task on different goroutine
+				go func(wi *WorkItem) {
+					defer func() {
+						log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
+						wi = nil
+					}()
+					log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
+					// get the corresponding behavior
+					behavior := inst.flowModel.GetDefaultTaskBehavior()
+					if typeID := wi.taskInst.task.TypeID(); typeID != "" {
+						behavior = inst.flowModel.GetTaskBehavior(typeID)
+					}
+					// track the fact that the work item was removed from the queue
+					inst.changeTracker.WorkItemRemoved(wi)
+					inst.execTask(behavior, wi.taskInst)
+				}(wi)
+			} else {
+				// Execute task on engine worker goroutine
 				log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
 				// get the corresponding behavior
 				behavior := inst.flowModel.GetDefaultTaskBehavior()
@@ -360,7 +371,7 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 				// track the fact that the work item was removed from the queue
 				inst.changeTracker.WorkItemRemoved(wi)
 				inst.execTask(behavior, wi.taskInst)
-			}(wi)
+			}
 		}
 	}
 	return nil
@@ -697,7 +708,10 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
+	var asyncExec bool
 	if inst.concurrentExec {
+		// Mark task for concurrent execution if there are multiple tasks to be executed from previous task
+		asyncExec = len(taskEntries) > 1
 		// Lock is set only when concurrent executaion is enabled
 		inst.actSchedLock.Lock()
 		defer inst.actSchedLock.Unlock()
@@ -719,6 +733,7 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 				return err
 			}
 			taskInst.scheduled = true
+			taskInst.asyncExec = asyncExec
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {
 			inst.handleTaskDone(behavior, taskInst)

@@ -70,10 +70,10 @@ func (inst *Instance) TracingContext() trace.TracingContext {
 
 // InitActionContext initialize the action context, should be initialized before execution
 func (inst *Instance) SetResultHandler(handler action.ResultHandler) {
-	if inst.lock != nil {
+	/**if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 	inst.resultHandler = handler
 }
 
@@ -121,7 +121,9 @@ func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *Lin
 
 func (inst *Instance) releaseTask(task *definition.Task) {
 	if inst.lock != nil {
+		log.RootLogger().Infof("Lock Requested: Releasing task %s", task.ID())
 		inst.lock.Lock()
+		log.RootLogger().Infof("Lock Granted: Releasing task %s", task.ID())
 		defer inst.lock.Unlock()
 	}
 	delete(inst.taskInsts, task.ID())
@@ -144,10 +146,10 @@ func (inst *Instance) IOMetadata() *metadata.IOMetadata {
 }
 
 func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
-	if inst.lock != nil {
+	/*if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 	if inst.resultHandler != nil {
 		inst.returnData = replyData
 		inst.resultHandler.HandleResult(replyData, err)
@@ -155,10 +157,10 @@ func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
 }
 
 func (inst *Instance) Return(returnData map[string]interface{}, err error) {
-	if inst.lock != nil {
+	/*if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 	inst.forceCompletion = true
 	inst.returnData = returnData
 	inst.returnError = err
