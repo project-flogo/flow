@@ -144,10 +144,6 @@ func (inst *Instance) IOMetadata() *metadata.IOMetadata {
 }
 
 func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
-	/*if inst.lock != nil {
-		inst.lock.Lock()
-		defer inst.lock.Unlock()
-	}*/
 	if inst.resultHandler != nil {
 		inst.returnData = replyData
 		inst.resultHandler.HandleResult(replyData, err)
@@ -155,10 +151,6 @@ func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
 }
 
 func (inst *Instance) Return(returnData map[string]interface{}, err error) {
-	/*if inst.lock != nil {
-		inst.lock.Lock()
-		defer inst.lock.Unlock()
-	}*/
 	inst.forceCompletion = true
 	inst.returnData = returnData
 	inst.returnError = err
