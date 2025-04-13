@@ -41,6 +41,7 @@ type Instance struct {
 	tracingCtx     trace.TracingContext
 	lock           *sync.RWMutex
 	actSchedLock   *sync.Mutex
+	subFlowLock    *sync.Mutex
 	concurrentExec bool
 }
 
@@ -215,8 +216,8 @@ func (inst *Instance) FlowDefinition() *definition.Definition {
 // TaskInstances get the task instances
 func (inst *Instance) TaskInstances() []model.TaskInstance {
 	if inst.lock != nil {
-		inst.lock.RLock()
-		defer inst.lock.RUnlock()
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
 	}
 
 	taskInsts := make([]model.TaskInstance, 0, len(inst.taskInsts))

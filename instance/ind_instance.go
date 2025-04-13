@@ -83,6 +83,7 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	if IsConcurrentTaskExcutionEnabled() {
 		inst.Instance.lock = &sync.RWMutex{}
 		inst.Instance.actSchedLock = &sync.Mutex{}
+		inst.Instance.subFlowLock = &sync.Mutex{}
 		inst.concurrentExec = true
 	}
 
@@ -94,6 +95,10 @@ func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanc
 }
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
+	if inst.subFlowLock != nil {
+		inst.subFlowLock.Lock()
+		defer inst.subFlowLock.Unlock()
+	}
 
 	inst.subflowCtr++
 
@@ -361,6 +366,7 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 			} else {
 				// Execute task on engine worker goroutine
 				// get the corresponding behavior
+				log.RootLogger().Debugf("Task [%s] started on worker goroutine", wi.taskInst.task.ID())
 				behavior := inst.flowModel.GetDefaultTaskBehavior()
 				if typeID := wi.taskInst.task.TypeID(); typeID != "" {
 					behavior = inst.flowModel.GetTaskBehavior(typeID)
@@ -731,6 +737,11 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			}
 			taskInst.scheduled = true
 			taskInst.asyncExec = asyncExec
+			if taskInst.flowInst.host != nil {
+				hostTaskInst, ok := taskInst.flowInst.host.(*TaskInst)
+				// This task is configured in a subflow. If subflow activity in main flow is marked for async execution, all activities in the subflow must execute in async mode
+				taskInst.asyncExec = asyncExec || (ok && hostTaskInst.asyncExec)
+			}
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {
 			inst.handleTaskDone(behavior, taskInst)
