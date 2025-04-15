@@ -1,6 +1,8 @@
 package instance
 
 import (
+	"sync"
+
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/state"
 	"github.com/project-flogo/flow/state/change"
@@ -110,10 +112,10 @@ type SimpleChangeTrackerFactory struct {
 }
 
 func (sf *SimpleChangeTrackerFactory) NewChangeTracker(flowId string, mode state.RecordingMode, startStepId int) ChangeTracker {
-	ct := &SimpleChangeTracker{flowId: flowId, mode: mode, stepCtr: startStepId}
-	ct.currentStep = &state.Step{
-		FlowId:      flowId,
-		FlowChanges: make(map[int]*change.Flow),
+
+	ct := &SimpleChangeTracker{flowId: flowId, mode: mode, stepCtr: startStepId, currentStep: &state.Step{FlowId: flowId, FlowChanges: make(map[int]*change.Flow)}}
+	if IsConcurrentTaskExcutionEnabled() {
+		ct.lock = &sync.RWMutex{}
 	}
 	return ct
 }
@@ -122,12 +124,15 @@ type SimpleChangeTracker struct {
 	flowId      string
 	mode        state.RecordingMode
 	stepCtr     int
-	partialRun  bool
 	currentStep *state.Step
+	lock        *sync.RWMutex
 }
 
 func (sct *SimpleChangeTracker) SetStatus(subflowId int, status model.FlowStatus) {
-
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	fc, exists := sct.currentStep.FlowChanges[subflowId]
 	if !exists {
 		fc = &change.Flow{}
@@ -138,6 +143,10 @@ func (sct *SimpleChangeTracker) SetStatus(subflowId int, status model.FlowStatus
 }
 
 func (sct *SimpleChangeTracker) AttrChange(subflowId int, name string, value interface{}) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	fc, exists := sct.currentStep.FlowChanges[subflowId]
 	if !exists {
 		fc = &change.Flow{}
@@ -152,6 +161,10 @@ func (sct *SimpleChangeTracker) AttrChange(subflowId int, name string, value int
 }
 
 func (sct *SimpleChangeTracker) FlowCreated(flow *IndependentInstance) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	fc := &change.Flow{
 		NewFlow: true,
 		FlowURI: flow.flowURI,
@@ -161,6 +174,10 @@ func (sct *SimpleChangeTracker) FlowCreated(flow *IndependentInstance) {
 }
 
 func (sct *SimpleChangeTracker) FlowDone(flow *IndependentInstance) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	// Save return for debugger mode only
 	if sct.mode == state.RecordingModeDebugger {
 		flowC := sct.currentStep.FlowChanges[flow.subflowId]
@@ -176,14 +193,17 @@ func (sct *SimpleChangeTracker) FlowDone(flow *IndependentInstance) {
 				Status:  int(flow.status),
 			}
 			returnData, _ := flow.GetReturnData()
-			flowC.ReturnData = util.DeepCopyMap(returnData)
+			fc.ReturnData = util.DeepCopyMap(returnData)
 			sct.currentStep.FlowChanges[flow.subflowId] = fc
 		}
 	}
 }
 
 func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
-
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	host := subflow.host.(*TaskInst)
 
 	fc := &change.Flow{
@@ -197,6 +217,10 @@ func (sct *SimpleChangeTracker) SubflowCreated(subflow *Instance) {
 }
 
 func (sct *SimpleChangeTracker) SubflowDone(subflow *Instance) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	// Save return for debugger mode only
 	if sct.mode == state.RecordingModeDebugger {
 		if sct.currentStep.FlowChanges != nil {
@@ -221,22 +245,38 @@ func (sct *SimpleChangeTracker) SubflowDone(subflow *Instance) {
 }
 
 func (sct *SimpleChangeTracker) WorkItemAdded(wi *WorkItem) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	qc := getQueueChange(sct.currentStep, wi.ID)
 	qc.TaskId = wi.TaskID
 }
 
 func (sct *SimpleChangeTracker) WorkItemRemoved(wi *WorkItem) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	qc := getQueueChange(sct.currentStep, wi.ID)
 	qc.TaskId = wi.TaskID
 	qc.ChgType = change.Delete
 }
 
 func (sct *SimpleChangeTracker) TaskAdded(taskInst *TaskInst) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID, taskInst.flowInst.flowURI)
 	task.Status = int(taskInst.status)
 }
 
 func (sct *SimpleChangeTracker) TaskUpdated(taskInst *TaskInst) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	task := getTaskChange(sct.currentStep, taskInst.flowInst.subflowId, taskInst.taskID, taskInst.flowInst.flowURI)
 	task.ChgType = change.Update
 	task.Status = int(taskInst.status)
@@ -247,11 +287,19 @@ func (sct *SimpleChangeTracker) TaskUpdated(taskInst *TaskInst) {
 }
 
 func (sct *SimpleChangeTracker) TaskRemoved(subflowId int, taskId string) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	task := getTaskChange(sct.currentStep, subflowId, taskId, "")
 	task.ChgType = change.Delete
 }
 
 func (sct *SimpleChangeTracker) LinkAdded(linkInst *LinkInst) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	link := getLinkChange(sct.currentStep, linkInst.flowInst.subflowId, linkInst.id)
 	link.Status = int(linkInst.status)
 	if sct.mode == state.RecordingModeDebugger {
@@ -261,6 +309,10 @@ func (sct *SimpleChangeTracker) LinkAdded(linkInst *LinkInst) {
 }
 
 func (sct *SimpleChangeTracker) LinkUpdated(linkInst *LinkInst) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	link := getLinkChange(sct.currentStep, linkInst.flowInst.subflowId, linkInst.id)
 	link.ChgType = change.Update
 	link.Status = int(linkInst.status)
@@ -271,12 +323,19 @@ func (sct *SimpleChangeTracker) LinkUpdated(linkInst *LinkInst) {
 }
 
 func (sct *SimpleChangeTracker) LinkRemoved(subflowId int, linkId int) {
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	link := getLinkChange(sct.currentStep, subflowId, linkId)
 	link.ChgType = change.Delete
 }
 
 func (sct *SimpleChangeTracker) ExtractStep(reset bool) *state.Step {
-
+	if sct.lock != nil {
+		defer sct.lock.Unlock()
+		sct.lock.Lock()
+	}
 	step := sct.currentStep
 
 	if reset {

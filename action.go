@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/project-flogo/core/data/expression/script/gocc/ast"
 	"strings"
 	"time"
+
+	"github.com/project-flogo/core/data/expression/script/gocc/ast"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
@@ -371,22 +372,35 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(results, nil)
 		}
 
-		for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
-			stepCount++
-			logger.Debugf("Step: %d", stepCount)
-			taskStartTime := time.Now().UTC()
-			hasWork = inst.DoStep()
-			if stateRecorder != nil {
-				inst.RecordState(taskStartTime)
+		if instance.IsConcurrentTaskExcutionEnabled() {
+			logger.Info("Concurrent flow execution feature is enabled. All independent activities will run concurrently.")
+			err := inst.DoStepInLoop()
+			if err != nil && inst.Status() != model.FlowStatusCompleted {
+				err := fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
+				if inst.TracingContext() != nil {
+					_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
+				}
+				handler.HandleResult(nil, err)
+				return
 			}
-		}
-		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
-			err := fmt.Errorf("Flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
-			if inst.TracingContext() != nil {
-				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
+		} else {
+			for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
+				stepCount++
+				logger.Debugf("Step: %d", stepCount)
+				taskStartTime := time.Now().UTC()
+				hasWork = inst.DoStep()
+				if stateRecorder != nil {
+					inst.RecordState(taskStartTime)
+				}
 			}
-			handler.HandleResult(nil, err)
-			return
+			if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
+				err := fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
+				if inst.TracingContext() != nil {
+					_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
+				}
+				handler.HandleResult(nil, err)
+				return
+			}
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/project-flogo/flow/state"
@@ -15,6 +16,7 @@ import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	flowsupport "github.com/project-flogo/flow/support"
+	"github.com/project-flogo/flow/util"
 )
 
 type IndependentInstance struct {
@@ -78,6 +80,12 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.linkInsts = make(map[int]*LinkInst)
 
 	inst.instRecorder = instRecorder
+	if IsConcurrentTaskExcutionEnabled() {
+		inst.Instance.lock = &sync.RWMutex{}
+		inst.Instance.actSchedLock = &sync.Mutex{}
+		inst.Instance.subFlowLock = &sync.Mutex{}
+		inst.concurrentExec = true
+	}
 
 	return inst, nil
 }
@@ -87,6 +95,10 @@ func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanc
 }
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
+	if inst.subFlowLock != nil {
+		inst.subFlowLock.Lock()
+		defer inst.subFlowLock.Unlock()
+	}
 
 	inst.subflowCtr++
 
@@ -319,6 +331,55 @@ func (inst *IndependentInstance) DoStep() bool {
 	return hasNext
 }
 
+func (inst *IndependentInstance) DoStepInLoop() error {
+
+	var stepCount int
+
+	for inst.status == model.FlowStatusActive {
+		// get item to be worked on
+		item, ok := inst.workItemQueue.Pop()
+		if ok {
+			wi := item.(*WorkItem)
+			if stepCount > util.GetMaxStepCount() {
+				return fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), util.GetMaxStepCount(), util.FlogoStepCountEnv)
+			}
+			inst.ResetChanges()
+			inst.stepID++
+			stepCount++
+			if wi.taskInst.asyncExec {
+				// Execute task on different goroutine
+				go func(wi *WorkItem) {
+					defer func() {
+						log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
+						wi = nil
+					}()
+					log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
+					// get the corresponding behavior
+					behavior := inst.flowModel.GetDefaultTaskBehavior()
+					if typeID := wi.taskInst.task.TypeID(); typeID != "" {
+						behavior = inst.flowModel.GetTaskBehavior(typeID)
+					}
+					// track the fact that the work item was removed from the queue
+					inst.changeTracker.WorkItemRemoved(wi)
+					inst.execTask(behavior, wi.taskInst)
+				}(wi)
+			} else {
+				// Execute task on engine worker goroutine
+				// get the corresponding behavior
+				log.RootLogger().Debugf("Task [%s] started on worker goroutine", wi.taskInst.task.ID())
+				behavior := inst.flowModel.GetDefaultTaskBehavior()
+				if typeID := wi.taskInst.task.TypeID(); typeID != "" {
+					behavior = inst.flowModel.GetTaskBehavior(typeID)
+				}
+				// track the fact that the work item was removed from the queue
+				inst.changeTracker.WorkItemRemoved(wi)
+				inst.execTask(behavior, wi.taskInst)
+			}
+		}
+	}
+	return nil
+}
+
 func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
 	inst.wiCounter++
@@ -361,7 +422,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	if taskInst.status == model.TaskStatusWaiting {
 		evalResult, err = behavior.PostEval(taskInst)
-	} else if taskInst.status == model.TaskStatusSkipped {
+	} else if taskInst.status == model.TaskStatusSkipped || taskInst.status == model.TaskStatusDone {
 		return
 	} else {
 		evalResult, err = behavior.Eval(taskInst)
@@ -650,20 +711,36 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
+	var asyncExec bool
+	if inst.concurrentExec {
+		// Mark task for concurrent execution if there are multiple tasks to be executed from previous task
+		asyncExec = len(taskEntries) > 1
+		// Lock is set only when concurrent executaion is enabled
+		inst.actSchedLock.Lock()
+		defer inst.actSchedLock.Unlock()
+	}
 
 	for _, taskEntry := range taskEntries {
-
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
 		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
+		if inst.concurrentExec && taskInst.scheduled {
+			//task is already scheduled by other goroutine. Lets skip this task
+			continue
+		}
 		taskInst.id = taskInst.taskID
-
 		enterResult := behavior.Enter(taskInst)
-
 		if enterResult == model.EREval {
 			err := applySettingsMapper(taskInst)
 			if err != nil {
 				return err
+			}
+			taskInst.scheduled = true
+			taskInst.asyncExec = asyncExec
+			if taskInst.flowInst.host != nil {
+				hostTaskInst, ok := taskInst.flowInst.host.(*TaskInst)
+				// This task is configured in a subflow. If subflow activity in main flow is marked for async execution, all activities in the subflow must execute in async mode
+				taskInst.asyncExec = asyncExec || (ok && hostTaskInst.asyncExec)
 			}
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {

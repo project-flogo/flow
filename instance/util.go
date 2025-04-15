@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/project-flogo/core/data/expression/script/gocc/ast"
+	"os"
 	"strconv"
+
+	"github.com/project-flogo/core/data/expression/script/gocc/ast"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/activity"
@@ -408,4 +410,8 @@ func StartDetachedSubFlow(ctx activity.Context, flowURI string, inputs map[strin
 		return err
 	}
 	return nil
+}
+
+func IsConcurrentTaskExcutionEnabled() bool {
+	return os.Getenv("FLOGO_FLOW_CONCURRENT_TASK_EXECUTION") == "true"
 }
