@@ -49,6 +49,8 @@ const (
 	parentFlowId   = "ParentFlowId"
 	traceId        = "TraceId"
 	spanId         = "SpanId"
+	appName        = "AppName"
+	appVersion     = "AppVersion"
 )
 
 // New creates a new Flow Instance from the specified Flow
@@ -175,6 +177,8 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	//Set the flow Name and Flow Id for the current flow.
 	_ = toStart.SetValue(flowCtxPrefix+flowName, toStart.Name())
 	_ = toStart.SetValue(flowCtxPrefix+flowId, toStart.ID())
+	_ = toStart.SetValue(flowCtxPrefix+appName, flowsupport.GetAppName())
+	_ = toStart.SetValue(flowCtxPrefix+appVersion, flowsupport.GetAppVerison())
 
 	// If tracing is enabled, inject traceId and spanId in flow context
 	if trace.Enabled() {
