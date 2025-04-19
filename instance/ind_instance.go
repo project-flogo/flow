@@ -350,8 +350,8 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 			inst.ResetChanges()
 			inst.stepID++
 			stepCount++
-			if wi.taskInst.asyncExec {
-				// Execute task on different goroutine
+			if inst.concurrentExec {
+				// Execute ready tasks on different goroutines
 				go func(wi *WorkItem) {
 					defer func() {
 						log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
@@ -548,6 +548,10 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 			//}
 
 			// flow has completed so remove it
+			if inst.subFlowLock != nil {
+				inst.subFlowLock.Lock()
+				defer inst.subFlowLock.Unlock()
+			}
 			delete(inst.subflows, containerInst.subflowId)
 		} else {
 			containerInst.master.GetChanges().FlowDone(inst)
@@ -715,10 +719,7 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
-	var asyncExec bool
-	if inst.concurrentExec {
-		// Mark task for concurrent execution if there are multiple tasks to be executed from previous task
-		asyncExec = len(taskEntries) > 1
+	if inst.actSchedLock != nil {
 		// Lock is set only when concurrent executaion is enabled
 		inst.actSchedLock.Lock()
 		defer inst.actSchedLock.Unlock()
@@ -740,12 +741,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 				return err
 			}
 			taskInst.scheduled = true
-			taskInst.asyncExec = asyncExec
-			if taskInst.flowInst.host != nil {
-				hostTaskInst, ok := taskInst.flowInst.host.(*TaskInst)
-				// This task is configured in a subflow. If subflow activity in main flow is marked for async execution, all activities in the subflow must execute in async mode
-				taskInst.asyncExec = asyncExec || (ok && hostTaskInst.asyncExec)
-			}
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {
 			inst.handleTaskDone(behavior, taskInst)
