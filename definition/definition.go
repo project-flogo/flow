@@ -3,9 +3,11 @@ package definition
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
+	"github.com/sony/gobreaker/v2"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
@@ -99,8 +101,7 @@ func (d *Definition) Cleanup() error {
 }
 
 func (d *Definition) Reconfigure(config *resource.Config) error {
-	var flowDefBytes []byte
-	flowDefBytes = config.Data
+	flowDefBytes := config.Data
 	def := &struct {
 		Tasks        []*TaskRep       `json:"tasks"`
 		ErrorHandler *ErrorHandlerRep `json:"errorHandler,omitempty"`
@@ -291,6 +292,65 @@ type retryOnErrConfig struct {
 	interval interface{}
 }
 
+type circuitBreakerConfig struct {
+	name        interface{}
+	maxFailures interface{}
+	timeout     interface{}
+}
+
+type CircuitBreaker interface {
+	Name(scope data.Scope) (string, error)
+	MaxFailures(scope data.Scope) (uint32, error)
+	Timeout(scope data.Scope) (time.Duration, error)
+}
+
+func (cbc *circuitBreakerConfig) Name(scope data.Scope) (string, error) {
+	if cbc.name != nil {
+		switch t := cbc.name.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return "", err
+			}
+			return coerce.ToString(data)
+		default:
+			return coerce.ToString(t)
+		}
+	}
+	return "", nil
+}
+
+func (cbc *circuitBreakerConfig) MaxFailures(scope data.Scope) (uint32, error) {
+	if cbc.maxFailures != nil {
+		switch t := cbc.maxFailures.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return uint32(data.(int)), nil
+		default:
+			return t.(uint32), nil
+		}
+	}
+	return 0, nil
+}
+func (cbc *circuitBreakerConfig) Timeout(scope data.Scope) (time.Duration, error) {
+	if cbc.timeout != nil {
+		switch t := cbc.timeout.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return time.Duration(data.(int) * int(time.Second)), nil
+		default:
+			return time.Duration(t.(int) * int(time.Second)), nil
+		}
+	}
+	return 0, nil
+}
+
 func (r *retryOnErrConfig) Count(scope data.Scope) (int, error) {
 	if r.count != nil {
 		switch t := r.count.(type) {
@@ -365,6 +425,7 @@ type Task struct {
 
 	loopCfg          *LoopConfig
 	retryOnErrConfig RetryOnError
+	circuitBreaker   *gobreaker.CircuitBreaker[any]
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -400,6 +461,10 @@ func (task *Task) RetryOnErrConfig() RetryOnError {
 
 func (task *Task) LoopConfig() *LoopConfig {
 	return task.loopCfg
+}
+
+func (task *Task) CircuitBreaker() *gobreaker.CircuitBreaker[any] {
+	return task.circuitBreaker
 }
 
 // ToLinks returns the predecessor links of the task
@@ -447,14 +512,13 @@ const (
 // LinkOld is the object that describes the definition of
 // a link.
 type Link struct {
-	definition *Definition
-	id         int
-	name       string
-	label      string
-	fromTask   *Task
-	toTask     *Task
-	linkType   LinkType
-	value      string //expression or label
+	id       int
+	name     string
+	label    string
+	fromTask *Task
+	toTask   *Task
+	linkType LinkType
+	value    string //expression or label
 
 	expr expression.Expr
 }

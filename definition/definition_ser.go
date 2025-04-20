@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 
 	"github.com/project-flogo/core/app/resolve"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
+	"github.com/sony/gobreaker/v2"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data/expression"
@@ -167,6 +169,43 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 	task.retryOnErrConfig, err = getRetryOnErrCfg(rep.Settings, ef)
 	if err != nil {
 		return nil, err
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in getCircuitBreakerCfg", r)
+			debug.PrintStack()
+		}
+	}()
+
+	circuitBreakerConfig, err := getCircuitBreakerCfg(rep.Settings, ef)
+	if err != nil {
+		return nil, err
+	} else if circuitBreakerConfig != nil {
+		// Enable Circuit Breaker
+		var err error
+		cbSetting := gobreaker.Settings{}
+		cbSetting.Name, err = circuitBreakerConfig.Name(nil)
+		if err != nil {
+			log.RootLogger().Errorf("Error getting circuit breaker name: %s", err.Error())
+			return nil, err
+		}
+		maxFailureCount, err := circuitBreakerConfig.MaxFailures(nil)
+		if err != nil {
+			log.RootLogger().Errorf("Error getting circuit breaker max failure executions count: %s", err.Error())
+			return nil, err
+		}
+		cbSetting.Timeout, err = circuitBreakerConfig.Timeout(nil)
+		if err != nil {
+			log.RootLogger().Errorf("Error getting circuit breaker timeout: %s", err.Error())
+			return nil, err
+		}
+		cbSetting.ReadyToTrip = func(counts gobreaker.Counts) bool {
+			return counts.ConsecutiveFailures >= maxFailureCount
+		}
+		cbSetting.OnStateChange = func(name string, from gobreaker.State, to gobreaker.State) {
+			log.RootLogger().Infof("Circuit breaker [%s] state changed: %s -> %s", name, from, to)
+		}
+		task.circuitBreaker = gobreaker.NewCircuitBreaker[any](cbSetting)
 	}
 
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
@@ -504,6 +543,88 @@ func getRetryOnErrCfg(settings map[string]interface{}, ef expression.Factory) (R
 	}
 
 	return retryErr, nil
+}
+
+func getCircuitBreakerCfg(settings map[string]interface{}, ef expression.Factory) (CircuitBreaker, error) {
+	if settings == nil {
+		return nil, nil
+	}
+	cbSetting, ok := settings["circuitBreaker"]
+	if !ok {
+		return nil, nil
+	}
+
+	cbCfg := &circuitBreakerConfig{}
+
+	cbCfgMap, err := coerce.ToObject(cbSetting)
+	if err != nil {
+		return nil, err
+	}
+	name, exist := cbCfgMap["name"]
+	if exist && name != nil {
+		strVal, ok := name.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
+			}
+
+			conditionExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile circuitBreaker name condition error: %s", err.Error())
+			}
+			cbCfg.name = conditionExpr
+		} else {
+			name, err := coerce.ToString(name)
+			if err != nil {
+				return nil, fmt.Errorf("circuitBreaker name must be string")
+			}
+			cbCfg.name = name
+		}
+
+	}
+
+	maxFailures, exist := cbCfgMap["maxFailures"]
+	if exist && maxFailures != nil {
+		strVal, ok := maxFailures.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
+			}
+			intervalExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile circuitBreaker max failures condition error: %s", err.Error())
+			}
+			cbCfg.maxFailures = intervalExpr
+		} else {
+			failedExecs, err := coerce.ToInt(maxFailures)
+			if err != nil {
+				return nil, fmt.Errorf("circuitBreaker max failures must be int")
+			}
+			cbCfg.maxFailures = uint32(failedExecs)
+		}
+	}
+
+	timeout, exist := cbCfgMap["timeout"]
+	if exist && timeout != nil {
+		strVal, ok := timeout.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
+			}
+			intervalExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile circuitBreaker timeout condition error: %s", err.Error())
+			}
+			cbCfg.timeout = intervalExpr
+		} else {
+			intervalInt, err := coerce.ToInt(timeout)
+			if err != nil {
+				return nil, fmt.Errorf("circuitBreaker timeout duration must be int")
+			}
+			cbCfg.timeout = intervalInt
+		}
+	}
+	return cbCfg, nil
 }
 
 func getLoopCfg(settings map[string]interface{}, taskType string, ef expression.Factory) (*LoopConfig, error) {

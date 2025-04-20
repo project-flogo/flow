@@ -121,6 +121,9 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 	model.RegisterDefault(simple.New())
 	flowManager = flowsupport.NewFlowManager(nil)
 	flowsupport.InitDefaultDefLookup(flowManager, ctx.ResourceManager())
+	if instance.IsConcurrentTaskExcutionEnabled() {
+		logger.Infof("Concurrent task execution feature is enabled")
+	}
 
 	return nil
 }
@@ -373,7 +376,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if instance.IsConcurrentTaskExcutionEnabled() {
-			logger.Info("Concurrent flow execution feature is enabled. All independent activities will run concurrently.")
 			err := inst.DoStepInLoop()
 			if err != nil && inst.Status() != model.FlowStatusCompleted {
 				err := fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
