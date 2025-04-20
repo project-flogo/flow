@@ -208,9 +208,10 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 		cbSetting.IsSuccessful = func(err error) bool {
 			if err != nil {
 				retErr, ok := err.(*activity.Error)
-				if ok && retErr.Retriable() {
-					return false
+				if ok && !retErr.Retriable() {
+					return true
 				}
+				return false
 			}
 			return true
 		}
