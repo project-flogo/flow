@@ -205,6 +205,15 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 		cbSetting.OnStateChange = func(name string, from gobreaker.State, to gobreaker.State) {
 			log.RootLogger().Infof("Circuit breaker [%s] state changed: %s -> %s", name, from, to)
 		}
+		cbSetting.IsSuccessful = func(err error) bool {
+			if err != nil {
+				retErr, ok := err.(*activity.Error)
+				if ok && retErr.Retriable() {
+					return false
+				}
+			}
+			return true
+		}
 		task.circuitBreaker = gobreaker.NewCircuitBreaker[any](cbSetting)
 	}
 
