@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"strings"
 
@@ -170,12 +169,6 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in getCircuitBreakerCfg", r)
-			debug.PrintStack()
-		}
-	}()
 
 	circuitBreakerConfig, err := getCircuitBreakerCfg(rep.Settings, ef)
 	if err != nil {
