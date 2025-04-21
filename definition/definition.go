@@ -293,15 +293,33 @@ type retryOnErrConfig struct {
 }
 
 type circuitBreakerConfig struct {
+	enabled     interface{}
 	name        interface{}
 	maxFailures interface{}
 	timeout     interface{}
 }
 
 type CircuitBreaker interface {
+	Enabled(scope data.Scope) (bool, error)
 	Name(scope data.Scope) (string, error)
 	MaxFailures(scope data.Scope) (uint32, error)
 	Timeout(scope data.Scope) (time.Duration, error)
+}
+
+func (cbc *circuitBreakerConfig) Enabled(scope data.Scope) (bool, error) {
+	if cbc.enabled != nil {
+		switch t := cbc.enabled.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return false, err
+			}
+			return coerce.ToBool(data)
+		default:
+			return coerce.ToBool(t)
+		}
+	}
+	return false, nil
 }
 
 func (cbc *circuitBreakerConfig) Name(scope data.Scope) (string, error) {
