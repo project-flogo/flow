@@ -84,7 +84,6 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.instRecorder = instRecorder
 	if IsConcurrentTaskExcutionEnabled() {
 		inst.Instance.lock = &sync.RWMutex{}
-		inst.Instance.actSchedLock = &sync.Mutex{}
 		inst.Instance.subFlowLock = &sync.Mutex{}
 		inst.concurrentExec = true
 	}
@@ -339,6 +338,7 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 
 	var stepCount int
 
+	log.RootLogger().Infof("Flow Instance [%s] loop started", inst.ID())
 	for inst.status == model.FlowStatusActive {
 		// get item to be worked on
 		item, ok := inst.workItemQueue.Pop()
@@ -370,7 +370,7 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 			} else {
 				// Execute task on engine worker goroutine
 				// get the corresponding behavior
-				log.RootLogger().Debugf("Task [%s] started on worker goroutine", wi.taskInst.task.ID())
+				log.RootLogger().Infof("Task [%s] started on worker goroutine", wi.taskInst.task.ID())
 				behavior := inst.flowModel.GetDefaultTaskBehavior()
 				if typeID := wi.taskInst.task.TypeID(); typeID != "" {
 					behavior = inst.flowModel.GetTaskBehavior(typeID)
@@ -381,6 +381,7 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 			}
 		}
 	}
+	log.RootLogger().Infof("Flow Instance [%s] loop completed", inst.ID())
 	return nil
 }
 
@@ -483,6 +484,11 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 // handleTaskDone handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
+
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 
 	notifyFlow := false
 	propagateSkip := false
@@ -588,6 +594,10 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 }
 
 func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, activeInst *Instance) bool {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 
 	if len(taskEntries) == 0 {
 		//no entries, so essentially a notifyFlow
@@ -617,6 +627,10 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
+	if inst.lock != nil {
+		inst.lock.Lock()
+		defer inst.lock.Unlock()
+	}
 
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
@@ -733,11 +747,6 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
-	if inst.actSchedLock != nil {
-		// Lock is set only when concurrent executaion is enabled
-		inst.actSchedLock.Lock()
-		defer inst.actSchedLock.Unlock()
-	}
 
 	for _, taskEntry := range taskEntries {
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
