@@ -40,7 +40,6 @@ type Instance struct {
 	logger         log.Logger
 	tracingCtx     trace.TracingContext
 	lock           *sync.RWMutex
-	actSchedLock   *sync.Mutex
 	subFlowLock    *sync.Mutex
 	concurrentExec bool
 }
@@ -81,10 +80,10 @@ func (inst *Instance) SetResultHandler(handler action.ResultHandler) {
 // FindOrCreateTaskInst finds an existing TaskInst or creates ones if not found for the
 // specified task the task environment
 func (inst *Instance) FindOrCreateTaskInst(task *definition.Task) (taskInst *TaskInst, created bool) {
-	if inst.lock != nil {
+	/*if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 
 	taskInst, ok := inst.taskInsts[task.ID()]
 
@@ -103,10 +102,10 @@ func (inst *Instance) FindOrCreateTaskInst(task *definition.Task) (taskInst *Tas
 // FindOrCreateLinkData finds an existing LinkInst or creates ones if not found for the
 // specified link the task environment
 func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *LinkInst, created bool) {
-	if inst.lock != nil {
+	/*if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 	linkInst, ok := inst.linkInsts[link.ID()]
 	created = false
 
@@ -121,10 +120,10 @@ func (inst *Instance) FindOrCreateLinkData(link *definition.Link) (linkInst *Lin
 }
 
 func (inst *Instance) releaseTask(task *definition.Task) {
-	if inst.lock != nil {
+	/*if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 	delete(inst.taskInsts, task.ID())
 	inst.master.changeTracker.TaskRemoved(inst.subflowId, task.ID())
 	links := task.FromLinks()
@@ -199,10 +198,10 @@ func (inst *Instance) Status() model.FlowStatus {
 }
 
 func (inst *Instance) SetStatus(status model.FlowStatus) {
-	if inst.lock != nil {
+	/*if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 	inst.status = status
 	inst.master.changeTracker.SetStatus(inst.subflowId, status)
 	postFlowEvent(inst)
@@ -215,10 +214,10 @@ func (inst *Instance) FlowDefinition() *definition.Definition {
 
 // TaskInstances get the task instances
 func (inst *Instance) TaskInstances() []model.TaskInstance {
-	if inst.lock != nil {
+	/*if inst.lock != nil {
 		inst.lock.Lock()
 		defer inst.lock.Unlock()
-	}
+	}*/
 
 	taskInsts := make([]model.TaskInstance, 0, len(inst.taskInsts))
 	for _, value := range inst.taskInsts {

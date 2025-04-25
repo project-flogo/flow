@@ -131,7 +131,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 
 			if actConfig != nil && actConfig.Activity != nil && actConfig.Activity.Metadata() != nil {
 				metadata := actConfig.Activity.Metadata()
-				if metadata.Input != nil && len(metadata.Input) > 0 && taskInstance.Task().IsScope() {
+				if len(metadata.Input) > 0 && taskInstance.Task().IsScope() {
 
 					for name, attVal := range actConfig.Activity.Metadata().Input {
 						te.taskIn[name] = attVal.Value()
