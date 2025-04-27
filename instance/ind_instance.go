@@ -83,8 +83,8 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 
 	inst.instRecorder = instRecorder
 	if IsConcurrentTaskExcutionEnabled() {
-		inst.Instance.lock = &sync.RWMutex{}
-		inst.Instance.subFlowLock = &sync.Mutex{}
+		inst.Instance.rootLock = &sync.Mutex{}
+		inst.Instance.valueLock = &sync.RWMutex{}
 		inst.concurrentExec = true
 	}
 
@@ -96,9 +96,9 @@ func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanc
 }
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
-	if inst.subFlowLock != nil {
-		inst.subFlowLock.Lock()
-		defer inst.subFlowLock.Unlock()
+	if taskInst.flowInst.rootLock != nil {
+		taskInst.flowInst.rootLock.Lock()
+		defer taskInst.flowInst.rootLock.Unlock()
 	}
 
 	inst.subflowCtr++
@@ -468,10 +468,9 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 // handleTaskDone handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
-
-	if inst.lock != nil {
-		inst.lock.Lock()
-		defer inst.lock.Unlock()
+	if inst.rootLock != nil {
+		inst.rootLock.Lock()
+		defer inst.rootLock.Unlock()
 	}
 
 	notifyFlow := false
@@ -550,12 +549,6 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 			//
 			//	//todo if not a task inst, what should we do?
 			//}
-
-			// flow has completed so remove it
-			if inst.subFlowLock != nil {
-				inst.subFlowLock.Lock()
-				defer inst.subFlowLock.Unlock()
-			}
 			delete(inst.subflows, containerInst.subflowId)
 		} else {
 			containerInst.master.GetChanges().FlowDone(inst)
@@ -578,9 +571,9 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 }
 
 func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, activeInst *Instance) bool {
-	if inst.lock != nil {
-		inst.lock.Lock()
-		defer inst.lock.Unlock()
+	if inst.rootLock != nil {
+		inst.rootLock.Lock()
+		defer inst.rootLock.Unlock()
 	}
 
 	if len(taskEntries) == 0 {
@@ -611,10 +604,6 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
-	if inst.lock != nil {
-		inst.lock.Lock()
-		defer inst.lock.Unlock()
-	}
 
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)

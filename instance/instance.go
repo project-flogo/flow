@@ -39,8 +39,8 @@ type Instance struct {
 
 	logger         log.Logger
 	tracingCtx     trace.TracingContext
-	lock           *sync.RWMutex
-	subFlowLock    *sync.Mutex
+	valueLock      *sync.RWMutex
+	rootLock       *sync.Mutex
 	concurrentExec bool
 }
 
@@ -212,9 +212,9 @@ func (inst *Instance) Logger() log.Logger {
 // Instance - data.Scope Implementation
 
 func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
-	if inst.lock != nil {
-		inst.lock.RLock()
-		defer inst.lock.RUnlock()
+	if inst.valueLock != nil {
+		inst.valueLock.RLock()
+		defer inst.valueLock.RUnlock()
 	}
 
 	if inst.attrs != nil {
@@ -229,9 +229,9 @@ func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
 }
 
 func (inst *Instance) SetValue(name string, value interface{}) error {
-	if inst.lock != nil {
-		inst.lock.Lock()
-		defer inst.lock.Unlock()
+	if inst.valueLock != nil {
+		inst.valueLock.Lock()
+		defer inst.valueLock.Unlock()
 	}
 
 	if inst.logger.DebugEnabled() {
@@ -251,9 +251,9 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 
 // UpdateAttrs updates the attributes of the Flow Instance
 func (inst *Instance) UpdateAttrs(attrs map[string]interface{}) {
-	if inst.lock != nil {
-		inst.lock.Lock()
-		defer inst.lock.Unlock()
+	if inst.valueLock != nil {
+		inst.valueLock.Lock()
+		defer inst.valueLock.Unlock()
 	}
 
 	if len(attrs) > 0 {
