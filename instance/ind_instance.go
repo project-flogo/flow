@@ -604,6 +604,10 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
+	if inst.rootLock != nil {
+		inst.rootLock.Lock()
+		defer inst.rootLock.Unlock()
+	}
 
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
