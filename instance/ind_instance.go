@@ -41,6 +41,13 @@ type IndependentInstance struct {
 	instRecorder *stateInstanceRecorder
 }
 
+type taskResponse struct {
+	taskInst   *TaskInst
+	err        error
+	evalResult model.EvalResult
+	behavior   model.TaskBehavior
+}
+
 const (
 	flowCtxPrefix  = "_fctx."
 	flowName       = "FlowName"
@@ -83,8 +90,10 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 
 	inst.instRecorder = instRecorder
 	if IsConcurrentTaskExcutionEnabled() {
-		inst.Instance.rootLock = &sync.Mutex{}
-		inst.Instance.valueLock = &sync.RWMutex{}
+		inst.Instance.subflowLock = &sync.Mutex{}
+		inst.valueLock = &sync.RWMutex{}
+		inst.taskResponseChannel = make(chan *taskResponse, 100)
+		inst.doneChannel = make(chan bool, 1)
 		inst.concurrentExec = true
 	}
 
@@ -96,9 +105,9 @@ func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanc
 }
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
-	if taskInst.flowInst.rootLock != nil {
-		taskInst.flowInst.rootLock.Lock()
-		defer taskInst.flowInst.rootLock.Unlock()
+	if taskInst.flowInst.subflowLock != nil {
+		taskInst.flowInst.subflowLock.Lock()
+		defer taskInst.flowInst.subflowLock.Unlock()
 	}
 
 	inst.subflowCtr++
@@ -337,6 +346,8 @@ func (inst *IndependentInstance) DoStep() bool {
 func (inst *IndependentInstance) DoStepInLoop() error {
 
 	var stepCount int
+	// Start task response handler
+	go inst.handleTaskResponse()
 
 	for inst.status == model.FlowStatusActive {
 		// get item to be worked on
@@ -349,37 +360,22 @@ func (inst *IndependentInstance) DoStepInLoop() error {
 			inst.ResetChanges()
 			inst.stepID++
 			stepCount++
-			if inst.concurrentExec {
-				// Execute ready tasks on different goroutines
-				go func(wi *WorkItem) {
-					defer func() {
-						log.RootLogger().Debugf("Task [%s] completed on goroutine", wi.taskInst.task.ID())
-						wi = nil
-					}()
-					log.RootLogger().Debugf("Task [%s] started on goroutine", wi.taskInst.task.ID())
-					// get the corresponding behavior
-					behavior := inst.flowModel.GetDefaultTaskBehavior()
-					if typeID := wi.taskInst.task.TypeID(); typeID != "" {
-						behavior = inst.flowModel.GetTaskBehavior(typeID)
-					}
-					// track the fact that the work item was removed from the queue
-					inst.changeTracker.WorkItemRemoved(wi)
-					inst.execTask(behavior, wi.taskInst)
-				}(wi)
-			} else {
-				// Execute task on engine worker goroutine
-				// get the corresponding behavior
-				log.RootLogger().Debugf("Task [%s] started on worker goroutine", wi.taskInst.task.ID())
-				behavior := inst.flowModel.GetDefaultTaskBehavior()
-				if typeID := wi.taskInst.task.TypeID(); typeID != "" {
-					behavior = inst.flowModel.GetTaskBehavior(typeID)
-				}
-				// track the fact that the work item was removed from the queue
-				inst.changeTracker.WorkItemRemoved(wi)
-				inst.execTask(behavior, wi.taskInst)
+
+			// Execute task on engine worker goroutine
+			// get the corresponding behavior
+			log.RootLogger().Debugf("Task [%s] started on worker goroutine", wi.taskInst.task.ID())
+			behavior := inst.flowModel.GetDefaultTaskBehavior()
+			if typeID := wi.taskInst.task.TypeID(); typeID != "" {
+				behavior = inst.flowModel.GetTaskBehavior(typeID)
 			}
+			// track the fact that the work item was removed from the queue
+			inst.changeTracker.WorkItemRemoved(wi)
+			// execute task on goroutine
+			go inst.execConcurrentTask(behavior, wi.taskInst)
 		}
 	}
+	// close the task response channel
+	inst.doneChannel <- true
 	return nil
 }
 
@@ -394,6 +390,78 @@ func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
 	// track the fact that the work item was added to the queue
 	inst.changeTracker.WorkItemAdded(workItem)
+}
+
+func (inst *IndependentInstance) execConcurrentTask(behavior model.TaskBehavior, taskInst *TaskInst) {
+
+	defer func() {
+		if r := recover(); r != nil {
+
+			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
+			inst.logger.Error(err)
+			if taskInst.traceContext != nil {
+				_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
+			}
+
+			// todo: useful for debugging
+			//logger.Debugf("StackTrace: %s", debug.Stack())
+
+			if !taskInst.flowInst.isHandlingError {
+
+				taskInst.appendErrorData(NewActivityEvalError(taskInst.task.Name(), "unhandled", err.Error()))
+				inst.HandleGlobalError(taskInst.flowInst, err)
+			}
+			// else what should we do?
+		}
+	}()
+
+	var err error
+	var evalResult model.EvalResult
+
+	if taskInst.status == model.TaskStatusWaiting {
+		evalResult, err = behavior.PostEval(taskInst)
+	} else if taskInst.status == model.TaskStatusSkipped || taskInst.status == model.TaskStatusDone {
+		return
+	} else {
+		evalResult, err = behavior.Eval(taskInst)
+	}
+	inst.taskResponseChannel <- &taskResponse{taskInst: taskInst, err: err, evalResult: evalResult, behavior: behavior}
+}
+
+func (inst *IndependentInstance) handleTaskResponse() {
+	for {
+		select {
+		case taskResp := <-inst.taskResponseChannel:
+			if taskResp.err != nil {
+				inst.handleTaskError(taskResp.behavior, taskResp.taskInst, taskResp.err)
+			} else {
+				switch taskResp.evalResult {
+				case model.EvalDone:
+					inst.handleTaskDone(taskResp.behavior, taskResp.taskInst)
+				case model.EvalSkip:
+					inst.handleTaskDone(taskResp.behavior, taskResp.taskInst)
+				case model.EvalWait:
+					taskResp.taskInst.SetStatus(model.TaskStatusWaiting)
+				case model.EvalFail:
+					taskResp.taskInst.SetStatus(model.TaskStatusFailed)
+				case model.EvalRepeat:
+					taskResp.taskInst.UpdateTaskToTracker()
+					if taskResp.taskInst.traceContext != nil {
+						// Finish previous span
+						_ = trace.GetTracer().FinishTrace(taskResp.taskInst.traceContext, nil)
+						taskResp.taskInst.counter++
+						taskResp.taskInst.id = taskResp.taskInst.taskID + "-" + strconv.Itoa(taskResp.taskInst.counter)
+						// Reset span
+						taskResp.taskInst.traceContext = nil
+					}
+					//task needs to iterate or retry
+					inst.scheduleEval(taskResp.taskInst)
+				}
+			}
+		case <-inst.doneChannel:
+			return
+		}
+	}
 }
 
 // execTask executes the specified Work Item of the Flow Instance
@@ -468,11 +536,6 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 // handleTaskDone handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
-	if inst.rootLock != nil {
-		inst.rootLock.Lock()
-		defer inst.rootLock.Unlock()
-	}
-
 	notifyFlow := false
 	propagateSkip := false
 	var taskEntries []*model.TaskEntry
@@ -571,10 +634,6 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 }
 
 func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, activeInst *Instance) bool {
-	if inst.rootLock != nil {
-		inst.rootLock.Lock()
-		defer inst.rootLock.Unlock()
-	}
 
 	if len(taskEntries) == 0 {
 		//no entries, so essentially a notifyFlow
@@ -604,10 +663,6 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 
 // handleTaskError handles the completion of a task in the Flow Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
-	if inst.rootLock != nil {
-		inst.rootLock.Lock()
-		defer inst.rootLock.Unlock()
-	}
 
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)

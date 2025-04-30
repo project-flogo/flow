@@ -37,11 +37,13 @@ type Instance struct {
 
 	resultHandler action.ResultHandler
 
-	logger         log.Logger
-	tracingCtx     trace.TracingContext
-	valueLock      *sync.RWMutex
-	rootLock       *sync.Mutex
-	concurrentExec bool
+	logger              log.Logger
+	tracingCtx          trace.TracingContext
+	subflowLock         *sync.Mutex
+	valueLock           *sync.RWMutex
+	concurrentExec      bool
+	taskResponseChannel chan *taskResponse
+	doneChannel         chan bool
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {
