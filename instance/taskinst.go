@@ -329,13 +329,23 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 
 	if actCfg.InputMapper() != nil {
 
-		err := applyInputMapper(ti)
+		if !hasOutputInterceptor(ti) {
+			err := applyInputMapper(ti)
 
-		if err != nil {
+			if err != nil {
 
-			evalErr = NewActivityEvalError(ti.task.Name(), "mapper", err.Error())
-			return false, evalErr
+				evalErr = NewActivityEvalError(ti.task.Name(), "mapper", err.Error())
+				return false, evalErr
+			}
+		} else {
+			applyInputMapper(ti)
+			err := applyOutputInterceptor(ti)
+			if err != nil {
+				return false, err
+			}
+
 		}
+
 	}
 
 	eval = applyInputInterceptor(ti)
