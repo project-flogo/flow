@@ -623,6 +623,11 @@ func (ti *TaskInst) SpanConfig() trace.Config {
 	config.Tags["task_name"] = ti.task.Name()
 	config.Tags["task_instance_id"] = ti.id
 	config.Tags["task_type"] = ti.task.ActivityConfig().Type
+	if ti.task.CircuitBreaker() != nil {
+		config.Tags["circuit_breaker_name"] = ti.task.CircuitBreaker().Name()
+		config.Tags["circuit_breaker_state"] = ti.task.CircuitBreaker().State()
+		config.Tags["circuit_breaker_total_failures"] = ti.task.CircuitBreaker().Counts().TotalFailures
+	}
 	return config
 }
 
