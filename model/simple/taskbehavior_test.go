@@ -3,6 +3,9 @@ package simple
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/metadata"
@@ -11,7 +14,6 @@ import (
 	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 func init() {
 	_ = activity.LegacyRegister("log", NewLogActivity())
@@ -57,6 +59,7 @@ func TestTaskBehaviour(t *testing.T){
 	result , err := taskBehaviour.Eval(testContext)
 	assert.Nil(t, err)
 	assert.Equal(t, model.EvalDone, result)
+	os.Setenv("FLOGO_TASK_PROPAGATE_SKIP", "true")
 	notify, tasks, skip := taskBehaviour.Skip(testContext)
 	assert.True(t, notify)
 	assert.Nil(t, tasks)

@@ -76,10 +76,6 @@ type TaskInst struct {
 
 	//needed for serialization
 	taskID string
-	// When concurrent executaion mode is enabled, this flag ensures task is not scheduled more than once
-	scheduled bool
-	// When concurrent execution mode is enabled, this flag determines whether task should execute on a separate goroutine or not
-	asyncExec bool
 }
 
 /////////////////////////////////////////

@@ -2,7 +2,6 @@ package instance
 
 import (
 	"strconv"
-	"sync"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/data"
@@ -37,13 +36,8 @@ type Instance struct {
 
 	resultHandler action.ResultHandler
 
-	logger              log.Logger
-	tracingCtx          trace.TracingContext
-	subflowLock         *sync.Mutex
-	valueLock           *sync.RWMutex
-	concurrentExec      bool
-	taskResponseChannel chan *taskResponse
-	doneChannel         chan bool
+	logger     log.Logger
+	tracingCtx trace.TracingContext
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {
@@ -214,11 +208,6 @@ func (inst *Instance) Logger() log.Logger {
 // Instance - data.Scope Implementation
 
 func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
-	if inst.valueLock != nil {
-		inst.valueLock.RLock()
-		defer inst.valueLock.RUnlock()
-	}
-
 	if inst.attrs != nil {
 		attr, found := inst.attrs[name]
 
@@ -231,11 +220,6 @@ func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
 }
 
 func (inst *Instance) SetValue(name string, value interface{}) error {
-	if inst.valueLock != nil {
-		inst.valueLock.Lock()
-		defer inst.valueLock.Unlock()
-	}
-
 	if inst.logger.DebugEnabled() {
 		inst.logger.Debugf("SetAttr - name: %s, value:%v\n", name, value)
 	}
@@ -253,11 +237,6 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 
 // UpdateAttrs updates the attributes of the Flow Instance
 func (inst *Instance) UpdateAttrs(attrs map[string]interface{}) {
-	if inst.valueLock != nil {
-		inst.valueLock.Lock()
-		defer inst.valueLock.Unlock()
-	}
-
 	if len(attrs) > 0 {
 		for name, value := range attrs {
 			_ = inst.SetValue(name, value)

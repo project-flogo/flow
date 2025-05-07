@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/project-flogo/flow/state"
@@ -16,7 +15,6 @@ import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
 	flowsupport "github.com/project-flogo/flow/support"
-	"github.com/project-flogo/flow/util"
 )
 
 type IndependentInstance struct {
@@ -39,13 +37,6 @@ type IndependentInstance struct {
 	startTime  time.Time
 	//Instance recorder
 	instRecorder *stateInstanceRecorder
-}
-
-type taskResponse struct {
-	taskInst   *TaskInst
-	err        error
-	evalResult model.EvalResult
-	behavior   model.TaskBehavior
 }
 
 const (
@@ -89,14 +80,6 @@ func NewIndependentInstance(instanceID string, flowURI string, flow *definition.
 	inst.linkInsts = make(map[int]*LinkInst)
 
 	inst.instRecorder = instRecorder
-	if IsConcurrentTaskExcutionEnabled() {
-		inst.Instance.subflowLock = &sync.Mutex{}
-		inst.valueLock = &sync.RWMutex{}
-		inst.taskResponseChannel = make(chan *taskResponse, 100)
-		inst.doneChannel = make(chan bool, 1)
-		inst.concurrentExec = true
-	}
-
 	return inst, nil
 }
 
@@ -105,11 +88,6 @@ func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanc
 }
 
 func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
-	if taskInst.flowInst.subflowLock != nil {
-		taskInst.flowInst.subflowLock.Lock()
-		defer taskInst.flowInst.subflowLock.Unlock()
-	}
-
 	inst.subflowCtr++
 
 	embeddedInst := &Instance{}
@@ -343,42 +321,6 @@ func (inst *IndependentInstance) DoStep() bool {
 	return hasNext
 }
 
-func (inst *IndependentInstance) DoStepInLoop() error {
-
-	var stepCount int
-	// Start task response handler
-	go inst.handleTaskResponse()
-
-	for inst.status == model.FlowStatusActive {
-		// get item to be worked on
-		item, ok := inst.workItemQueue.Pop()
-		if ok {
-			wi := item.(*WorkItem)
-			if stepCount > util.GetMaxStepCount() {
-				return fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), util.GetMaxStepCount(), util.FlogoStepCountEnv)
-			}
-			inst.ResetChanges()
-			inst.stepID++
-			stepCount++
-
-			// Execute task on engine worker goroutine
-			// get the corresponding behavior
-			log.RootLogger().Debugf("Task [%s] started on worker goroutine", wi.taskInst.task.ID())
-			behavior := inst.flowModel.GetDefaultTaskBehavior()
-			if typeID := wi.taskInst.task.TypeID(); typeID != "" {
-				behavior = inst.flowModel.GetTaskBehavior(typeID)
-			}
-			// track the fact that the work item was removed from the queue
-			inst.changeTracker.WorkItemRemoved(wi)
-			// execute task on goroutine
-			go inst.execConcurrentTask(behavior, wi.taskInst)
-		}
-	}
-	// close the task response channel
-	inst.doneChannel <- true
-	return nil
-}
-
 func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
 	inst.wiCounter++
@@ -390,78 +332,6 @@ func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
 	// track the fact that the work item was added to the queue
 	inst.changeTracker.WorkItemAdded(workItem)
-}
-
-func (inst *IndependentInstance) execConcurrentTask(behavior model.TaskBehavior, taskInst *TaskInst) {
-
-	defer func() {
-		if r := recover(); r != nil {
-
-			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
-			inst.logger.Error(err)
-			if taskInst.traceContext != nil {
-				_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
-			}
-
-			// todo: useful for debugging
-			//logger.Debugf("StackTrace: %s", debug.Stack())
-
-			if !taskInst.flowInst.isHandlingError {
-
-				taskInst.appendErrorData(NewActivityEvalError(taskInst.task.Name(), "unhandled", err.Error()))
-				inst.HandleGlobalError(taskInst.flowInst, err)
-			}
-			// else what should we do?
-		}
-	}()
-
-	var err error
-	var evalResult model.EvalResult
-
-	if taskInst.status == model.TaskStatusWaiting {
-		evalResult, err = behavior.PostEval(taskInst)
-	} else if taskInst.status == model.TaskStatusSkipped || taskInst.status == model.TaskStatusDone {
-		return
-	} else {
-		evalResult, err = behavior.Eval(taskInst)
-	}
-	inst.taskResponseChannel <- &taskResponse{taskInst: taskInst, err: err, evalResult: evalResult, behavior: behavior}
-}
-
-func (inst *IndependentInstance) handleTaskResponse() {
-	for {
-		select {
-		case taskResp := <-inst.taskResponseChannel:
-			if taskResp.err != nil {
-				inst.handleTaskError(taskResp.behavior, taskResp.taskInst, taskResp.err)
-			} else {
-				switch taskResp.evalResult {
-				case model.EvalDone:
-					inst.handleTaskDone(taskResp.behavior, taskResp.taskInst)
-				case model.EvalSkip:
-					inst.handleTaskDone(taskResp.behavior, taskResp.taskInst)
-				case model.EvalWait:
-					taskResp.taskInst.SetStatus(model.TaskStatusWaiting)
-				case model.EvalFail:
-					taskResp.taskInst.SetStatus(model.TaskStatusFailed)
-				case model.EvalRepeat:
-					taskResp.taskInst.UpdateTaskToTracker()
-					if taskResp.taskInst.traceContext != nil {
-						// Finish previous span
-						_ = trace.GetTracer().FinishTrace(taskResp.taskInst.traceContext, nil)
-						taskResp.taskInst.counter++
-						taskResp.taskInst.id = taskResp.taskInst.taskID + "-" + strconv.Itoa(taskResp.taskInst.counter)
-						// Reset span
-						taskResp.taskInst.traceContext = nil
-					}
-					//task needs to iterate or retry
-					inst.scheduleEval(taskResp.taskInst)
-				}
-			}
-		case <-inst.doneChannel:
-			return
-		}
-	}
 }
 
 // execTask executes the specified Work Item of the Flow Instance
@@ -493,7 +363,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	if taskInst.status == model.TaskStatusWaiting {
 		evalResult, err = behavior.PostEval(taskInst)
-	} else if taskInst.status == model.TaskStatusSkipped || taskInst.status == model.TaskStatusDone {
+	} else if taskInst.status == model.TaskStatusSkipped {
 		return
 	} else {
 		evalResult, err = behavior.Eval(taskInst)
@@ -783,10 +653,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
 		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
-		if inst.concurrentExec && taskInst.scheduled {
-			//task is already scheduled by other goroutine. Lets skip this task
-			continue
-		}
 		taskInst.id = taskInst.taskID
 		enterResult := behavior.Enter(taskInst)
 		if enterResult == model.EREval {
@@ -794,7 +660,6 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			if err != nil {
 				return err
 			}
-			taskInst.scheduled = true
 			inst.scheduleEval(taskInst)
 		} else if enterResult == model.ERSkip {
 			inst.handleTaskDone(behavior, taskInst)

@@ -233,26 +233,18 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(results, nil)
 		}
 
-		if instance.IsConcurrentTaskExcutionEnabled() {
-			logger.Info("Concurrent task execution feature is enabled. All independent activities will run concurrently.")
-			err := inst.DoStepInLoop()
-			if err != nil {
-				handler.HandleResult(nil, err)
-			}
-		} else {
-			for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
-				stepCount++
-				logger.Debugf("Step: %d", stepCount)
-				hasWork = inst.DoStep()
+		for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
+			stepCount++
+			logger.Debugf("Step: %d", stepCount)
+			hasWork = inst.DoStep()
 
-				if record {
-					//ep.GetStateRecorder().RecordSnapshot(inst)
-					//ep.GetStateRecorder().RecordStep(inst)
-				}
+			if record {
+				//ep.GetStateRecorder().RecordSnapshot(inst)
+				//ep.GetStateRecorder().RecordStep(inst)
 			}
-			if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
-				handler.HandleResult(nil, fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv))
-			}
+		}
+		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
+			handler.HandleResult(nil, fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv))
 		}
 
 		if inst.Status() == model.FlowStatusCompleted {
