@@ -19,4 +19,3 @@ require (
 	go.uber.org/zap v1.16.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )
-replace github.com/project-flogo/core => /Users/vnalawadtibco.com/sourcecode/flogo/workspace/src/github.com/project-flogo/core
