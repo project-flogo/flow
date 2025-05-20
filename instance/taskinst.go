@@ -11,6 +11,7 @@ import (
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/schema"
+	"github.com/project-flogo/core/engine"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
@@ -51,7 +52,7 @@ func initTaskInst(taskInst *TaskInst, flowInst *Instance, task *definition.Task)
 	taskInst.taskID = task.ID()
 
 	if log.CtxLoggingEnabled() {
-		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("activityName", taskInst.taskID), log.FieldString("flowName", flowInst.Name()), log.FieldString("flowId", flowInst.ID()))
+		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("activity.name", taskInst.taskID), log.FieldString("flow.name", flowInst.Name()), log.FieldString("flow.id", flowInst.ID()), log.FieldString("app.name", engine.GetAppName()), log.FieldString("app.version", engine.GetAppVersion()), log.FieldString("app.env", engine.GetEnvName()))
 	} else {
 		taskInst.logger = task.ActivityConfig().Logger
 	}
@@ -321,6 +322,9 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 	// Start Trace
 	if trace.Enabled() {
 		ti.traceContext, _ = trace.GetTracer().StartTrace(ti.SpanConfig(), ti.flowInst.tracingCtx)
+		if log.CtxLoggingEnabled() {
+			ti.logger = log.ChildLoggerWithFields(ti.logger, log.FieldString("trace.id", ti.traceContext.TraceID()), log.FieldString("span.id", ti.traceContext.SpanID()))
+		}
 	}
 
 	if actCfg.InputMapper() != nil {

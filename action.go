@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/project-flogo/core/data/expression/script/gocc/ast"
+	"github.com/project-flogo/core/engine"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/app/resource"
@@ -218,8 +219,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	//todo: catch panic
 	//todo: consider switch to URI to dictate flow operation (ex. flow://blah/resume)
+	eventID := trigger.GetHandlerEventIdFromContext(ctx)
 
 	var inst *instance.IndependentInstance
+	instLogger := logger
 	switch op {
 	case instance.OpStart:
 		flowDef := fa.resFlow
@@ -240,14 +243,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			instanceID = idGenerator.NextAsString()
 		}
 
-		logger.Debug("Creating Flow Instance: ", instanceID)
-		logger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
-
-		instLogger := logger
-
 		if log.CtxLoggingEnabled() {
-			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flowId", instanceID), log.FieldString("eventId", trigger.GetHandlerEventIdFromContext(ctx)))
+			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flow.id", instanceID), log.FieldString("event.id", eventID), log.FieldString("app.name", engine.GetAppName()), log.FieldString("app.version", engine.GetAppVersion()), log.FieldString("app.env", engine.GetEnvName()))
 		}
+
+		instLogger.Debug("Creating Flow Instance: ", instanceID)
+		instLogger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
 
 		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun), instLogger)
 		if err != nil {
@@ -267,9 +268,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 			logger.Debug("Restarting Flow Instance: ", instanceID)
 
-			instLogger := logger
 			if log.CtxLoggingEnabled() {
-				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
+				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flow.name", inst.Name()), log.FieldString("flow.id", instanceID), log.FieldString("event.id", eventID), log.FieldString("app.name", engine.GetAppName()), log.FieldString("app.version", engine.GetAppVersion()), log.FieldString("app.env", engine.GetEnvName()))
 			}
 			inst.SetInstanceRecorder(instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun))
 			//Engine should set init step id one step before current restart step
@@ -298,7 +298,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 
 	if execOptions != nil {
-		logger.Debugf("Applying Exec Options to instance: %s", inst.ID())
+		instLogger.Debugf("Applying Exec Options to instance: %s", inst.ID())
 		instance.ApplyExecOptions(inst, execOptions)
 	}
 
@@ -310,7 +310,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		stateRecorder.RecordStart(flowState)
 	}
 
-	eventID := trigger.GetHandlerEventIdFromContext(ctx)
 	if eventID != "" {
 		// Add eventId to the instance
 		_ = inst.SetValue(instance.EventIdAttr, eventID)
@@ -320,6 +319,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if err != nil {
 			return err
 		}
+		if log.CtxLoggingEnabled() {
+			instLogger = log.ChildLoggerWithFields(instLogger, log.FieldString("trace.id", tc.TraceID()), log.FieldString("span.id", tc.SpanID()))
+		}
 		if eventID != "" {
 			tc.SetTag("flogo_event_id", eventID)
 		}
@@ -328,7 +330,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	//todo how do we check if debug is enabled?
 	//logInputs(inputs)
-	logger.Infof("Executing Flow Instance [%s] for event id [%s]", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
+	instLogger.Infof("Executing Flow Instance [%s] for event id [%s]", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
 
 	if op == instance.OpStart {
 		inst.Start(inputs)
@@ -416,12 +418,12 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(nil, inst.GetError())
 		}
 
-		logger.Debugf("Executing flow instance [%s] for event id [%s] - Status: %d", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.Status())
+		instLogger.Debugf("Executing flow instance [%s] for event id [%s] - Status: %d", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.Status())
 
 		if inst.Status() == model.FlowStatusCompleted {
-			logger.Infof("Flow Instance [%s] for event id [%s] completed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
+			instLogger.Infof("Flow Instance [%s] for event id [%s] completed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		} else if inst.Status() == model.FlowStatusFailed {
-			logger.Infof("Flow Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
+			instLogger.Infof("Flow Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		}
 
 		if stateRecorder != nil {
