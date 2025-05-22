@@ -52,7 +52,16 @@ func initTaskInst(taskInst *TaskInst, flowInst *Instance, task *definition.Task)
 	taskInst.taskID = task.ID()
 
 	if log.CtxLoggingEnabled() {
-		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, log.FieldString("activity.name", taskInst.taskID), log.FieldString("flow.name", flowInst.Name()), log.FieldString("flow.id", flowInst.ID()), log.FieldString("app.name", engine.GetAppName()), log.FieldString("app.version", engine.GetAppVersion()), log.FieldString("app.env", engine.GetEnvName()))
+		var fields []log.Field
+		fields = append(fields, log.FieldString("activity.name", taskInst.task.Name()))
+		fields = append(fields, log.FieldString("flow.name", flowInst.Name()))
+		fields = append(fields, log.FieldString("flow.id", flowInst.ID()))
+		fields = append(fields, log.FieldString("app.name", engine.GetAppName()))
+		fields = append(fields, log.FieldString("app.version", engine.GetAppVersion()))
+		if engine.GetEnvName() != "" {
+			fields = append(fields, log.FieldString("deployment.environment", engine.GetEnvName()))
+		}
+		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, fields...)
 	} else {
 		taskInst.logger = task.ActivityConfig().Logger
 	}

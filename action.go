@@ -244,7 +244,16 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if log.CtxLoggingEnabled() {
-			instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", flowDef.Name()), log.FieldString("flow.id", instanceID), log.FieldString("event.id", eventID), log.FieldString("app.name", engine.GetAppName()), log.FieldString("app.version", engine.GetAppVersion()), log.FieldString("deployment.environment", engine.GetEnvName()))
+			var fields []log.Field
+			fields = append(fields, log.FieldString("flow.name", flowDef.Name()))
+			fields = append(fields, log.FieldString("flow.id", instanceID))
+			fields = append(fields, log.FieldString("event.id", eventID))
+			fields = append(fields, log.FieldString("app.name", engine.GetAppName()))
+			fields = append(fields, log.FieldString("app.version", engine.GetAppVersion()))
+			if engine.GetEnvName() != "" {
+				fields = append(fields, log.FieldString("deployment.environment", engine.GetEnvName()))
+			}
+			instLogger = log.ChildLoggerWithFields(logger, fields...)
 		}
 
 		instLogger.Debug("Creating Flow Instance: ", instanceID)
@@ -269,7 +278,16 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			logger.Debug("Restarting Flow Instance: ", instanceID)
 
 			if log.CtxLoggingEnabled() {
-				instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flow.name", inst.Name()), log.FieldString("flow.id", instanceID), log.FieldString("event.id", eventID), log.FieldString("app.name", engine.GetAppName()), log.FieldString("app.version", engine.GetAppVersion()), log.FieldString("deployment.environment", engine.GetEnvName()))
+				var fields []log.Field
+				fields = append(fields, log.FieldString("flow.name", inst.Name()))
+				fields = append(fields, log.FieldString("flow.id", instanceID))
+				fields = append(fields, log.FieldString("event.id", eventID))
+				fields = append(fields, log.FieldString("app.name", engine.GetAppName()))
+				fields = append(fields, log.FieldString("app.version", engine.GetAppVersion()))
+				if engine.GetEnvName() != "" {
+					fields = append(fields, log.FieldString("deployment.environment", engine.GetEnvName()))
+				}
+				instLogger = log.ChildLoggerWithFields(logger, fields...)
 			}
 			inst.SetInstanceRecorder(instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun))
 			//Engine should set init step id one step before current restart step
