@@ -330,7 +330,7 @@ func applyOutputMapper(taskInst *TaskInst) (bool, error) {
 		}
 
 		if taskInst.Task().LoopConfig() == nil {
-			// If the task is not looping, we store the root object with all the activity outputs
+			// If the task is not looping, we store the root object with all the activity output paths
 			for name := range values {
 				// Add field paths to the root object for resolving $activity[ActivityName] in the mappings
 				// This is done to avoid memory overhead of storing the root object with all the activity outputs which are already set in the scope
