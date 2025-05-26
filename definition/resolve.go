@@ -2,6 +2,7 @@ package definition
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/path"
@@ -60,10 +61,27 @@ func (r *ActivityResolver) Resolve(scope data.Scope, itemName, valueName string)
 			return nil, fmt.Errorf("failed to resolve activity attr: '%s', not found in activity '%s'", valueName, itemName)
 		}
 	} else {
-		//For accumulate
+		//For accumulate or direct root object mapping
 		value, exists = scope.GetValue("_A." + itemName)
 		if !exists {
 			return nil, fmt.Errorf("failed to resolve activity value: '%s'", itemName)
+		}
+		// Special handling for the case where $activity[ActivityName] used directly in the mappings e.g. coerce.toString($activity[Mapper])
+		// For memory optimazation, we only store the activity output mappings in the root object map[string]string e.g. map["_A.<ActivityName>.<outputName>"] = ""
+		// and resolved attribute values here
+		objValue, ok := value.(map[string]string)
+		if ok {
+			rootObjValue := make(map[string]interface{}, len(objValue))
+			for name := range objValue {
+				value, exists = scope.GetValue(name)
+				if exists {
+					attrName := strings.TrimPrefix(name, "_A."+itemName+".")
+					if attrName != "" {
+						rootObjValue[attrName] = value
+					}
+				}
+			}
+			return rootObjValue, nil
 		}
 	}
 
@@ -130,7 +148,7 @@ func (*IteratorResolver) GetResolverInfo() *resolve.ResolverInfo {
 	return dynamicItemResolver
 }
 
-//Resolve resolved iterator value using  the following syntax:  $iteration[key], or $iteration[value]
+// Resolve resolved iterator value using  the following syntax:  $iteration[key], or $iteration[value]
 func (*IteratorResolver) Resolve(scope data.Scope, item string, field string) (interface{}, error) {
 	value, exists := scope.GetValue("_W.iteration")
 	if !exists {

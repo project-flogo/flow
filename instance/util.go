@@ -323,14 +323,22 @@ func applyOutputMapper(taskInst *TaskInst) (bool, error) {
 
 		values, err := outputMapper.Apply(data.NewSimpleScope(taskInst.outputs, nil))
 
+		rootObj := make(map[string]string, len(values))
+
 		for name, value := range values {
 			_ = taskInst.flowInst.SetValue(name, value)
-			//if taskInst.flowInst.attrs == nil {
-			//	taskInst.flowInst.attrs = make(map[string]interface{})
-			//}
-			//taskInst.flowInst.attrs[name] = value //data.ToTypedValue(value)
 		}
 
+		if taskInst.Task().LoopConfig() == nil {
+			// If the task is not looping, we store the root object with all the activity outputs
+			for name := range values {
+				// Add field paths to the root object for resolving $activity[ActivityName] in the mappings
+				// This is done to avoid memory overhead of storing the root object with all the activity outputs which are already set in the scope
+				// Check github.com/project-flogo/flow/definition/resolve.go#(r *ActivityResolver) Resolve(...)
+				rootObj[name] = ""
+			}
+			_ = taskInst.flowInst.SetValue("_A."+taskInst.id, rootObj)
+		}
 		return true, err
 	}
 
