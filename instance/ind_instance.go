@@ -695,7 +695,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 			Outputs:      outputs,
 			Error:        errorObj,
 			FlowName:     taskInst.flowInst.Name(),
-			IsMainFlow:   !inst.isHandlingError,
+			IsMainFlow:   !taskInst.flowInst.isHandlingError,
 		}
 	} else {
 		coverage = flowsupport.ActivityCoverage{
