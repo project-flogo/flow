@@ -680,8 +680,14 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 	}
 
 	var coverage flowsupport.ActivityCoverage
+	var outputs interface{}
 	if inst.GetInterceptor().CollectIO {
-		outputs := taskInst.outputs
+		outputs = taskInst.outputs
+
+		if cfg := taskInst.Task().LoopConfig(); cfg != nil && cfg.Accumulate() {
+			outputs, _ = taskInst.flowInst.GetValue("_A." + taskInst.Task().ID())
+		}
+
 		if outputs == nil {
 			if inst.returnData != nil {
 				outputs = inst.returnData

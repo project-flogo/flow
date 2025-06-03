@@ -102,7 +102,7 @@ type ActivityCoverage struct {
 	LinkFrom     []string
 	LinkTo       []string
 	Inputs       map[string]interface{} `json:"inputs,omitempty"`
-	Outputs      map[string]interface{} `json:"outputs,omitempty"`
+	Outputs      interface{}            `json:"outputs,omitempty"`
 	Error        map[string]interface{} `json:"errors,omitempty"`
 	FlowName     string                 `json:"flowName"`
 	IsMainFlow   bool                   `json:"scope"`
