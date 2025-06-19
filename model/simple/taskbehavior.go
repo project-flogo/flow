@@ -306,7 +306,7 @@ func (tb *TaskBehavior) Done(ctx model.TaskContext) (notifyFlow bool, taskEntrie
 }
 
 // Skip implements model.TaskBehavior.Skip
-func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry, pSkip bool) {
+func (tb *TaskBehavior) Skip(ctx model.TaskContext) (notifyFlow bool, taskEntries []*model.TaskEntry, propagateSkip bool) {
 	linkInsts := ctx.GetToLinkInstances()
 	numLinks := len(linkInsts)
 
