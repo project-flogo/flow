@@ -2,10 +2,9 @@ package instance
 
 import (
 	"fmt"
+	"github.com/project-flogo/core/engine/runner/types"
 	"runtime/debug"
 	"time"
-
-	"github.com/project-flogo/flow/support"
 
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
@@ -322,7 +321,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 		if evalErr != nil {
-			ti.logger.Errorf("Execution failed for Activity[%s] in Flow[%s] - %s", ti.task.ID(), ti.flowInst.flowDef.Name(), evalErr.Error())
+			ti.logger.Errorf("Execution failed for Activity[%s] in FlowReport[%s] - %s", ti.task.ID(), ti.flowInst.flowDef.Name(), evalErr.Error())
 		}
 	}()
 
@@ -392,7 +391,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 				if ok {
 					e.SetActivityName(ti.task.Name())
 				}
-				setActivityExecutionStatus(ti, support.Fail)
+				setActivityExecutionStatus(ti, types.Fail)
 				setActivityExecutionMessage(ti, evalErr.Error())
 
 				errObj := ti.getErrorObject(evalErr)
@@ -402,15 +401,15 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 				}
 				_ = ti.flowInst.SetValue("_E."+ti.Task().ID(), errObj)
 
-				applyAssertionInterceptor(ti, support.AssertionException)
+				applyAssertionInterceptor(ti, types.AssertionException)
 				return false, evalErr
 			} else {
-				setActivityExecutionStatus(ti, support.Pass)
+				setActivityExecutionStatus(ti, types.Pass)
 			}
 		} else {
 			ti.logger.Infof("Activity %s of type %s is mocked and not executed", ti.task.Name(), ti.task.ID())
 			done = true
-			setActivityExecutionStatus(ti, support.Mocked)
+			setActivityExecutionStatus(ti, types.Mocked)
 		}
 
 	} else {
@@ -457,7 +456,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			}
 		}
 
-		err = applyAssertionInterceptor(ti, support.AssertionActivity)
+		err = applyAssertionInterceptor(ti, types.AssertionActivity)
 		if err != nil {
 			return false, err
 		}
@@ -497,7 +496,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 			}
 		}
 		if evalErr != nil {
-			ti.logger.Errorf("Execution failed for Activity[%s] in Flow[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
+			ti.logger.Errorf("Execution failed for Activity[%s] in FlowReport[%s] - %s", ti.task.Name(), ti.flowInst.flowDef.Name(), evalErr.Error())
 		}
 	}()
 
@@ -544,7 +543,7 @@ func (ti *TaskInst) PostEvalActivity() (done bool, evalErr error) {
 				ti.logger.Debug("Mapper not applied")
 			}
 		}
-		err = applyAssertionInterceptor(ti, support.AssertionActivity)
+		err = applyAssertionInterceptor(ti, types.AssertionActivity)
 		if err != nil {
 			return false, err
 		}

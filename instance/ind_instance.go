@@ -3,6 +3,7 @@ package instance
 import (
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/engine/runner/types"
 	"os"
 	"strconv"
 	"time"
@@ -30,7 +31,7 @@ type IndependentInstance struct {
 
 	flowModel   *model.FlowModel
 	patch       *flowsupport.Patch
-	interceptor *flowsupport.Interceptor
+	interceptor *types.Interceptor
 
 	subflowCtr int
 	subflows   map[int]*Instance
@@ -51,7 +52,7 @@ const (
 	appVersion     = "AppVersion"
 )
 
-// New creates a new Flow Instance from the specified Flow
+// New creates a new FlowReport Instance from the specified FlowReport
 func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, instRecorder *stateInstanceRecorder, logger log.Logger) (*IndependentInstance, error) {
 	var err error
 	inst := &IndependentInstance{}
@@ -160,7 +161,7 @@ func (inst *IndependentInstance) startEmbedded(embedded *Instance, startAttrs ma
 
 func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map[string]interface{}) bool {
 
-	//Set the flow Name and Flow Id for the current flow.
+	//Set the flow Name and FlowReport Id for the current flow.
 	_ = toStart.SetValue(flowCtxPrefix+flowName, toStart.Name())
 	_ = toStart.SetValue(flowCtxPrefix+flowId, toStart.ID())
 	_ = toStart.SetValue(flowCtxPrefix+appName, flowsupport.GetAppName())
@@ -176,8 +177,8 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	}
 
 	if inst.logger.DebugEnabled() {
-		inst.logger.Debugf("Flow Name: %s", toStart.Name())
-		inst.logger.Debugf("Flow Id: %s", toStart.ID())
+		inst.logger.Debugf("FlowReport Name: %s", toStart.Name())
+		inst.logger.Debugf("FlowReport Id: %s", toStart.ID())
 		if trace.Enabled() {
 			inst.logger.Debugf("Trace Id: %s", toStart.tracingCtx.TraceID())
 			inst.logger.Debugf("Span Id: %s", toStart.tracingCtx.SpanID())
@@ -190,14 +191,14 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 		hostInstance := toStart.host.(*TaskInst)
 
 		if inst.logger.DebugEnabled() {
-			inst.logger.Debugf("Parent Flow Name: %s", hostInstance.flowInst.Name())
-			inst.logger.Debugf("Parent Flow Id: %s", hostInstance.flowInst.ID())
+			inst.logger.Debugf("Parent FlowReport Name: %s", hostInstance.flowInst.Name())
+			inst.logger.Debugf("Parent FlowReport Id: %s", hostInstance.flowInst.ID())
 		}
-		//Set the flow Name and Flow Id for the current flow.
+		//Set the flow Name and FlowReport Id for the current flow.
 		_ = toStart.SetValue(flowCtxPrefix+parentFlowName, hostInstance.flowInst.Name())
 		_ = toStart.SetValue(flowCtxPrefix+parentFlowId, hostInstance.flowInst.ID())
 	} else {
-		// Set Empty in case of Main Flow.
+		// Set Empty in case of Main FlowReport.
 		_ = toStart.SetValue(flowCtxPrefix+parentFlowName, "")
 		_ = toStart.SetValue(flowCtxPrefix+parentFlowId, "")
 	}
@@ -251,7 +252,7 @@ func (inst *IndependentInstance) ApplyPatch(patch *flowsupport.Patch) {
 	}
 }
 
-func (inst *IndependentInstance) ApplyInterceptor(interceptor *flowsupport.Interceptor) {
+func (inst *IndependentInstance) ApplyInterceptor(interceptor *types.Interceptor) {
 	if inst.interceptor == nil {
 		inst.interceptor = interceptor
 		inst.interceptor.Init()
@@ -262,7 +263,7 @@ func (inst *IndependentInstance) HasInterceptor() bool {
 	return inst.interceptor != nil
 }
 
-func (inst *IndependentInstance) GetInterceptor() *flowsupport.Interceptor {
+func (inst *IndependentInstance) GetInterceptor() *types.Interceptor {
 	return inst.interceptor
 }
 
@@ -276,7 +277,7 @@ func (inst *IndependentInstance) ResetChanges() {
 
 }
 
-// StepID returns the current step ID of the Flow Instance
+// StepID returns the current step ID of the FlowReport Instance
 func (inst *IndependentInstance) StepID() int {
 	return inst.stepID
 }
@@ -296,7 +297,7 @@ func (inst *IndependentInstance) DoStep() bool {
 
 		if ok {
 			//dev logging
-			//logger.Debug("Retrieved item from Flow Instance work queue")
+			//logger.Debug("Retrieved item from FlowReport Instance work queue")
 
 			workItem := item.(*WorkItem)
 
@@ -314,7 +315,7 @@ func (inst *IndependentInstance) DoStep() bool {
 			hasNext = true
 		} else {
 			// dev logging
-			//logger.Debug("Flow Instance work queue empty")
+			//logger.Debug("FlowReport Instance work queue empty")
 		}
 	}
 
@@ -334,7 +335,7 @@ func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 	inst.changeTracker.WorkItemAdded(workItem)
 }
 
-// execTask executes the specified Work Item of the Flow Instance
+// execTask executes the specified Work Item of the FlowReport Instance
 func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst *TaskInst) {
 
 	defer func() {
@@ -404,7 +405,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	}
 }
 
-// handleTaskDone handles the completion of a task in the Flow Instance
+// handleTaskDone handles the completion of a task in the FlowReport Instance
 func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
 	notifyFlow := false
 	propagateSkip := false
@@ -531,7 +532,7 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 	return notify
 }
 
-// handleTaskError handles the completion of a task in the Flow Instance
+// handleTaskError handles the completion of a task in the FlowReport Instance
 func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
 
 	if taskInst.traceContext != nil {
@@ -679,7 +680,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 		errorObj = taskInst.getErrorObject(err)
 	}
 
-	var coverage flowsupport.ActivityCoverage
+	var coverage types.ActivityCoverage
 	var outputs interface{} = nil
 	if inst.GetInterceptor().CollectIO {
 		outputs = taskInst.outputs
@@ -694,7 +695,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 				outputs = inst.returnData
 			}
 		}
-		coverage = flowsupport.ActivityCoverage{
+		coverage = types.ActivityCoverage{
 			ActivityName: taskInst.taskID,
 			LinkFrom:     inst.getLinks(taskInst.GetFromLinkInstances()),
 			LinkTo:       inst.getLinks(taskInst.GetToLinkInstances()),
@@ -705,7 +706,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 			IsMainFlow:   !taskInst.flowInst.isHandlingError,
 		}
 	} else {
-		coverage = flowsupport.ActivityCoverage{
+		coverage = types.ActivityCoverage{
 			ActivityName: taskInst.taskID,
 			FlowName:     taskInst.flowInst.Name(),
 			IsMainFlow:   !inst.isHandlingError,
@@ -721,7 +722,7 @@ func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivi
 		return
 	}
 
-	coverage := flowsupport.SubFlowCoverage{
+	coverage := types.SubFlowCoverage{
 		HostFlow:        hostFlowName,
 		SubFlowActivity: subFlowActivity,
 		SubFlowName:     subFlowName,

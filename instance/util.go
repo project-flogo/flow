@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/engine/runner/types"
 	"os"
 	"strconv"
 
@@ -138,7 +139,7 @@ func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 
 			for name, assertion := range taskInterceptor.Assertions {
 				if taskInterceptor.Type != assertType {
-					taskInterceptor.Assertions[name].Result = support.AssertionNotExecuted
+					taskInterceptor.Assertions[name].Result = types.AssertionNotExecuted
 					continue
 				}
 				if taskInst.logger.DebugEnabled() {
@@ -149,11 +150,11 @@ func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 				var evalData ast.ExprEvalData
 				if assertion.Expression == "" {
 					taskInterceptor.Assertions[name].Message = "Empty expression"
-					taskInterceptor.Assertions[name].Result = support.NotExecuted
+					taskInterceptor.Assertions[name].Result = types.NotExecuted
 					continue
 				}
 
-				if assertion.Type == support.Primitive {
+				if assertion.Type == types.Primitive {
 					result, message, evalData = applyPrimitiveAssertion(taskInst, ef, &assertion)
 				} else {
 					taskInst.Logger().Errorf("Invalid Assertion Mode")
@@ -164,9 +165,9 @@ func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 				taskInterceptor.Assertions[name].EvalResult = evalData
 				//Set the result back in the Interceptor.
 				if result {
-					taskInterceptor.Assertions[name].Result = support.Pass
+					taskInterceptor.Assertions[name].Result = types.Pass
 				} else {
-					taskInterceptor.Assertions[name].Result = support.Fail
+					taskInterceptor.Assertions[name].Result = types.Fail
 				}
 				taskInst.logger.Debugf("Assertion Execution Result => Name: %s, Assertion Expression: %v, Result: %s, Message: %s ",
 					assertion.Name, assertion.Expression, strconv.FormatBool(result), message)
@@ -177,7 +178,7 @@ func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 	return nil
 }
 
-func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion *support.Assertion) (bool, string, ast.ExprEvalData) {
+func applyPrimitiveAssertion(taskInst *TaskInst, ef expression.Factory, assertion *types.Assertion) (bool, string, ast.ExprEvalData) {
 
 	expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 	if expr == nil {
@@ -232,7 +233,7 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
 
-			if taskInterceptor.Type == support.MockActivity {
+			if taskInterceptor.Type == types.MockActivity {
 				mdOutput := taskInst.task.ActivityConfig().Activity.Metadata().Output
 				var err error
 
@@ -256,7 +257,7 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 					}
 				}
 			}
-			if taskInterceptor.Type == support.MockException {
+			if taskInterceptor.Type == types.MockException {
 				message := taskInterceptor.Outputs["message"].(string)
 				data := taskInterceptor.Outputs["data"]
 				if data == nil {

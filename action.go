@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/engine/runner/types"
 	"strings"
 	"time"
 
@@ -202,6 +203,11 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			rerun = ro.Rerun
 			originalInstanceId = ro.OriginalInstanceId
 			detachExecution = ro.DetachExecution
+		} else {
+			do, ok := runOptions.(*types.DebugOptions)
+			if ok {
+				execOptions = &instance.ExecOptions{Interceptor: do.ExecOptions.Interceptor, InstanceId: do.InstanceId}
+			}
 		}
 	}
 
@@ -256,8 +262,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			instLogger = log.ChildLoggerWithFields(logger, fields...)
 		}
 
-		instLogger.Debug("Creating Flow Instance: ", instanceID)
-		instLogger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
+		instLogger.Debug("Creating FlowReport Instance: ", instanceID)
+		instLogger.Debugf("Creating FlowReport Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
 
 		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun), instLogger)
 		if err != nil {
@@ -275,7 +281,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				instanceID = idGenerator.NextAsString()
 			}
 
-			logger.Debug("Restarting Flow Instance: ", instanceID)
+			logger.Debug("Restarting FlowReport Instance: ", instanceID)
 
 			if log.CtxLoggingEnabled() {
 				var fields []log.Field
@@ -302,7 +308,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	case instance.OpResume:
 		if initialState != nil {
 			inst = initialState
-			logger.Debug("Resuming Flow Instance: ", inst.ID())
+			logger.Debug("Resuming FlowReport Instance: ", inst.ID())
 
 			//instLogger := logger
 			//
@@ -348,7 +354,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	//todo how do we check if debug is enabled?
 	//logInputs(inputs)
-	instLogger.Infof("Executing Flow Instance [%s] for event id [%s]", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
+	instLogger.Infof("Executing FlowReport Instance [%s] for event id [%s]", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))
 
 	if op == instance.OpStart {
 		inst.Start(inputs)
@@ -419,11 +425,11 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				inst.SetValue(k, v)
 			}
 
-			fa.applyAssertionInterceptor(inst, flowsupport.AssertionActivity)
+			fa.applyAssertionInterceptor(inst, types.AssertionActivity)
 
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
-			hasFlowExceptionAssert := fa.applyAssertionInterceptor(inst, flowsupport.AssertionException)
+			hasFlowExceptionAssert := fa.applyAssertionInterceptor(inst, types.AssertionException)
 
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), inst.GetError())
@@ -439,9 +445,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		instLogger.Debugf("Executing flow instance [%s] for event id [%s] - Status: %d", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.Status())
 
 		if inst.Status() == model.FlowStatusCompleted {
-			instLogger.Infof("Flow Instance [%s] for event id [%s] completed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
+			instLogger.Infof("FlowReport Instance [%s] for event id [%s] completed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		} else if inst.Status() == model.FlowStatusFailed {
-			instLogger.Infof("Flow Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
+			instLogger.Infof("FlowReport Instance [%s] for event id [%s] failed in %s", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx), inst.ExecutionTime().String())
 		}
 
 		if stateRecorder != nil {
@@ -461,28 +467,28 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 	if inst.GetInterceptor() != nil {
 		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-_flowOutput")
 		if interceptor != nil {
-			interceptor.Result = flowsupport.Pass
+			interceptor.Result = types.Pass
 			ef := expression.NewFactory(definition.GetDataResolver())
 			for id, assertion := range interceptor.Assertions {
 				if interceptor.Type != assertType {
-					interceptor.Assertions[id].Result = flowsupport.AssertionNotExecuted
+					interceptor.Assertions[id].Result = types.AssertionNotExecuted
 					continue
 				}
 				if assertion.Expression == "" {
 					interceptor.Assertions[id].Message = "Empty expression"
-					interceptor.Assertions[id].Result = flowsupport.NotExecuted
+					interceptor.Assertions[id].Result = types.NotExecuted
 					continue
 				}
 
 				expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 				if expr == nil {
-					interceptor.Assertions[id].Result = flowsupport.Fail
+					interceptor.Assertions[id].Result = types.Fail
 					interceptor.Assertions[id].Message = "Failed to validate expression"
 					continue
 				}
 				result, err := expr.Eval(inst.Instance)
 				if err != nil {
-					interceptor.Assertions[id].Result = flowsupport.Fail
+					interceptor.Assertions[id].Result = types.Fail
 					interceptor.Assertions[id].Message = "Failed to evaluate expression"
 				} else {
 					exp, ok := expr.(ast.ExprEvalResult)
@@ -492,14 +498,14 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 					}
 					res, _ := coerce.ToBool(result)
 					if res {
-						interceptor.Assertions[id].Result = flowsupport.Pass
+						interceptor.Assertions[id].Result = types.Pass
 						interceptor.Assertions[id].Message = "Comparison success"
 					} else {
-						interceptor.Assertions[id].Result = flowsupport.Fail
+						interceptor.Assertions[id].Result = types.Fail
 						interceptor.Assertions[id].Message = "Comparison failure"
 					}
 					interceptor.Assertions[id].EvalResult = resultData
-					if assertType == flowsupport.AssertionException {
+					if assertType == types.AssertionException {
 						hasFlowExceptionAssertion = true
 					}
 

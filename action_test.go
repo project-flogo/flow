@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/project-flogo/core/engine/runner/types"
 	"testing"
 
 	"github.com/project-flogo/flow/instance"
@@ -210,7 +211,7 @@ var testRestartInitialState = `{
 type RestartRequest struct {
 	InitialState *instance.IndependentInstance `json:"initialState"`
 	Data         map[string]interface{}        `json:"data"`
-	Interceptor  *support.Interceptor          `json:"interceptor"`
+	Interceptor  *types.Interceptor            `json:"interceptor"`
 	Patch        *support.Patch                `json:"patch"`
 }
 

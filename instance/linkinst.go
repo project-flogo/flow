@@ -1,9 +1,9 @@
 package instance
 
 import (
+	"github.com/project-flogo/core/engine/runner/types"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
-	"github.com/project-flogo/flow/support"
 )
 
 // LinkInst represents data associated with an instance of a Link
@@ -60,7 +60,7 @@ func (li *LinkInst) addLinkToCoverage() {
 	case definition.LtExprOtherwise:
 		linkType = "Otherwise"
 	}
-	coverage := support.TransitionCoverage{
+	coverage := types.TransitionCoverage{
 
 		TransitionName:       li.Link().Label(),
 		TransitionType:       linkType,

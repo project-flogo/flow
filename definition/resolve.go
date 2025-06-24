@@ -19,7 +19,9 @@ var defResolver = resolve.NewCompositeResolver(map[string]resolve.Resolver{
 	"activity":  &ActivityResolver{},
 	"flowctx":   &FlowContextResolver{},
 	"error":     &ErrorResolver{},
-	"flow":      &FlowResolver{}})
+	"flow":      &FlowResolver{},
+	"variable":  &VariableResolver{},
+})
 
 func GetDataResolver() resolve.CompositeResolver {
 	return defResolver
@@ -85,6 +87,21 @@ func (r *ActivityResolver) Resolve(scope data.Scope, itemName, valueName string)
 		}
 	}
 
+	return value, nil
+}
+
+type VariableResolver struct {
+}
+
+func (r *VariableResolver) GetResolverInfo() *resolve.ResolverInfo {
+	return dynamicItemResolver
+}
+func (r *VariableResolver) Resolve(scope data.Scope, itemName, valueName string) (interface{}, error) {
+	value, exists := scope.GetValue("_variable." + itemName)
+
+	if !exists {
+		return nil, fmt.Errorf("unknown flow context variable: '%s'. supported flow context variables are 'FlowName', 'FlowId', 'ParentFlowName', 'ParentFlowId', 'TraceId' and 'SpanId'", itemName)
+	}
 	return value, nil
 }
 
