@@ -16,9 +16,10 @@ import (
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/metadata"
 	"github.com/project-flogo/core/engine/runner"
+	"github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/core/trigger"
 	"github.com/project-flogo/flow/definition"
-	"github.com/project-flogo/flow/support"
+	flowSupport "github.com/project-flogo/flow/support"
 )
 
 const EventIdAttr = "event.id"
@@ -51,7 +52,7 @@ func applyInputMapper(taskInst *TaskInst) error {
 	master := taskInst.flowInst.master
 
 	if master.patch != nil {
-		// check if the patch has a overriding mapper
+		// check if the patch has an overriding mapper
 		mapper := master.patch.GetInputMapper(taskInst.task.ID())
 		if mapper != nil {
 			inputMapper = mapper
@@ -142,7 +143,7 @@ func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 					continue
 				}
 				if taskInst.logger.DebugEnabled() {
-					taskInst.logger.Debugf("Executing Assertion Attr: %s = %s", name, assertion)
+					taskInst.logger.Debugf("Executing Assertion Attr: %d = %v", name, assertion)
 				}
 				result := false
 				var message string
@@ -157,7 +158,7 @@ func applyAssertionInterceptor(taskInst *TaskInst, assertType int) error {
 					result, message, evalData = applyPrimitiveAssertion(taskInst, ef, &assertion)
 				} else {
 					taskInst.Logger().Errorf("Invalid Assertion Mode")
-					return errors.New("Invalid Assertion Mode")
+					return errors.New("invalid assertion mode")
 				}
 
 				taskInterceptor.Assertions[name].Message = message
@@ -228,7 +229,7 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 		taskInst.logger.Debug("Applying Interceptor - Output")
 
 		id := taskInst.flowInst.Name() + "-" + taskInst.task.ID()
-		// check if this task as an interceptor and overrides ouputs
+		// check if this task as an interceptor and overrides outputs
 		taskInterceptor := master.interceptor.GetTaskInterceptor(id)
 		if taskInterceptor != nil && len(taskInterceptor.Outputs) > 0 {
 
@@ -347,7 +348,7 @@ func applyOutputMapper(taskInst *TaskInst) (bool, error) {
 
 func GetFlowIOMetadata(flowURI string) (*metadata.IOMetadata, error) {
 
-	def, _, err := support.GetDefinition(flowURI)
+	def, _, err := flowSupport.GetDefinition(flowURI)
 	if err != nil {
 		return nil, err
 	}
@@ -366,7 +367,7 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 		return errors.New("unable to create subFlow using this context")
 	}
 
-	def, _, err := support.GetDefinition(flowURI)
+	def, _, err := flowSupport.GetDefinition(flowURI)
 	if err != nil {
 		return err
 	}

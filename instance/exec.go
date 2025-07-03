@@ -1,7 +1,8 @@
 package instance
 
 import (
-	"github.com/project-flogo/flow/support"
+	"github.com/project-flogo/core/engine/support"
+	flowSupport "github.com/project-flogo/flow/support"
 )
 
 const (
@@ -26,8 +27,9 @@ type RunOptions struct {
 
 // ExecOptions are optional Patch & Interceptor to be used during instance execution
 type ExecOptions struct {
-	Patch       *support.Patch
+	Patch       *flowSupport.Patch
 	Interceptor *support.Interceptor
+	InstanceId  string
 }
 
 // IDGenerator generates IDs for flow instances

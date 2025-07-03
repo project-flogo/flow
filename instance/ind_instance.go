@@ -9,6 +9,7 @@ import (
 
 	"github.com/project-flogo/flow/state"
 
+	coresupport "github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/trace"
@@ -30,7 +31,7 @@ type IndependentInstance struct {
 
 	flowModel   *model.FlowModel
 	patch       *flowsupport.Patch
-	interceptor *flowsupport.Interceptor
+	interceptor *coresupport.Interceptor
 
 	subflowCtr int
 	subflows   map[int]*Instance
@@ -251,7 +252,7 @@ func (inst *IndependentInstance) ApplyPatch(patch *flowsupport.Patch) {
 	}
 }
 
-func (inst *IndependentInstance) ApplyInterceptor(interceptor *flowsupport.Interceptor) {
+func (inst *IndependentInstance) ApplyInterceptor(interceptor *coresupport.Interceptor) {
 	if inst.interceptor == nil {
 		inst.interceptor = interceptor
 		inst.interceptor.Init()
@@ -262,7 +263,7 @@ func (inst *IndependentInstance) HasInterceptor() bool {
 	return inst.interceptor != nil
 }
 
-func (inst *IndependentInstance) GetInterceptor() *flowsupport.Interceptor {
+func (inst *IndependentInstance) GetInterceptor() *coresupport.Interceptor {
 	return inst.interceptor
 }
 
@@ -679,7 +680,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 		errorObj = taskInst.getErrorObject(err)
 	}
 
-	var coverage flowsupport.ActivityCoverage
+	var coverage coresupport.ActivityCoverage
 	var outputs interface{} = nil
 	if inst.GetInterceptor().CollectIO {
 		outputs = taskInst.outputs
@@ -694,7 +695,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 				outputs = inst.returnData
 			}
 		}
-		coverage = flowsupport.ActivityCoverage{
+		coverage = coresupport.ActivityCoverage{
 			ActivityName: taskInst.taskID,
 			LinkFrom:     inst.getLinks(taskInst.GetFromLinkInstances()),
 			LinkTo:       inst.getLinks(taskInst.GetToLinkInstances()),
@@ -705,7 +706,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 			IsMainFlow:   !taskInst.flowInst.isHandlingError,
 		}
 	} else {
-		coverage = flowsupport.ActivityCoverage{
+		coverage = coresupport.ActivityCoverage{
 			ActivityName: taskInst.taskID,
 			FlowName:     taskInst.flowInst.Name(),
 			IsMainFlow:   !inst.isHandlingError,
@@ -721,7 +722,7 @@ func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivi
 		return
 	}
 
-	coverage := flowsupport.SubFlowCoverage{
+	coverage := coresupport.SubFlowCoverage{
 		HostFlow:        hostFlowName,
 		SubFlowActivity: subFlowActivity,
 		SubFlowName:     subFlowName,

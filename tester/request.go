@@ -2,12 +2,13 @@ package tester
 
 import (
 	"context"
+	"github.com/project-flogo/flow/instance"
 
 	"github.com/project-flogo/core/action"
 	"github.com/project-flogo/core/engine/runner"
+	"github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/core/support/log"
-	"github.com/project-flogo/flow/instance"
-	"github.com/project-flogo/flow/support"
+	flowSupport "github.com/project-flogo/flow/support"
 )
 
 const (
@@ -41,10 +42,10 @@ func (rp *RequestProcessor) StartFlow(startRequest *StartRequest) (results map[s
 	logger.Debugf("Tester starting flow")
 
 	//todo share action, for now add flowUri to settings
-	settings := map[string]interface{}{"flowURI":startRequest.FlowURI}
+	settings := map[string]interface{}{"flowURI": startRequest.FlowURI}
 
 	factory := action.GetFactory(RefFlow)
-	act, err := factory.New(&action.Config{Settings:settings})
+	act, err := factory.New(&action.Config{Settings: settings})
 	if err != nil {
 		return nil, err
 	}
@@ -94,10 +95,10 @@ func (rp *RequestProcessor) RestartFlow(restartRequest *RestartRequest) (results
 	logger.Debugf("Tester restarting flow")
 
 	//todo share action, for now add flowUri to settings
-	settings := map[string]interface{}{"flowURI":restartRequest.InitialState.FlowURI()}
+	settings := map[string]interface{}{"flowURI": restartRequest.InitialState.FlowURI()}
 
 	factory := action.GetFactory(RefFlow)
-	act, err := factory.New(&action.Config{Settings:settings})
+	act, err := factory.New(&action.Config{Settings: settings})
 	if err != nil {
 		return nil, err
 	}
@@ -131,10 +132,10 @@ func (rp *RequestProcessor) ResumeFlow(resumeRequest *ResumeRequest) (results ma
 	logger.Debugf("Tester resuming flow")
 
 	//todo share action, for now add flowUri to settings
-	settings := map[string]interface{}{"flowURI":resumeRequest.State.FlowURI()}
+	settings := map[string]interface{}{"flowURI": resumeRequest.State.FlowURI()}
 
 	factory := action.GetFactory(RefFlow)
-	act, err := factory.New(&action.Config{Settings:settings})
+	act, err := factory.New(&action.Config{Settings: settings})
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +166,7 @@ type StartRequest struct {
 	Data        map[string]interface{} `json:"data"`
 	Attrs       map[string]interface{} `json:"attrs"`
 	Interceptor *support.Interceptor   `json:"interceptor"`
-	Patch       *support.Patch         `json:"patch"`
+	Patch       *flowSupport.Patch     `json:"patch"`
 	ReplyTo     string                 `json:"replyTo"`
 }
 
@@ -175,14 +176,14 @@ type RestartRequest struct {
 	InitialState *instance.IndependentInstance `json:"initialState"`
 	Data         map[string]interface{}        `json:"data"`
 	Interceptor  *support.Interceptor          `json:"interceptor"`
-	Patch        *support.Patch                `json:"patch"`
+	Patch        *flowSupport.Patch            `json:"patch"`
 }
 
 // ResumeRequest describes a request for resuming a FlowInstance
-//todo: Data for resume request should be directed to waiting task
+// todo: Data for resume request should be directed to waiting task
 type ResumeRequest struct {
 	State       *instance.IndependentInstance `json:"state"`
 	Data        map[string]interface{}        `json:"data"`
 	Interceptor *support.Interceptor          `json:"interceptor"`
-	Patch       *support.Patch                `json:"patch"`
+	Patch       *flowSupport.Patch            `json:"patch"`
 }

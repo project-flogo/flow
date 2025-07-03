@@ -1,9 +1,9 @@
 package instance
 
 import (
+	"github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
-	"github.com/project-flogo/flow/support"
 )
 
 // LinkInst represents data associated with an instance of a Link

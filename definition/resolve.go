@@ -19,7 +19,9 @@ var defResolver = resolve.NewCompositeResolver(map[string]resolve.Resolver{
 	"activity":  &ActivityResolver{},
 	"flowctx":   &FlowContextResolver{},
 	"error":     &ErrorResolver{},
-	"flow":      &FlowResolver{}})
+	"flow":      &FlowResolver{},
+	"variable":  &VariableResolver{},
+})
 
 func GetDataResolver() resolve.CompositeResolver {
 	return defResolver
@@ -76,6 +78,54 @@ func (r *ActivityResolver) Resolve(scope data.Scope, itemName, valueName string)
 				value, exists = scope.GetValue(name)
 				if exists {
 					attrName := strings.TrimPrefix(name, "_A."+itemName+".")
+					if attrName != "" {
+						rootObjValue[attrName] = value
+					}
+				}
+			}
+			return rootObjValue, nil
+		}
+	}
+
+	return value, nil
+}
+
+type VariableResolver struct {
+}
+
+func (r *VariableResolver) GetResolverInfo() *resolve.ResolverInfo {
+	return dynamicItemResolver
+}
+func (r *VariableResolver) Resolve(scope data.Scope, itemName, valueName string) (interface{}, error) {
+	var value interface{}
+	var exists bool
+	var err error
+	var valueMain interface{}
+	if len(valueName) > 0 {
+		value, exists = scope.GetValue("_V." + itemName + "." + valueName)
+		if !exists {
+			valueMain, exists = scope.GetValue("_V." + itemName)
+			value, err = path.GetValue(valueMain, "."+valueName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve variable attr: '%s', not found in variable", valueName)
+			}
+		}
+	} else {
+		//For accumulate or direct root object mapping
+		value, exists = scope.GetValue("_V." + itemName)
+		if !exists {
+			return nil, fmt.Errorf("failed to resolve activity value: '%s'", itemName)
+		}
+		// Special handling for the case where $activity[ActivityName] used directly in the mappings e.g. coerce.toString($activity[Mapper])
+		// For memory optimazation, we only store the activity output mappings in the root object map[string]string e.g. map["_A.<ActivityName>.<outputName>"] = ""
+		// and resolved attribute values here
+		objValue, ok := value.(map[string]string)
+		if ok {
+			rootObjValue := make(map[string]interface{}, len(objValue))
+			for name := range objValue {
+				value, exists = scope.GetValue(name)
+				if exists {
+					attrName := strings.TrimPrefix(name, "_V."+itemName+".")
 					if attrName != "" {
 						rootObjValue[attrName] = value
 					}
