@@ -69,6 +69,7 @@ func (li *LinkInst) addLinkToCoverage() {
 		TransitionTo:         li.Link().ToTask().ID(),
 		FlowName:             li.flowInst.Name(),
 		IsMainFlow:           !li.flowInst.isHandlingError,
+		FlowId:               li.flowInst.ID(),
 	}
 	li.flowInst.master.interceptor.AddToLinkCoverage(coverage)
 }

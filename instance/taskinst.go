@@ -351,7 +351,6 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			if err != nil {
 				return false, err
 			}
-
 		}
 
 	}
