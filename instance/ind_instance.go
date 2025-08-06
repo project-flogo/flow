@@ -698,7 +698,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 
 		if taskInst.outputs == nil {
 			if taskInst.flowInst.returnData != nil {
-				outputs = inst.returnData
+				outputs = taskInst.flowInst.returnData
 			}
 		}
 		coverage = coresupport.ActivityCoverage{
@@ -723,7 +723,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 	inst.interceptor.AddToActivityCoverage(coverage)
 }
 
-func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivity, hostFlowName string, hostInstanceId string, instanceId string, inputs map[string]interface{}) {
+func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivity, hostFlowName string, hostInstanceId string, instanceId string, inputs map[string]interface{}, isLoop bool, index string) {
 
 	if !inst.HasInterceptor() {
 		return
@@ -736,6 +736,8 @@ func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivi
 		SubFlowID:       instanceId,
 		Inputs:          inputs,
 		HostFlowID:      hostInstanceId,
+		IsLoop:          isLoop,
+		Index:           index,
 	}
 
 	inst.interceptor.AddToSubFlowCoverage(coverage)

@@ -380,7 +380,12 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 
 	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
 
-	taskInst.flowInst.master.addSubFlowToCoverage(def.Name(), taskInst.Name(), taskInst.flowInst.Name(), taskInst.flowInst.ID(), flowInst.ID(), inputs)
+	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
+	index := ""
+	if isLoop {
+		index = attr.(string)
+	}
+	taskInst.flowInst.master.addSubFlowToCoverage(def.Name(), taskInst.Name(), taskInst.flowInst.Name(), taskInst.flowInst.ID(), flowInst.ID(), inputs, isLoop, index)
 	err = taskInst.flowInst.master.startEmbedded(flowInst, inputs)
 	if err != nil {
 		return err
