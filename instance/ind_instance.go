@@ -689,9 +689,9 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 		}
 
 		if taskInst.outputs == nil {
-			if inst.returnData != nil {
+			if taskInst.flowInst.returnData != nil {
 
-				outputs = inst.returnData
+				outputs = taskInst.flowInst.returnData
 			}
 		}
 		coverage = flowsupport.ActivityCoverage{
