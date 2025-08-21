@@ -18,6 +18,8 @@ import (
 	"github.com/project-flogo/flow/model"
 )
 
+const EngineError string = "ENGINE-ERROR"
+
 func NewTaskInst(flowInst *Instance, task *definition.Task) *TaskInst {
 	var taskInst TaskInst
 
@@ -583,16 +585,20 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 	switch e := err.(type) {
 	case *definition.LinkExprError:
 		errorObj["type"] = "link_expr"
+		errorObj["activityType"] = ti.Task().ActivityConfig().Type
 	case *activity.Error:
 		errorObj["type"] = "activity"
 		errorObj["data"] = e.Data()
 		errorObj["code"] = e.Code()
+		errorObj["category"] = e.Category()
+		errorObj["activityType"] = ti.Task().ActivityConfig().Type
 		if e.ActivityName() != "" {
 			errorObj["activity"] = e.ActivityName()
 		}
 	case *ActivityEvalError:
 		errorObj["type"] = e.Type()
 		errorObj["activity"] = e.TaskName()
+		errorObj["activityType"] = ti.Task().ActivityConfig().Type
 	}
 	return errorObj
 }
@@ -640,7 +646,7 @@ func (ti *TaskInst) SpanConfig() trace.Config {
 }
 
 func NewErrorObj(taskId string, msg string) map[string]interface{} {
-	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": "", "data": nil}
+	return map[string]interface{}{"activity": taskId, "message": msg, "type": "unknown", "code": "", "data": map[string]interface{}{}, "category": EngineError, "activityType": ""}
 }
 
 // DEPRECATED
