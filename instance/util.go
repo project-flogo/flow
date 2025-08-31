@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/project-flogo/core/data/expression/script/gocc/ast"
 
@@ -374,8 +375,49 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 		return errors.New("unable to resolve subflow: " + flowURI)
 	}
 
+	var cancelctx context.Context = nil
+	var cancelFunc context.CancelFunc = nil
+	if taskInst.flowInst.timeoutContext != nil {
+		cancelctx = taskInst.flowInst.timeoutContext
+		cancelFunc = taskInst.flowInst.cancelFunc
+	}
+	//defer cancelFunc()
 	//todo make sure that there is only one subFlow per taskinst
-	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def)
+	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def, cancelctx, cancelFunc)
+
+	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
+
+	taskInst.flowInst.master.addSubFlowToCoverage(def.Name(), taskInst.Name(), taskInst.flowInst.Name())
+	err = taskInst.flowInst.master.startEmbedded(flowInst, inputs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func StartSubFlowWithContext(duration string, ctx activity.Context, flowURI string, inputs map[string]interface{}) error {
+
+	taskInst, ok := ctx.(*TaskInst)
+
+	if !ok {
+		return errors.New("unable to create subFlow using this context")
+	}
+
+	def, _, err := support.GetDefinition(flowURI)
+	if err != nil {
+		return err
+	}
+	if def == nil {
+		return errors.New("unable to resolve subflow: " + flowURI)
+	}
+
+	timeout, err := time.ParseDuration(duration)
+
+	timeoutContext, cancelfunc := context.WithTimeout(context.Background(), timeout)
+	//defer cancelFunc()
+	//todo make sure that there is only one subFlow per taskinst
+	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def, timeoutContext, cancelfunc)
 
 	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
 

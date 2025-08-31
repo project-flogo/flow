@@ -1,8 +1,10 @@
 package instance
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/project-flogo/core/activity"
 	"os"
 	"strconv"
 	"time"
@@ -87,7 +89,7 @@ func (inst *IndependentInstance) SetInstanceRecorder(stateRecorder *stateInstanc
 	inst.instRecorder = stateRecorder
 }
 
-func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition) *Instance {
+func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI string, flow *definition.Definition, ctx context.Context, cancelFunc context.CancelFunc) *Instance {
 	inst.subflowCtr++
 
 	embeddedInst := &Instance{}
@@ -101,6 +103,8 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.linkInsts = make(map[int]*LinkInst)
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
+	embeddedInst.timeoutContext = ctx
+	embeddedInst.cancelFunc = cancelFunc
 
 	if trace.Enabled() {
 		tc, _ := trace.GetTracer().StartTrace(embeddedInst.SpanConfig(), taskInst.traceContext) //TODO handle error
@@ -124,6 +128,10 @@ func (inst *IndependentInstance) UpdateStartTime() {
 
 func (inst *IndependentInstance) ExecutionTime() time.Duration {
 	return time.Since(inst.startTime)
+}
+
+func (inst *IndependentInstance) GetTimeoutContext() context.Context {
+	return inst.timeoutContext
 }
 
 func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
@@ -309,7 +317,11 @@ func (inst *IndependentInstance) DoStep() bool {
 			// track the fact that the work item was removed from the queue
 			inst.changeTracker.WorkItemRemoved(workItem)
 
-			inst.execTask(behavior, workItem.taskInst)
+			if workItem.taskInst.flowInst.timeoutContext != nil {
+				inst.execTaskWithContext(workItem.taskInst.flowInst.timeoutContext, workItem.taskInst.flowInst.cancelFunc, behavior, workItem.taskInst)
+			} else {
+				inst.execTask(behavior, workItem.taskInst)
+			}
 
 			hasNext = true
 		} else {
@@ -320,6 +332,8 @@ func (inst *IndependentInstance) DoStep() bool {
 
 	return hasNext
 }
+
+// DoStepWithContext executes a single step of the flow with context cancellation support
 
 func (inst *IndependentInstance) scheduleEval(taskInst *TaskInst) {
 
@@ -366,6 +380,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	} else if taskInst.status == model.TaskStatusSkipped {
 		return
 	} else {
+
 		evalResult, err = behavior.Eval(taskInst)
 	}
 
@@ -402,6 +417,116 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 		//task needs to iterate or retry
 		inst.scheduleEval(taskInst)
 	}
+}
+
+func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancelFunc context.CancelFunc, behavior model.TaskBehavior, taskInst *TaskInst) {
+
+	defer func() {
+		if r := recover(); r != nil {
+
+			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
+			inst.logger.Error(err)
+			if taskInst.traceContext != nil {
+				_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
+			}
+
+			// todo: useful for debugging
+			//logger.Debugf("StackTrace: %s", debug.Stack())
+
+			if !taskInst.flowInst.isHandlingError {
+
+				taskInst.appendErrorData(NewActivityEvalError(taskInst.task.Name(), "unhandled", err.Error()))
+				inst.HandleGlobalError(taskInst.flowInst, err)
+			}
+			// else what should we do?
+		}
+	}()
+
+	// Check for cancellation before task evaluation
+	select {
+	case <-ctx.Done():
+		cancelFunc()
+		inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out  ")))
+	default:
+	}
+
+	var err error
+	var evalResult model.EvalResult
+
+	if taskInst.status == model.TaskStatusWaiting {
+		select {
+		case <-ctx.Done():
+			cancelFunc()
+			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out  ")))
+			return
+		default:
+			evalResult, err = behavior.PostEval(taskInst)
+			break
+		}
+
+	} else if taskInst.status == model.TaskStatusSkipped {
+		return
+	} else {
+		select {
+		case <-ctx.Done():
+			cancelFunc()
+			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out ")))
+			return
+		default:
+			evalResult, err = behavior.Eval(taskInst)
+		}
+	}
+
+	if err != nil {
+		//taskInst.returnError = err
+		select {
+		case <-ctx.Done():
+			cancelFunc()
+			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, err))
+			return
+		default:
+		}
+		inst.handleTaskError(behavior, taskInst, err)
+		return
+	}
+
+	// Check for cancellation after task evaluation
+	select {
+	case <-ctx.Done():
+		cancelFunc()
+		inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out  ")))
+		return
+	default:
+	}
+
+	switch evalResult {
+	case model.EvalDone:
+		//taskInst.SetStatus(model.TaskStatusDone)
+		inst.handleTaskDone(behavior, taskInst)
+	case model.EvalSkip:
+		//taskInst.SetStatus(model.TaskStatusSkipped)
+		inst.handleTaskDone(behavior, taskInst)
+	case model.EvalWait:
+		taskInst.SetStatus(model.TaskStatusWaiting)
+	case model.EvalFail:
+		taskInst.SetStatus(model.TaskStatusFailed)
+		if taskInst.traceContext != nil {
+			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
+		}
+	case model.EvalRepeat:
+		taskInst.UpdateTaskToTracker()
+		if taskInst.traceContext != nil {
+			// Finish previous span
+			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, nil)
+			taskInst.counter++
+			taskInst.id = taskInst.taskID + "-" + strconv.Itoa(taskInst.counter)
+			// Reset span
+			taskInst.traceContext = nil
+		}
+		//task needs to iterate or retry
+		inst.scheduleEval(taskInst)
+	}
+
 }
 
 // handleTaskDone handles the completion of a task in the Flow Instance
@@ -589,6 +714,24 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 		}
 		return
 	}
+
+}
+
+func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
+
+	if taskInst.traceContext != nil {
+		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
+	}
+	// Set task status to failed for subflow activity
+	taskInst.SetStatus(model.TaskStatusCancelled)
+
+	inst.addActivityToCoverage(taskInst, err)
+	containerInst := taskInst.flowInst
+	containerInst.SetStatus(model.FlowStatusCancelled)
+	taskInst.appendErrorData(err)
+	inst.HandleGlobalError(containerInst, err)
+
+	return
 
 }
 

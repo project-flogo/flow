@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -160,6 +161,10 @@ func (ti *TaskInst) SetOutputObject(output data.StructValue) error {
 // GetInputObject implements activity.Context.GetInputObject
 func (ti *TaskInst) GetTracingContext() trace.TracingContext {
 	return ti.traceContext
+}
+
+func (ti *TaskInst) GetTimeOutContext() context.Context {
+	return ti.flowInst.timeoutContext
 }
 
 func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
@@ -652,6 +657,10 @@ func NewErrorObj(taskId string, msg string) map[string]interface{} {
 // DEPRECATED
 type LegacyCtx struct {
 	task *TaskInst
+}
+
+func (l *LegacyCtx) GetTimeOutContext() context.Context {
+	return nil
 }
 
 func (l *LegacyCtx) GetOutput(name string) interface{} {

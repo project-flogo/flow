@@ -16,6 +16,7 @@ func init() {
 type Settings struct {
 	FlowURI            string `md:"flowURI,required"`
 	DetachedInvocation bool   `md:"detached"`
+	Timeout            string `md:"timeout"`
 }
 
 var activityMd = activity.ToMetadata(&Settings{})
@@ -36,7 +37,7 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 	//}
 
 	activityMd := activity.ToMetadata(&Settings{})
-	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd, detachedInvocation: s.DetachedInvocation}
+	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd, detachedInvocation: s.DetachedInvocation, timeout: s.Timeout}
 
 	ctx.Logger().Debugf("flowURI: %+v", s.FlowURI)
 
@@ -52,9 +53,9 @@ type SubFlowActivity struct {
 	activityMd         *activity.Metadata
 	flowURI            string
 	detachedInvocation bool
-
-	mutex     sync.Mutex
-	mdUpdated uint32
+	timeout            string
+	mutex              sync.Mutex
+	mdUpdated          uint32
 }
 
 // Metadata returns the activity's metadata
@@ -101,6 +102,9 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 	if a.detachedInvocation {
 		ctx.Logger().Infof("Starting SubFlow '%s' in detached mode", a.flowURI)
 		err = instance.StartDetachedSubFlow(ctx, a.flowURI, input)
+	} else if a.timeout != "" {
+		ctx.Logger().Infof("Starting SubFlow '%s' with timeout '%s'", a.flowURI, a.timeout)
+		err = instance.StartSubFlowWithContext(a.timeout, ctx, a.flowURI, input)
 	} else {
 		err = instance.StartSubFlow(ctx, a.flowURI, input)
 	}

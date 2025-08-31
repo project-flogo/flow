@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/project-flogo/core/action"
@@ -36,8 +37,10 @@ type Instance struct {
 
 	resultHandler action.ResultHandler
 
-	logger     log.Logger
-	tracingCtx trace.TracingContext
+	logger         log.Logger
+	tracingCtx     trace.TracingContext
+	timeoutContext context.Context
+	cancelFunc     context.CancelFunc
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {

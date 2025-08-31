@@ -41,6 +41,8 @@ const (
 	// TaskStatusFailed indicates that the Task failed
 	TaskStatusFailed TaskStatus = 100
 
+	TaskStatusCancelled TaskStatus = 110
+
 	// LinkStatusFalse indicates that the Link evaluated to false
 	LinkStatusFalse LinkStatus = 1
 
