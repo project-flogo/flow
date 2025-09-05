@@ -16,6 +16,7 @@ import (
 	"github.com/project-flogo/core/data/expression"
 	"github.com/project-flogo/core/data/mapper"
 	"github.com/project-flogo/core/data/metadata"
+	coreSupport "github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/service"
@@ -27,6 +28,7 @@ import (
 	"github.com/project-flogo/flow/model/simple"
 	"github.com/project-flogo/flow/state"
 	flowsupport "github.com/project-flogo/flow/support"
+
 	"github.com/project-flogo/flow/util"
 )
 
@@ -202,6 +204,11 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			rerun = ro.Rerun
 			originalInstanceId = ro.OriginalInstanceId
 			detachExecution = ro.DetachExecution
+		} else {
+			do, ok := runOptions.(*coreSupport.DebugOptions)
+			if ok {
+				execOptions = &instance.ExecOptions{Interceptor: do.ExecOptions.Interceptor, InstanceId: do.InstanceId}
+			}
 		}
 	}
 
@@ -419,11 +426,11 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				inst.SetValue(k, v)
 			}
 
-			fa.applyAssertionInterceptor(inst, flowsupport.AssertionActivity)
+			fa.applyAssertionInterceptor(inst, coreSupport.AssertionActivity)
 
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
-			hasFlowExceptionAssert := fa.applyAssertionInterceptor(inst, flowsupport.AssertionException)
+			hasFlowExceptionAssert := fa.applyAssertionInterceptor(inst, coreSupport.AssertionException)
 
 			if inst.TracingContext() != nil {
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), inst.GetError())
@@ -461,28 +468,28 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 	if inst.GetInterceptor() != nil {
 		interceptor := inst.GetInterceptor().GetTaskInterceptor(inst.Instance.Name() + "-_flowOutput")
 		if interceptor != nil {
-			interceptor.Result = flowsupport.Pass
+			interceptor.Result = coreSupport.Pass
 			ef := expression.NewFactory(definition.GetDataResolver())
 			for id, assertion := range interceptor.Assertions {
 				if interceptor.Type != assertType {
-					interceptor.Assertions[id].Result = flowsupport.AssertionNotExecuted
+					interceptor.Assertions[id].Result = coreSupport.AssertionNotExecuted
 					continue
 				}
 				if assertion.Expression == "" {
 					interceptor.Assertions[id].Message = "Empty expression"
-					interceptor.Assertions[id].Result = flowsupport.NotExecuted
+					interceptor.Assertions[id].Result = coreSupport.NotExecuted
 					continue
 				}
 
 				expr, _ := ef.NewExpr(fmt.Sprintf("%v", assertion.Expression))
 				if expr == nil {
-					interceptor.Assertions[id].Result = flowsupport.Fail
+					interceptor.Assertions[id].Result = coreSupport.Fail
 					interceptor.Assertions[id].Message = "Failed to validate expression"
 					continue
 				}
 				result, err := expr.Eval(inst.Instance)
 				if err != nil {
-					interceptor.Assertions[id].Result = flowsupport.Fail
+					interceptor.Assertions[id].Result = coreSupport.Fail
 					interceptor.Assertions[id].Message = "Failed to evaluate expression"
 				} else {
 					exp, ok := expr.(ast.ExprEvalResult)
@@ -492,14 +499,14 @@ func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstan
 					}
 					res, _ := coerce.ToBool(result)
 					if res {
-						interceptor.Assertions[id].Result = flowsupport.Pass
+						interceptor.Assertions[id].Result = coreSupport.Pass
 						interceptor.Assertions[id].Message = "Comparison success"
 					} else {
-						interceptor.Assertions[id].Result = flowsupport.Fail
+						interceptor.Assertions[id].Result = coreSupport.Fail
 						interceptor.Assertions[id].Message = "Comparison failure"
 					}
 					interceptor.Assertions[id].EvalResult = resultData
-					if assertType == flowsupport.AssertionException {
+					if assertType == coreSupport.AssertionException {
 						hasFlowExceptionAssertion = true
 					}
 

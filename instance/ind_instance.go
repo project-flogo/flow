@@ -9,6 +9,7 @@ import (
 
 	"github.com/project-flogo/flow/state"
 
+	coresupport "github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/trace"
@@ -30,7 +31,7 @@ type IndependentInstance struct {
 
 	flowModel   *model.FlowModel
 	patch       *flowsupport.Patch
-	interceptor *flowsupport.Interceptor
+	interceptor *coresupport.Interceptor
 
 	subflowCtr int
 	subflows   map[int]*Instance
@@ -49,6 +50,7 @@ const (
 	spanId         = "SpanId"
 	appName        = "AppName"
 	appVersion     = "AppVersion"
+	debugMode      = "DebugMode"
 )
 
 // New creates a new Flow Instance from the specified Flow
@@ -165,6 +167,9 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	_ = toStart.SetValue(flowCtxPrefix+flowId, toStart.ID())
 	_ = toStart.SetValue(flowCtxPrefix+appName, flowsupport.GetAppName())
 	_ = toStart.SetValue(flowCtxPrefix+appVersion, flowsupport.GetAppVerison())
+	if inst.interceptor != nil {
+		_ = toStart.SetValue(debugMode, true)
+	}
 
 	// If tracing is enabled, inject traceId and spanId in flow context
 	if trace.Enabled() {
@@ -251,7 +256,7 @@ func (inst *IndependentInstance) ApplyPatch(patch *flowsupport.Patch) {
 	}
 }
 
-func (inst *IndependentInstance) ApplyInterceptor(interceptor *flowsupport.Interceptor) {
+func (inst *IndependentInstance) ApplyInterceptor(interceptor *coresupport.Interceptor) {
 	if inst.interceptor == nil {
 		inst.interceptor = interceptor
 		inst.interceptor.Init()
@@ -262,7 +267,7 @@ func (inst *IndependentInstance) HasInterceptor() bool {
 	return inst.interceptor != nil
 }
 
-func (inst *IndependentInstance) GetInterceptor() *flowsupport.Interceptor {
+func (inst *IndependentInstance) GetInterceptor() *coresupport.Interceptor {
 	return inst.interceptor
 }
 
@@ -464,6 +469,9 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 				// Reset error if any
 				host.returnError = nil
 				//Sub flow done
+				subFlowCoverage := inst.interceptor.GetSubFlowCoverageEntry(containerInst.ID())
+				subFlowCoverage.Outputs = containerInst.returnData
+				inst.interceptor.AddToSubFlowCoverageMap(containerInst.ID(), subFlowCoverage)
 				containerInst.master.GetChanges().SubflowDone(containerInst)
 				inst.scheduleEval(host)
 			}
@@ -679,7 +687,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 		errorObj = taskInst.getErrorObject(err)
 	}
 
-	var coverage flowsupport.ActivityCoverage
+	var coverage coresupport.ActivityCoverage
 	var outputs interface{} = nil
 	if inst.GetInterceptor().CollectIO {
 		outputs = taskInst.outputs
@@ -690,11 +698,10 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 
 		if taskInst.outputs == nil {
 			if taskInst.flowInst.returnData != nil {
-
 				outputs = taskInst.flowInst.returnData
 			}
 		}
-		coverage = flowsupport.ActivityCoverage{
+		coverage = coresupport.ActivityCoverage{
 			ActivityName: taskInst.taskID,
 			LinkFrom:     inst.getLinks(taskInst.GetFromLinkInstances()),
 			LinkTo:       inst.getLinks(taskInst.GetToLinkInstances()),
@@ -703,9 +710,10 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 			Error:        errorObj,
 			FlowName:     taskInst.flowInst.Name(),
 			IsMainFlow:   !taskInst.flowInst.isHandlingError,
+			FlowId:       taskInst.flowInst.ID(),
 		}
 	} else {
-		coverage = flowsupport.ActivityCoverage{
+		coverage = coresupport.ActivityCoverage{
 			ActivityName: taskInst.taskID,
 			FlowName:     taskInst.flowInst.Name(),
 			IsMainFlow:   !inst.isHandlingError,
@@ -715,18 +723,26 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 	inst.interceptor.AddToActivityCoverage(coverage)
 }
 
-func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivity, hostFlowName string) {
+func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivity, hostFlowName string, hostInstanceId string, instanceId string, inputs map[string]interface{}, isLoop bool, index string) {
 
 	if !inst.HasInterceptor() {
 		return
 	}
 
-	coverage := flowsupport.SubFlowCoverage{
+	coverage := coresupport.SubFlowCoverage{
 		HostFlow:        hostFlowName,
 		SubFlowActivity: subFlowActivity,
 		SubFlowName:     subFlowName,
+		SubFlowID:       instanceId,
+		Inputs:          inputs,
+		HostFlowID:      hostInstanceId,
+		IsLoop:          isLoop,
+		Index:           index,
 	}
+
 	inst.interceptor.AddToSubFlowCoverage(coverage)
+	inst.interceptor.AddToSubFlowCoverageMap(instanceId, &coverage)
+
 }
 
 func (inst *IndependentInstance) getLinks(instances []model.LinkInstance) []string {

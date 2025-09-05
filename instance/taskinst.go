@@ -5,13 +5,12 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/project-flogo/flow/support"
-
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/data"
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/engine"
+	"github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/definition"
@@ -354,7 +353,6 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 			if err != nil {
 				return false, err
 			}
-
 		}
 
 	}

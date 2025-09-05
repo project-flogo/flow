@@ -233,6 +233,10 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 	return nil
 }
 
+func (inst *Instance) Delete(name string) {
+
+}
+
 ////////////
 
 // UpdateAttrs updates the attributes of the Flow Instance

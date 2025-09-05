@@ -3,6 +3,7 @@ package simple
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/project-flogo/core/activity"
@@ -122,6 +123,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		iteration["key"] = itx.Key()
 		iteration["value"] = itx.Value()
 		iteration["index"] = itx.Index()
+		ctx.SetWorkingData("iterateIndex", strconv.Itoa(itx.Index()))
 
 		done, err := evalActivity(ctx)
 		if err != nil {
