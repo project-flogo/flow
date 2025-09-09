@@ -1,6 +1,7 @@
 package simple
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/project-flogo/core/activity"
@@ -113,6 +114,8 @@ func (dw *DoWhileTaskBehavior) updateDoWhileIndex(ctx model.TaskContext) {
 		dowhileObj.(*DoWhile).Index++
 	}
 	ctx.SetWorkingData("iteration", dowhileObj)
+	ctx.SetWorkingData("iterateIndex", strconv.Itoa(dowhileObj.(*DoWhile).Index))
+
 }
 
 func initIndex(ctx model.TaskContext) {
@@ -121,4 +124,6 @@ func initIndex(ctx model.TaskContext) {
 		dowhileObj = &DoWhile{Index: 0}
 	}
 	ctx.SetWorkingData("iteration", dowhileObj)
+	ctx.SetWorkingData("iterateIndex", strconv.Itoa(dowhileObj.(*DoWhile).Index))
+
 }

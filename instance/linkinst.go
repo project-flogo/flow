@@ -1,9 +1,9 @@
 package instance
 
 import (
+	"github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/flow/definition"
 	"github.com/project-flogo/flow/model"
-	"github.com/project-flogo/flow/support"
 )
 
 // LinkInst represents data associated with an instance of a Link
@@ -69,6 +69,7 @@ func (li *LinkInst) addLinkToCoverage() {
 		TransitionTo:         li.Link().ToTask().ID(),
 		FlowName:             li.flowInst.Name(),
 		IsMainFlow:           !li.flowInst.isHandlingError,
+		FlowId:               li.flowInst.ID(),
 	}
 	li.flowInst.master.interceptor.AddToLinkCoverage(coverage)
 }
