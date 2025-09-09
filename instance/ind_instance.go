@@ -469,9 +469,12 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 				// Reset error if any
 				host.returnError = nil
 				//Sub flow done
-				subFlowCoverage := inst.interceptor.GetSubFlowCoverageEntry(containerInst.ID())
-				subFlowCoverage.Outputs = containerInst.returnData
-				inst.interceptor.AddToSubFlowCoverageMap(containerInst.ID(), subFlowCoverage)
+				if inst.HasInterceptor() {
+					subFlowCoverage := inst.interceptor.GetSubFlowCoverageEntry(containerInst.ID())
+					subFlowCoverage.Outputs = containerInst.returnData
+					inst.interceptor.AddToSubFlowCoverageMap(containerInst.ID(), subFlowCoverage)
+				}
+
 				containerInst.master.GetChanges().SubflowDone(containerInst)
 				inst.scheduleEval(host)
 			}
