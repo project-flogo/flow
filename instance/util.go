@@ -388,7 +388,12 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 
 	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
 
-	taskInst.flowInst.master.addSubFlowToCoverage(def.Name(), taskInst.Name(), taskInst.flowInst.Name())
+	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
+	index := ""
+	if isLoop {
+		index = attr.(string)
+	}
+	taskInst.flowInst.master.addSubFlowToCoverage(def.Name(), taskInst.Name(), taskInst.flowInst.Name(), taskInst.flowInst.ID(), flowInst.ID(), inputs, isLoop, index)
 	err = taskInst.flowInst.master.startEmbedded(flowInst, inputs)
 	if err != nil {
 		return err
@@ -397,7 +402,7 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 	return nil
 }
 
-func StartSubFlowWithContext(duration string, ctx activity.Context, flowURI string, inputs map[string]interface{}) error {
+func StartSubFlowWithContext(duration int64, ctx activity.Context, flowURI string, inputs map[string]interface{}) error {
 
 	taskInst, ok := ctx.(*TaskInst)
 
@@ -405,7 +410,7 @@ func StartSubFlowWithContext(duration string, ctx activity.Context, flowURI stri
 		return errors.New("unable to create subFlow using this context")
 	}
 
-	def, _, err := support.GetDefinition(flowURI)
+	def, _, err := flowSupport.GetDefinition(flowURI)
 	if err != nil {
 		return err
 	}
@@ -413,7 +418,7 @@ func StartSubFlowWithContext(duration string, ctx activity.Context, flowURI stri
 		return errors.New("unable to resolve subflow: " + flowURI)
 	}
 
-	timeout, err := time.ParseDuration(duration)
+	timeout := time.Duration(duration) * time.Second
 
 	timeoutContext, cancelfunc := context.WithTimeout(context.Background(), timeout)
 	//defer cancelFunc()

@@ -162,7 +162,7 @@ func (ti *TaskInst) GetTracingContext() trace.TracingContext {
 	return ti.traceContext
 }
 
-func (ti *TaskInst) GetTimeOutContext() context.Context {
+func (ti *TaskInst) GoContext() context.Context {
 	return ti.flowInst.timeoutContext
 }
 
@@ -657,7 +657,7 @@ type LegacyCtx struct {
 	task *TaskInst
 }
 
-func (l *LegacyCtx) GetTimeOutContext() context.Context {
+func (l *LegacyCtx) GoContext() context.Context {
 	return nil
 }
 

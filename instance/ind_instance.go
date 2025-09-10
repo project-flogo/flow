@@ -451,7 +451,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	select {
 	case <-ctx.Done():
 		cancelFunc()
-		inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out  ")))
+		inst.handleTaskCancelled(behavior, taskInst, nil)
 	default:
 	}
 
@@ -730,6 +730,16 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
 
+	message := fmt.Sprintf("Flow execution timed out during/post execution of activity %s", taskInst.Task().Name())
+
+	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
+	index := ""
+	if isLoop {
+		index = attr.(string)
+		message = fmt.Sprintf("Flow execution timed out during/post execution of activity %s running in loop at index %s", taskInst.Task().Name(), index)
+	}
+
+	err = activity.NewActivityError(message, "SUBFLOW-001", activity.TimeoutError, errors.New("Flow execution timed out "))
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 	}
@@ -738,9 +748,9 @@ func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBeha
 
 	inst.addActivityToCoverage(taskInst, err)
 	containerInst := taskInst.flowInst
-	containerInst.SetStatus(model.FlowStatusCancelled)
+	//containerInst.SetStatus(model.FlowStatusCancelled)
 	taskInst.appendErrorData(err)
-	inst.HandleGlobalError(containerInst, err)
+	inst.HandleCancelError(containerInst, err)
 
 	return
 
@@ -800,6 +810,35 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 			inst.returnError = err
 		}
 	}
+}
+
+func (inst *IndependentInstance) HandleCancelError(containerInst *Instance, err error) {
+
+	// Print error message if no error handler
+	inst.logger.Error(err)
+	containerInst.SetStatus(model.FlowStatusCancelled)
+
+	if containerInst != inst.Instance {
+
+		// Complete SubflowCreated trace
+		if containerInst.tracingCtx != nil {
+			_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
+		}
+
+		if containerInst != nil && containerInst.master != nil {
+			containerInst.master.RecordState(time.Now().UTC())
+		}
+		// spawned from task instance
+		host, ok := containerInst.host.(*TaskInst)
+
+		if ok {
+			host.returnError = err
+			inst.scheduleEval(host)
+		}
+	} else {
+		inst.returnError = err
+	}
+
 }
 
 func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
