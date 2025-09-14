@@ -451,7 +451,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	select {
 	case <-ctx.Done():
 		cancelFunc()
-		inst.handleTaskCancelled(behavior, taskInst, nil)
+		inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 		return
 	default:
 	}
@@ -486,7 +486,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		select {
 		case <-ctx.Done():
 			cancelFunc()
-			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out during PostEval", "SUBFLOW-001", activity.TimeoutError, ctx.Err()))
+			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 			return
 		case res := <-resultChan:
 			evalResult = res.result
@@ -527,7 +527,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		select {
 		case <-ctx.Done():
 			cancelFunc()
-			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out during Eval", "SUBFLOW-001", activity.TimeoutError, ctx.Err()))
+			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 			return
 		case res := <-resultChan:
 			evalResult = res.result
@@ -540,7 +540,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		select {
 		case <-ctx.Done():
 			cancelFunc()
-			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, err))
+			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 			return
 		default:
 		}
@@ -552,7 +552,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	select {
 	case <-ctx.Done():
 		cancelFunc()
-		inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out after evaluation", "SUBFLOW-001", activity.TimeoutError, ctx.Err()))
+		inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 		return
 	default:
 	}
@@ -781,18 +781,27 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 }
 
-func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
+func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error, ctx context.Context) {
 
-	message := fmt.Sprintf("Flow execution timed out during/post execution of activity %s", taskInst.Task().Name())
+	message := fmt.Sprintf("Flow execution timed out during execution of activity %s", taskInst.Task().Name())
 
 	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
 	index := ""
 	if isLoop {
 		index = attr.(string)
-		message = fmt.Sprintf("Flow execution timed out during/post execution of activity %s running in loop at index %s", taskInst.Task().Name(), index)
+		message = fmt.Sprintf("Flow execution timed out during execution of activity %s running in loop at index %s", taskInst.Task().Name(), index)
+	}
+	var val string
+	if val := ctx.Value("timeoutSeconds"); val != nil {
+		val = val.(string)
 	}
 
-	err = activity.NewActivityError(message, "SUBFLOW-001", activity.TimeoutError, errors.New("Flow execution timed out "))
+	data := map[string]interface{}{
+		"timeoutInFlow":     taskInst.flowInst.flowDef.Name(),
+		"timeoutInActivity": taskInst.task.Name(),
+		"timeoutInSeconds":  val,
+	}
+	err = activity.NewActivityError(message, "SUBFLOW-001", activity.TimeoutError, data)
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
 	}

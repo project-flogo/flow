@@ -420,10 +420,11 @@ func StartSubFlowWithContext(duration int64, ctx activity.Context, flowURI strin
 
 	timeout := time.Duration(duration) * time.Second
 
-	timeoutContext, cancelfunc := context.WithTimeout(context.Background(), timeout)
+	timeoutContext, cancelFunc := context.WithTimeout(context.Background(), timeout)
+	timeoutContext = context.WithValue(timeoutContext, "timeoutSeconds", strconv.FormatInt(duration, 10))
 	//defer cancelFunc()
 	//todo make sure that there is only one subFlow per taskinst
-	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def, timeoutContext, cancelfunc)
+	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def, timeoutContext, cancelFunc)
 
 	ctx.Logger().Debugf("starting embedded subflow `%s`", flowInst.Name())
 
