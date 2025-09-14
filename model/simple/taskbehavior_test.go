@@ -1,6 +1,7 @@
 package simple
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
 func init() {
 	_ = activity.LegacyRegister("log", NewLogActivity())
 }
@@ -49,14 +51,14 @@ func TestSortTaskEntries(t *testing.T) {
 	assert.Equal(t, taskEntries2[4], taskEntry7)
 }
 
-func TestTaskBehaviour(t *testing.T){
+func TestTaskBehaviour(t *testing.T) {
 
 	testContext := &TestTaskContext{}
 
 	taskBehaviour := &TaskBehavior{}
 
-	assert.NotNil(t,taskBehaviour.Enter(testContext))
-	result , err := taskBehaviour.Eval(testContext)
+	assert.NotNil(t, taskBehaviour.Enter(testContext))
+	result, err := taskBehaviour.Eval(testContext)
 	assert.Nil(t, err)
 	assert.Equal(t, model.EvalDone, result)
 	os.Setenv("FLOGO_TASK_PROPAGATE_SKIP", "true")
@@ -69,66 +71,72 @@ func TestTaskBehaviour(t *testing.T){
 type TestTaskContext struct {
 	mock.Mock
 	status model.TaskStatus
-	data map[string]interface{}
+	data   map[string]interface{}
 }
-func (t *TestTaskContext) Status() model.TaskStatus{
+
+func (t *TestTaskContext) Status() model.TaskStatus {
 	return t.status
 }
 
 // SetStatus sets the state of the Task instance
-func (t *TestTaskContext) SetStatus(status model.TaskStatus){
+func (t *TestTaskContext) SetStatus(status model.TaskStatus) {
 	t.status = status
 }
 
 // Task returns the Task associated with this context
-func (t *TestTaskContext) Task() *definition.Task{
+func (t *TestTaskContext) Task() *definition.Task {
 	return getDef().Tasks()[0]
 }
 
 // GetFromLinkInstances returns the instances of predecessor Links of the current task.
-func (t *TestTaskContext) GetFromLinkInstances() []model.LinkInstance{
+func (t *TestTaskContext) GetFromLinkInstances() []model.LinkInstance {
 	return nil
 }
 
 // GetToLinkInstances returns the instances of successor Links of the current task.
-func (t *TestTaskContext) GetToLinkInstances() []model.LinkInstance{
+func (t *TestTaskContext) GetToLinkInstances() []model.LinkInstance {
 	return nil
 }
 
 // EvalLink evaluates the specified link
-func (t *TestTaskContext) EvalLink(link *definition.Link) (bool, error){
+func (t *TestTaskContext) EvalLink(link *definition.Link) (bool, error) {
 	return true, nil
 }
 
 // EvalActivity evaluates the Activity associated with the Task
-func (t *TestTaskContext) EvalActivity() (done bool, err error){
+func (t *TestTaskContext) EvalActivity() (done bool, err error) {
 	return true, nil
 }
 
 // PostActivity does post evaluation of the Activity associated with the Task
-func (t *TestTaskContext) PostEvalActivity() (done bool, err error){
+func (t *TestTaskContext) PostEvalActivity() (done bool, err error) {
 	return true, nil
 }
 
-func (t *TestTaskContext) GetSetting(name string) (value interface{}, exists bool){
+func (t *TestTaskContext) GetSetting(name string) (value interface{}, exists bool) {
 	return "test", true
 }
 
-func (t *TestTaskContext) SetWorkingData(key string, value interface{}){
+func (t *TestTaskContext) SetWorkingData(key string, value interface{}) {
 
 }
 
-func (t *TestTaskContext) GetWorkingData(key string) (interface{}, bool){
+func (t *TestTaskContext) GetWorkingData(key string) (interface{}, bool) {
 	_, ok := t.data[key]
 	if !ok {
 		return nil, false
 	}
-	return  "test", true
+	return "test", true
 }
 
-func (t *TestTaskContext) FlowLogger() log.Logger{
+func (t *TestTaskContext) GetGoContext() context.Context {
+	return nil
+}
+
+func (t *TestTaskContext) FlowLogger() log.Logger {
 	return log.RootLogger()
 }
+
 const defTestJSON = `
 {
 	"id":"",
@@ -172,6 +180,7 @@ func getDef() *definition.Definition {
 	def, _ := definition.NewDefinition(defRep)
 	return def
 }
+
 type LogActivity struct {
 	metadata *activity.Metadata
 }

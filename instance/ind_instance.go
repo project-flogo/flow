@@ -105,7 +105,7 @@ func (inst *IndependentInstance) newEmbeddedInstance(taskInst *TaskInst, flowURI
 	embeddedInst.linkInsts = make(map[int]*LinkInst)
 	embeddedInst.flowURI = flowURI
 	embeddedInst.logger = inst.logger
-	embeddedInst.timeoutContext = ctx
+	embeddedInst.goContext = ctx
 	embeddedInst.cancelFunc = cancelFunc
 
 	if trace.Enabled() {
@@ -133,7 +133,7 @@ func (inst *IndependentInstance) ExecutionTime() time.Duration {
 }
 
 func (inst *IndependentInstance) GetTimeoutContext() context.Context {
-	return inst.timeoutContext
+	return inst.goContext
 }
 
 func (inst *IndependentInstance) GetFlowState(inputs map[string]interface{}) *state.FlowState {
@@ -322,8 +322,8 @@ func (inst *IndependentInstance) DoStep() bool {
 			// track the fact that the work item was removed from the queue
 			inst.changeTracker.WorkItemRemoved(workItem)
 
-			if workItem.taskInst.flowInst.timeoutContext != nil {
-				inst.execTaskWithContext(workItem.taskInst.flowInst.timeoutContext, workItem.taskInst.flowInst.cancelFunc, behavior, workItem.taskInst)
+			if workItem.taskInst.flowInst.goContext != nil {
+				inst.execTaskWithContext(workItem.taskInst.flowInst.goContext, workItem.taskInst.flowInst.cancelFunc, behavior, workItem.taskInst)
 			} else {
 				inst.execTask(behavior, workItem.taskInst)
 			}
@@ -452,6 +452,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	case <-ctx.Done():
 		cancelFunc()
 		inst.handleTaskCancelled(behavior, taskInst, nil)
+		return
 	default:
 	}
 
@@ -459,31 +460,83 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	var evalResult model.EvalResult
 
 	if taskInst.status == model.TaskStatusWaiting {
+		// Run PostEval in goroutine with context
+		resultChan := make(chan struct {
+			result model.EvalResult
+			err    error
+		}, 1)
+
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					resultChan <- struct {
+						result model.EvalResult
+						err    error
+					}{model.EvalFail, fmt.Errorf("panic in PostEval: %v", r)}
+				}
+			}()
+
+			result, evalErr := behavior.PostEval(taskInst)
+			resultChan <- struct {
+				result model.EvalResult
+				err    error
+			}{result, evalErr}
+		}()
+
 		select {
 		case <-ctx.Done():
 			cancelFunc()
-			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out  ")))
+			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out during PostEval", "SUBFLOW-001", activity.TimeoutError, ctx.Err()))
 			return
-		default:
-			evalResult, err = behavior.PostEval(taskInst)
-			break
+		case res := <-resultChan:
+			evalResult = res.result
+			err = res.err
 		}
 
 	} else if taskInst.status == model.TaskStatusSkipped {
 		return
 	} else {
+		// Run Eval in goroutine with context
+		resultChan := make(chan struct {
+			result model.EvalResult
+			err    error
+		}, 1)
+
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					resultChan <- struct {
+						result model.EvalResult
+						err    error
+					}{model.EvalFail, fmt.Errorf("panic in Eval: %v", r)}
+				}
+			}()
+
+			result, evalErr := behavior.Eval(taskInst)
+			if evalErr != nil {
+				inst.addActivityToCoverage(taskInst, evalErr)
+			} else {
+				inst.addActivityToCoverage(taskInst, nil)
+			}
+			resultChan <- struct {
+				result model.EvalResult
+				err    error
+			}{result, evalErr}
+		}()
+
 		select {
 		case <-ctx.Done():
 			cancelFunc()
-			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out ")))
+			inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out during Eval", "SUBFLOW-001", activity.TimeoutError, ctx.Err()))
 			return
-		default:
-			evalResult, err = behavior.Eval(taskInst)
+		case res := <-resultChan:
+			evalResult = res.result
+			err = res.err
 		}
 	}
 
 	if err != nil {
-		//taskInst.returnError = err
+		// Check for cancellation after error
 		select {
 		case <-ctx.Done():
 			cancelFunc()
@@ -499,7 +552,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	select {
 	case <-ctx.Done():
 		cancelFunc()
-		inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out", "SUBFLOW-001", activity.TimeoutError, errors.New("Flow timed out  ")))
+		inst.handleTaskCancelled(behavior, taskInst, activity.NewActivityError("Flow timed out after evaluation", "SUBFLOW-001", activity.TimeoutError, ctx.Err()))
 		return
 	default:
 	}
@@ -699,12 +752,12 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 			containerInst.SetStatus(model.FlowStatusFailed)
 
 			if containerInst != inst.Instance {
+
 				// Complete SubflowCreated trace
 				if containerInst.tracingCtx != nil {
 					_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, err)
 				}
 
-				//Finished Subflow with error
 				if containerInst != nil && containerInst.master != nil {
 					containerInst.master.RecordState(time.Now().UTC())
 				}
@@ -746,7 +799,6 @@ func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBeha
 	// Set task status to failed for subflow activity
 	taskInst.SetStatus(model.TaskStatusCancelled)
 
-	inst.addActivityToCoverage(taskInst, err)
 	containerInst := taskInst.flowInst
 	//containerInst.SetStatus(model.FlowStatusCancelled)
 	taskInst.appendErrorData(err)
@@ -927,7 +979,6 @@ func (inst *IndependentInstance) addSubFlowToCoverage(subFlowName, subFlowActivi
 
 	inst.interceptor.AddToSubFlowCoverage(coverage)
 	inst.interceptor.AddToSubFlowCoverageMap(instanceId, &coverage)
-
 }
 
 func (inst *IndependentInstance) getLinks(instances []model.LinkInstance) []string {

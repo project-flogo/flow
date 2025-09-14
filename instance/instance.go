@@ -37,10 +37,10 @@ type Instance struct {
 
 	resultHandler action.ResultHandler
 
-	logger         log.Logger
-	tracingCtx     trace.TracingContext
-	timeoutContext context.Context
-	cancelFunc     context.CancelFunc
+	logger     log.Logger
+	tracingCtx trace.TracingContext
+	goContext  context.Context
+	cancelFunc context.CancelFunc
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/definition"
 )
@@ -57,6 +58,8 @@ type TaskContext interface {
 	GetWorkingData(key string) (interface{}, bool)
 
 	FlowLogger() log.Logger
+
+	GetGoContext() context.Context
 }
 
 // LinkInstance is the instance of a link

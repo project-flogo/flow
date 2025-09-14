@@ -378,8 +378,8 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 
 	var cancelctx context.Context = nil
 	var cancelFunc context.CancelFunc = nil
-	if taskInst.flowInst.timeoutContext != nil {
-		cancelctx = taskInst.flowInst.timeoutContext
+	if taskInst.flowInst.goContext != nil {
+		cancelctx = taskInst.flowInst.goContext
 		cancelFunc = taskInst.flowInst.cancelFunc
 	}
 	//defer cancelFunc()

@@ -163,7 +163,7 @@ func (ti *TaskInst) GetTracingContext() trace.TracingContext {
 }
 
 func (ti *TaskInst) GoContext() context.Context {
-	return ti.flowInst.timeoutContext
+	return ti.flowInst.goContext
 }
 
 func (ti *TaskInst) GetSharedTempData() map[string]interface{} {
@@ -222,6 +222,11 @@ func (ti *TaskInst) Task() *definition.Task {
 
 func (ti *TaskInst) FlowLogger() log.Logger {
 	return ti.flowInst.logger
+}
+
+func (ti *TaskInst) GetGoContext() context.Context {
+	return ti.flowInst.goContext
+
 }
 
 /////////////////////////////////////////
@@ -391,6 +396,15 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		// In the applyOutputInterceptor step the mock data will be applied to the activity
 		if !hasOutputInterceptor(ti) {
 			done, evalErr = actCfg.Activity.Eval(ctx)
+
+			if ctx.GoContext() != nil {
+				select {
+				case <-ctx.GoContext().Done():
+					return done, evalErr
+				default:
+				}
+
+			}
 
 			if evalErr != nil {
 				e, ok := evalErr.(*activity.Error)
