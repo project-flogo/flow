@@ -410,6 +410,7 @@ func StartSubFlowWithContext(duration int64, ctx activity.Context, flowURI strin
 		return errors.New("unable to create subFlow using this context")
 	}
 
+	taskInst.logger.Debugf("starting subflow `%s` with timeout %v ", flowURI, duration)
 	def, _, err := flowSupport.GetDefinition(flowURI)
 	if err != nil {
 		return err
@@ -422,6 +423,8 @@ func StartSubFlowWithContext(duration int64, ctx activity.Context, flowURI strin
 
 	timeoutContext, cancelFunc := context.WithTimeout(context.Background(), timeout)
 	timeoutContext = context.WithValue(timeoutContext, "timeoutSeconds", strconv.FormatInt(duration, 10))
+	taskInst.logger.Debugf("context %v ", timeoutContext)
+
 	//defer cancelFunc()
 	//todo make sure that there is only one subFlow per taskinst
 	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def, timeoutContext, cancelFunc)

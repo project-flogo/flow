@@ -446,11 +446,12 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 			// else what should we do?
 		}
 	}()
-
+	inst.logger.Debugf("executing task '%s' in context %v", taskInst.task.ID(), ctx)
 	// Check for cancellation before task evaluation
 	select {
 	case <-ctx.Done():
 		cancelFunc()
+		inst.logger.Debugf(" context timeout before task '%s' evaluation ", taskInst.task.ID())
 		inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 		return
 	default:
@@ -477,6 +478,11 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 			}()
 
 			result, evalErr := behavior.PostEval(taskInst)
+			if evalErr != nil {
+				inst.addActivityToCoverage(taskInst, evalErr)
+			} else {
+				inst.addActivityToCoverage(taskInst, nil)
+			}
 			resultChan <- struct {
 				result model.EvalResult
 				err    error
@@ -486,6 +492,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		select {
 		case <-ctx.Done():
 			cancelFunc()
+			inst.logger.Debugf(" context timeout during post evaluation of task '%s' ", taskInst.task.ID())
 			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 			return
 		case res := <-resultChan:
@@ -527,6 +534,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		select {
 		case <-ctx.Done():
 			cancelFunc()
+			inst.logger.Debugf(" context timeout during eval of task '%s' ", taskInst.task.ID())
 			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 			return
 		case res := <-resultChan:
@@ -540,6 +548,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		select {
 		case <-ctx.Done():
 			cancelFunc()
+			inst.logger.Debugf(" context timeout after eval error of task '%s' ", taskInst.task.ID())
 			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 			return
 		default:
@@ -552,6 +561,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	select {
 	case <-ctx.Done():
 		cancelFunc()
+		inst.logger.Debugf(" context timeout after eval of task '%s' ", taskInst.task.ID())
 		inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
 		return
 	default:
@@ -783,17 +793,22 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error, ctx context.Context) {
 
+	inst.logger.Debugf("handleTaskCancelled for task '%s' ", taskInst.Task().Name())
 	message := fmt.Sprintf("Flow execution timed out during execution of activity %s", taskInst.Task().Name())
 
 	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
 	index := ""
 	if isLoop {
+
 		index = attr.(string)
+		inst.logger.Debugf("task %s was running in loop at index '%s' ", taskInst.Task().Name(), index)
 		message = fmt.Sprintf("Flow execution timed out during execution of activity %s running in loop at index %s", taskInst.Task().Name(), index)
 	}
 	var val string
 	if val := ctx.Value("timeoutSeconds"); val != nil {
 		val = val.(string)
+		inst.logger.Debugf("task timeout value %s ", val)
+
 	}
 
 	data := map[string]interface{}{
@@ -807,6 +822,7 @@ func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBeha
 	}
 	// Set task status to failed for subflow activity
 	taskInst.SetStatus(model.TaskStatusCancelled)
+	inst.logger.Debugf("task set to cancelled for task '%s' ", taskInst.Task().Name())
 
 	containerInst := taskInst.flowInst
 	//containerInst.SetStatus(model.FlowStatusCancelled)
@@ -878,6 +894,7 @@ func (inst *IndependentInstance) HandleCancelError(containerInst *Instance, err 
 	// Print error message if no error handler
 	inst.logger.Error(err)
 	containerInst.SetStatus(model.FlowStatusCancelled)
+	inst.logger.Debugf("HandleCancelError for task and flow set to cancelled '%s' ", containerInst.Name())
 
 	if containerInst != inst.Instance {
 
