@@ -804,9 +804,9 @@ func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBeha
 		inst.logger.Debugf("task %s was running in loop at index '%s' ", taskInst.Task().Name(), index)
 		message = fmt.Sprintf("Flow execution timed out during execution of activity %s running in loop at index %s", taskInst.Task().Name(), index)
 	}
-	var val string
+	var timeoutValue string
 	if val := ctx.Value("timeoutSeconds"); val != nil {
-		val = val.(string)
+		timeoutValue = val.(string)
 		inst.logger.Debugf("task timeout value %s ", val)
 
 	}
@@ -814,7 +814,7 @@ func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBeha
 	data := map[string]interface{}{
 		"timeoutInFlow":     taskInst.flowInst.flowDef.Name(),
 		"timeoutInActivity": taskInst.task.Name(),
-		"timeoutInSeconds":  val,
+		"timeoutInSeconds":  timeoutValue,
 	}
 	err = activity.NewActivityError(message, "SUBFLOW-001", activity.TimeoutError, data)
 	if taskInst.traceContext != nil {
