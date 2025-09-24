@@ -419,7 +419,7 @@ func StartSubFlowWithContext(duration int64, ctx activity.Context, flowURI strin
 		return errors.New("unable to resolve subflow: " + flowURI)
 	}
 
-	timeout := time.Duration(duration) * time.Second
+	timeout := time.Duration(duration) * time.Millisecond
 
 	timeoutContext, cancelFunc := context.WithTimeout(context.Background(), timeout)
 	timeoutContext = context.WithValue(timeoutContext, "timeoutSeconds", strconv.FormatInt(duration, 10))

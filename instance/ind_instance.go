@@ -812,9 +812,9 @@ func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBeha
 	}
 
 	data := map[string]interface{}{
-		"timeoutInFlow":     taskInst.flowInst.flowDef.Name(),
-		"timeoutInActivity": taskInst.task.Name(),
-		"timeoutInSeconds":  timeoutValue,
+		"timeoutInFlow":         taskInst.flowInst.flowDef.Name(),
+		"timeoutInActivity":     taskInst.task.Name(),
+		"timeoutInMilliSeconds": timeoutValue,
 	}
 	err = activity.NewActivityError(message, "SUBFLOW-001", activity.TimeoutError, data)
 	if taskInst.traceContext != nil {
