@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/project-flogo/core/activity"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/project-flogo/core/activity"
 
 	"github.com/project-flogo/flow/state"
 
@@ -895,6 +896,8 @@ func (inst *IndependentInstance) HandleCancelError(containerInst *Instance, err 
 	inst.logger.Error(err)
 	containerInst.SetStatus(model.FlowStatusCancelled)
 	inst.logger.Debugf("HandleCancelError for task and flow set to cancelled '%s' ", containerInst.Name())
+
+	inst.logger.Infof("Running flow [%s] cancelled due to timeout", containerInst.flowDef.Name())
 
 	if containerInst != inst.Instance {
 
