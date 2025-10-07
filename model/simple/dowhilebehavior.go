@@ -39,12 +39,12 @@ func (dw *DoWhileTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Eva
 	if err != nil {
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
-		ctx.SetStatus(model.TaskStatusFailed)
+		//ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
 
 	if !done {
-		ctx.SetStatus(model.TaskStatusWaiting)
+		//ctx.SetStatus(model.TaskStatusWaiting)
 		return model.EvalWait, nil
 	}
 	defer dw.updateDoWhileIndex(ctx)
@@ -61,10 +61,10 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 	if err != nil {
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
-		ctx.SetStatus(model.TaskStatusFailed)
+		//ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
-	ctx.SetStatus(model.TaskStatusDone)
+	//ctx.SetStatus(model.TaskStatusDone)
 	defer dw.updateDoWhileIndex(ctx)
 	return dw.checkDoWhileCondition(ctx)
 }

@@ -129,7 +129,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 		if err != nil {
 			ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 			ctx.FlowLogger().Errorf("Error evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
-			ctx.SetStatus(model.TaskStatusFailed)
+			//ctx.SetStatus(model.TaskStatusFailed)
 			return model.EvalFail, err
 		}
 
@@ -140,7 +140,7 @@ func (tb *IteratorTaskBehavior) Eval(ctx model.TaskContext) (evalResult model.Ev
 			time.Sleep(time.Duration(delay) * time.Millisecond)
 		}
 		if !done {
-			ctx.SetStatus(model.TaskStatusWaiting)
+			//ctx.SetStatus(model.TaskStatusWaiting)
 			return model.EvalWait, nil
 		}
 		evalResult = model.EvalRepeat
@@ -160,10 +160,10 @@ func (tb *IteratorTaskBehavior) PostEval(ctx model.TaskContext) (evalResult mode
 	if err != nil {
 		ref := activity.GetRef(ctx.Task().ActivityConfig().Activity)
 		ctx.FlowLogger().Errorf("Error post evaluating activity '%s'[%s] - %s", ctx.Task().ID(), ref, err.Error())
-		ctx.SetStatus(model.TaskStatusFailed)
+		//ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
-	ctx.SetStatus(model.TaskStatusDone)
+	//ctx.SetStatus(model.TaskStatusDone)
 
 	itxAttr, _ := ctx.GetWorkingData("_iterator")
 	itx := itxAttr.(Iterator)
