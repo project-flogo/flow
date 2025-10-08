@@ -643,6 +643,9 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		flowDone = true
 		containerInst.SetStatus(model.FlowStatusCompleted)
 
+		if containerInst.cancelFunc != nil {
+			containerInst.cancelFunc()
+		}
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
 			// Complete subflow trace

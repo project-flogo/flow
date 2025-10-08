@@ -111,4 +111,3 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 
 	return a.detachedInvocation, err
 }
-git
