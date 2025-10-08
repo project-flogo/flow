@@ -103,7 +103,7 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 		ctx.Logger().Infof("Starting SubFlow '%s' in detached mode", a.flowURI)
 		err = instance.StartDetachedSubFlow(ctx, a.flowURI, input)
 	} else if a.timeout != 0 {
-		ctx.Logger().Infof("Starting SubFlow '%s' with timeout '%s'", a.flowURI, a.timeout)
+		ctx.Logger().Infof("Starting SubFlow '%s' with timeout '%v'", a.flowURI, a.timeout)
 		err = instance.StartSubFlowWithContext(a.timeout, ctx, a.flowURI, input)
 	} else {
 		err = instance.StartSubFlow(ctx, a.flowURI, input)
@@ -111,3 +111,4 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 
 	return a.detachedInvocation, err
 }
+git
