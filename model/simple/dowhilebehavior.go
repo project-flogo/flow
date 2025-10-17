@@ -64,7 +64,7 @@ func (dw *DoWhileTaskBehavior) PostEval(ctx model.TaskContext) (evalResult model
 		//ctx.SetStatus(model.TaskStatusFailed)
 		return model.EvalFail, err
 	}
-	//ctx.SetStatus(model.TaskStatusDone)
+	ctx.SetStatus(model.TaskStatusDone)
 	defer dw.updateDoWhileIndex(ctx)
 	return dw.checkDoWhileCondition(ctx)
 }
