@@ -266,7 +266,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		instLogger.Debug("Creating Flow Instance: ", instanceID)
 		instLogger.Debugf("Creating Flow Instance [%s] for event id [%s] ", instanceID, trigger.GetHandlerEventIdFromContext(ctx))
 
-		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun), instLogger)
+		inst, err = instance.NewIndependentInstance(instanceID, flowURI, flowDef, instance.NewStateInstanceRecorder(stateRecorder, stateRecordingMode, rerun), instLogger, ctx)
 		if err != nil {
 			return err
 		}

@@ -205,7 +205,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	instanceID := idGenerator.NextAsString()
 	logger.Debug("Creating Flow Instance: ", instanceID)
 
-	inst, err := instance.NewIndependentInstance(instanceID, "", flowDef, nil, logger)
+	inst, err := instance.NewIndependentInstance(instanceID, "", flowDef, nil, logger, ctx)
 
 	if err != nil {
 		return err

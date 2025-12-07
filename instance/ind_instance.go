@@ -57,10 +57,11 @@ const (
 )
 
 // New creates a new Flow Instance from the specified Flow
-func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, instRecorder *stateInstanceRecorder, logger log.Logger) (*IndependentInstance, error) {
+func NewIndependentInstance(instanceID string, flowURI string, flow *definition.Definition, instRecorder *stateInstanceRecorder, logger log.Logger, ctx context.Context) (*IndependentInstance, error) {
 	var err error
 	inst := &IndependentInstance{}
 	inst.Instance = &Instance{}
+	inst.Instance.goContext = ctx
 	inst.attrs = make(map[string]interface{})
 	inst.master = inst
 	inst.id = instanceID
@@ -323,7 +324,7 @@ func (inst *IndependentInstance) DoStep() bool {
 			// track the fact that the work item was removed from the queue
 			inst.changeTracker.WorkItemRemoved(workItem)
 
-			if workItem.taskInst.flowInst.goContext != nil {
+			if workItem.taskInst.flowInst.goContext != nil && workItem.taskInst.flowInst.goContext.Value("timeoutContext") == "true" {
 				inst.execTaskWithContext(workItem.taskInst.flowInst.goContext, workItem.taskInst.flowInst.cancelFunc, behavior, workItem.taskInst)
 			} else {
 				inst.execTask(behavior, workItem.taskInst)

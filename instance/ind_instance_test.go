@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/project-flogo/flow/definition"
 	"github.com/stretchr/testify/assert"
 )
+
 func init() {
 	_ = activity.LegacyRegister("log", NewLogActivity())
 }
@@ -63,11 +65,11 @@ func TestIndependentAction(t *testing.T) {
 	assert.NotNil(t, def)
 	//fmt.Println(def.ModelID())
 
-	ind , err := NewIndependentInstance("test","", def, nil,  log.RootLogger())
+	ind, err := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	assert.Nil(t, err)
 	assert.NotNil(t, ind)
 
-	assert.NotNil(t,ind.ID())
+	assert.NotNil(t, ind.ID())
 	assert.NotNil(t, ind.Snapshot())
 
 }

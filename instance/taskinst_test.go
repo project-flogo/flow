@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"context"
 	"testing"
 
 	"github.com/project-flogo/core/support/log"
@@ -11,7 +12,7 @@ import (
 func TestTaskInst(t *testing.T) {
 
 	def := getDef()
-	ind , _ := NewIndependentInstance("test","", def, nil, log.RootLogger())
+	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
 	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
 
@@ -26,10 +27,9 @@ func TestTaskInst(t *testing.T) {
 	//assert.True(t, done)
 	//assert.Nil(t, err)
 
-	assert.Nil(t,taskInst.FlowLogger())
+	assert.Nil(t, taskInst.FlowLogger())
 	assert.Nil(t, taskInst.GetTracingContext())
 	taskInst.SetStatus(model.TaskStatusDone)
 	assert.Equal(t, model.TaskStatusDone, taskInst.Status())
 	assert.Nil(t, taskInst.GetFromLinkInstances())
 }
-

@@ -1,19 +1,20 @@
 package instance
 
 import (
+	ctx "context"
 	"testing"
 
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 )
-
 
 func TestSimpleChange(t *testing.T) {
 	def := getDef()
 	//fmt.Println(def.ModelID())
 
-	ind , err := NewIndependentInstance("test","", def, nil, log.RootLogger())
+	ind, err := NewIndependentInstance("test", "", def, nil, log.RootLogger(), ctx.Background())
 	assert.Nil(t, err)
 	assert.NotNil(t, ind)
 
@@ -21,7 +22,7 @@ func TestSimpleChange(t *testing.T) {
 	chgTrack := NewInstanceChangeTracker("test", 0)
 	assert.NotNil(t, chgTrack)
 
-	assert.NotNil(t,chgTrack.ExtractStep(false))
+	assert.NotNil(t, chgTrack.ExtractStep(false))
 	chgTrack.SetStatus(1, model.FlowStatusActive)
 	chgTrack.AttrChange(1, "key", "value")
 	chgTrack.FlowCreated(ind)
