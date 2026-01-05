@@ -3,6 +3,7 @@ package definition
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/data/coerce"
@@ -15,6 +16,7 @@ import (
 	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
+	"github.com/sony/gobreaker/v2"
 )
 
 // Definition is the object that describes the definition of
@@ -282,6 +284,83 @@ func (l *LoopConfig) Delay() int {
 	return l.delay
 }
 
+type circuitBreakerConfig struct {
+	enabled     interface{}
+	name        interface{}
+	maxFailures interface{}
+	timeout     interface{}
+}
+
+type CircuitBreaker interface {
+	Enabled(scope data.Scope) (bool, error)
+	Name(scope data.Scope) (string, error)
+	MaxFailures(scope data.Scope) (uint32, error)
+	Timeout(scope data.Scope) (time.Duration, error)
+}
+
+func (cbc *circuitBreakerConfig) Enabled(scope data.Scope) (bool, error) {
+	if cbc.enabled != nil {
+		switch t := cbc.enabled.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return false, err
+			}
+			return coerce.ToBool(data)
+		default:
+			return coerce.ToBool(t)
+		}
+	}
+	return false, nil
+}
+
+func (cbc *circuitBreakerConfig) Name(scope data.Scope) (string, error) {
+	if cbc.name != nil {
+		switch t := cbc.name.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return "", err
+			}
+			return coerce.ToString(data)
+		default:
+			return coerce.ToString(t)
+		}
+	}
+	return "", nil
+}
+
+func (cbc *circuitBreakerConfig) MaxFailures(scope data.Scope) (uint32, error) {
+	if cbc.maxFailures != nil {
+		switch t := cbc.maxFailures.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return uint32(data.(int)), nil
+		default:
+			return t.(uint32), nil
+		}
+	}
+	return 0, nil
+}
+func (cbc *circuitBreakerConfig) Timeout(scope data.Scope) (time.Duration, error) {
+	if cbc.timeout != nil {
+		switch t := cbc.timeout.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return time.Duration(data.(int) * int(time.Second)), nil
+		default:
+			return time.Duration(t.(int) * int(time.Second)), nil
+		}
+	}
+	return 0, nil
+}
+
 type RetryOnError interface {
 	Count(scope data.Scope) (int, error)
 	Interval(scope data.Scope) (int, error)
@@ -365,6 +444,7 @@ type Task struct {
 
 	loopCfg          *LoopConfig
 	retryOnErrConfig RetryOnError
+	circuitBreaker   *gobreaker.CircuitBreaker[any]
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -400,6 +480,10 @@ func (task *Task) RetryOnErrConfig() RetryOnError {
 
 func (task *Task) LoopConfig() *LoopConfig {
 	return task.loopCfg
+}
+
+func (task *Task) CircuitBreaker() *gobreaker.CircuitBreaker[any] {
+	return task.circuitBreaker
 }
 
 // ToLinks returns the predecessor links of the task

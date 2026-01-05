@@ -387,8 +387,23 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	} else if taskInst.status == model.TaskStatusSkipped {
 		return
 	} else {
+		if taskInst.task.CircuitBreaker() != nil {
+			// Execute task in circuit breaker
+			result, cbErr := taskInst.task.CircuitBreaker().Execute(func() (any, error) {
+				return behavior.Eval(taskInst)
+			})
+			if result == nil {
+				// When circuit is open, nil result returned
+				evalResult = model.EvalWait
+			} else {
+				evalResult = result.(model.EvalResult)
+			}
+			err = cbErr
+		} else {
+			evalResult, err = behavior.Eval(taskInst)
+		}
 
-		evalResult, err = behavior.Eval(taskInst)
+
 	}
 
 	if err != nil {
