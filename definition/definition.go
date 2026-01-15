@@ -285,17 +285,23 @@ func (l *LoopConfig) Delay() int {
 }
 
 type circuitBreakerConfig struct {
-	enabled     interface{}
-	name        interface{}
-	maxFailures interface{}
-	timeout     interface{}
+	enabled                 interface{}
+	name                    interface{}
+	failureRate             interface{}
+	minimumRequests         interface{}
+	maxRequestsAllowed      interface{}
+	waitDurationInOpenState interface{}
+	rollingWindowDuration   interface{}
 }
 
 type CircuitBreaker interface {
 	Enabled(scope data.Scope) (bool, error)
 	Name(scope data.Scope) (string, error)
-	MaxFailures(scope data.Scope) (uint32, error)
-	Timeout(scope data.Scope) (time.Duration, error)
+	FailureRate(scope data.Scope) (float64, error)
+	MinimumRequests(scope data.Scope) (uint32, error)
+	MaxRequestsAllowed(scope data.Scope) (uint32, error)
+	WaitDurationInOpenState(scope data.Scope) (time.Duration, error)
+	RollingWindowDuration(scope data.Scope) (time.Duration, error)
 }
 
 func (cbc *circuitBreakerConfig) Enabled(scope data.Scope) (bool, error) {
@@ -313,7 +319,6 @@ func (cbc *circuitBreakerConfig) Enabled(scope data.Scope) (bool, error) {
 	}
 	return false, nil
 }
-
 func (cbc *circuitBreakerConfig) Name(scope data.Scope) (string, error) {
 	if cbc.name != nil {
 		switch t := cbc.name.(type) {
@@ -329,10 +334,39 @@ func (cbc *circuitBreakerConfig) Name(scope data.Scope) (string, error) {
 	}
 	return "", nil
 }
-
-func (cbc *circuitBreakerConfig) MaxFailures(scope data.Scope) (uint32, error) {
-	if cbc.maxFailures != nil {
-		switch t := cbc.maxFailures.(type) {
+func (cbc *circuitBreakerConfig) FailureRate(scope data.Scope) (float64, error) {
+	if cbc.failureRate != nil {
+		switch t := cbc.failureRate.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return float64(data.(int)), nil
+		default:
+			return t.(float64), nil
+		}
+	}
+	return 0, nil
+}
+func (cbc *circuitBreakerConfig) WaitDurationInOpenState(scope data.Scope) (time.Duration, error) {
+	if cbc.waitDurationInOpenState != nil {
+		switch t := cbc.waitDurationInOpenState.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return time.Duration(data.(int) * int(time.Millisecond)), nil
+		default:
+			return time.Duration(t.(int) * int(time.Millisecond)), nil
+		}
+	}
+	return 0, nil
+}
+func (cbc *circuitBreakerConfig) MinimumRequests(scope data.Scope) (uint32, error) {
+	if cbc.minimumRequests != nil {
+		switch t := cbc.minimumRequests.(type) {
 		case expression.Expr:
 			data, err := t.Eval(scope)
 			if err != nil {
@@ -345,17 +379,32 @@ func (cbc *circuitBreakerConfig) MaxFailures(scope data.Scope) (uint32, error) {
 	}
 	return 0, nil
 }
-func (cbc *circuitBreakerConfig) Timeout(scope data.Scope) (time.Duration, error) {
-	if cbc.timeout != nil {
-		switch t := cbc.timeout.(type) {
+func (cbc *circuitBreakerConfig) MaxRequestsAllowed(scope data.Scope) (uint32, error) {
+	if cbc.maxRequestsAllowed != nil {
+		switch t := cbc.maxRequestsAllowed.(type) {
 		case expression.Expr:
 			data, err := t.Eval(scope)
 			if err != nil {
 				return 0, err
 			}
-			return time.Duration(data.(int) * int(time.Second)), nil
+			return uint32(data.(int)), nil
 		default:
-			return time.Duration(t.(int) * int(time.Second)), nil
+			return t.(uint32), nil
+		}
+	}
+	return 0, nil
+}
+func (cbc *circuitBreakerConfig) RollingWindowDuration(scope data.Scope) (time.Duration, error) {
+	if cbc.rollingWindowDuration != nil {
+		switch t := cbc.rollingWindowDuration.(type) {
+		case expression.Expr:
+			data, err := t.Eval(scope)
+			if err != nil {
+				return 0, err
+			}
+			return time.Duration(data.(int) * int(time.Millisecond)), nil
+		default:
+			return time.Duration(t.(int) * int(time.Millisecond)), nil
 		}
 	}
 	return 0, nil

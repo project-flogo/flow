@@ -195,22 +195,40 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 			if cbSetting.Name == "" {
 				cbSetting.Name = task.Name() + "-" + def.Name()
 			}
-			maxFailureCount, err := circuitBreakerConfig.MaxFailures(nil)
+			failureRate, err := circuitBreakerConfig.FailureRate(nil)
 			if err != nil {
-				log.RootLogger().Errorf("Error getting circuit breaker max failure executions count: %s", err.Error())
+				log.RootLogger().Errorf("Error getting circuit breaker failure rate: %s", err.Error())
 				return nil, err
 			}
-			cbSetting.Timeout, err = circuitBreakerConfig.Timeout(nil)
+			minimumRequests, err := circuitBreakerConfig.MinimumRequests(nil)
 			if err != nil {
-				log.RootLogger().Errorf("Error getting circuit breaker timeout: %s", err.Error())
+				log.RootLogger().Errorf("Error getting circuit breaker minimum requests required for circuit breaker to trip: %s", err.Error())
 				return nil, err
 			}
+			cbSetting.MaxRequests, err = circuitBreakerConfig.MaxRequestsAllowed(nil)
+			if err != nil {
+				log.RootLogger().Errorf("Error getting circuit breaker maximum requests allowed in half-open state: %s", err.Error())
+				return nil, err
+			}
+			cbSetting.Timeout, err = circuitBreakerConfig.WaitDurationInOpenState(nil)
+			if err != nil {
+				log.RootLogger().Errorf("Error getting circuit breaker wait duration in open state: %s", err.Error())
+				return nil, err
+			}
+			cbSetting.BucketPeriod, err = circuitBreakerConfig.RollingWindowDuration(nil)
+			if err != nil {
+				log.RootLogger().Errorf("Error getting circuit breaker rolling window duration: %s", err.Error())
+				return nil, err
+			}
+
 			cbSetting.ReadyToTrip = func(counts gobreaker.Counts) bool {
-				return counts.ConsecutiveFailures >= maxFailureCount
+				failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
+				return counts.Requests >= minimumRequests && failureRatio*100 >= failureRate
 			}
 			cbSetting.OnStateChange = func(name string, from gobreaker.State, to gobreaker.State) {
 				log.RootLogger().Infof("Circuit breaker [%s] state changed: %s -> %s", name, from, to)
 			}
+
 			cbSetting.IsSuccessful = func(err error) bool {
 				if err != nil {
 					retErr, ok := err.(*activity.Error)
@@ -568,28 +586,7 @@ func getCircuitBreakerCfg(settings map[string]interface{}, ef expression.Factory
 
 	}
 
-	maxFailures, exist := cbCfgMap["maxFailures"]
-	if exist && maxFailures != nil {
-		strVal, ok := maxFailures.(string)
-		if ok && len(strVal) > 0 && strVal[0] == '=' {
-			if strVal[0] == '=' {
-				strVal = strVal[1:]
-			}
-			intervalExpr, err := ef.NewExpr(strVal)
-			if err != nil {
-				return nil, fmt.Errorf("compile circuitBreaker max failures condition error: %s", err.Error())
-			}
-			cbCfg.maxFailures = intervalExpr
-		} else {
-			failedExecs, err := coerce.ToInt(maxFailures)
-			if err != nil {
-				return nil, fmt.Errorf("circuitBreaker max failures must be int")
-			}
-			cbCfg.maxFailures = uint32(failedExecs)
-		}
-	}
-
-	timeout, exist := cbCfgMap["timeout"]
+	timeout, exist := cbCfgMap["waitDurationInOpenState"]
 	if exist && timeout != nil {
 		strVal, ok := timeout.(string)
 		if ok && len(strVal) > 0 && strVal[0] == '=' {
@@ -600,15 +597,100 @@ func getCircuitBreakerCfg(settings map[string]interface{}, ef expression.Factory
 			if err != nil {
 				return nil, fmt.Errorf("compile circuitBreaker timeout condition error: %s", err.Error())
 			}
-			cbCfg.timeout = intervalExpr
+			cbCfg.waitDurationInOpenState = intervalExpr
 		} else {
 			intervalInt, err := coerce.ToInt(timeout)
 			if err != nil {
 				return nil, fmt.Errorf("circuitBreaker timeout duration must be int")
 			}
-			cbCfg.timeout = intervalInt
+			cbCfg.waitDurationInOpenState = intervalInt
 		}
 	}
+
+	failureRate, exist := cbCfgMap["failureRate"]
+	if exist && failureRate != nil {
+		strVal, ok := failureRate.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
+			}
+			failureRateExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile circuitBreaker timeout condition error: %s", err.Error())
+			}
+			cbCfg.failureRate = failureRateExpr
+		} else {
+			failurePercentage, err := coerce.ToInt(failureRate)
+			if err != nil {
+				return nil, fmt.Errorf("circuitBreaker failure rate must be int")
+			}
+			cbCfg.failureRate = failurePercentage
+		}
+	}
+
+	minRequests, exist := cbCfgMap["minimumRequests"]
+	if exist && minRequests != nil {
+		strVal, ok := minRequests.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
+			}
+			minReqExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile circuitBreaker minimum requests condition error: %s", err.Error())
+			}
+			cbCfg.minimumRequests = minReqExpr
+		} else {
+			minReqInt, err := coerce.ToInt(minRequests)
+			if err != nil {
+				return nil, fmt.Errorf("circuitBreaker minimum requests must be int")
+			}
+			cbCfg.minimumRequests = minReqInt
+		}
+	}
+
+	maxRequests, exist := cbCfgMap["maxRequestsAllowed"]
+	if exist && maxRequests != nil {
+		strVal, ok := maxRequests.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
+			}
+			maxReqExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile circuitBreaker maximum requests condition error: %s", err.Error())
+			}
+			cbCfg.maxRequestsAllowed = maxReqExpr
+		} else {
+			maxReqInt, err := coerce.ToInt(maxRequests)
+			if err != nil {
+				return nil, fmt.Errorf("circuitBreaker maximum requests must be int")
+			}
+			cbCfg.maxRequestsAllowed = maxReqInt
+		}
+	}
+
+	rollingWindow, exist := cbCfgMap["rollingWindowDuration"]
+	if exist && rollingWindow != nil {
+		strVal, ok := rollingWindow.(string)
+		if ok && len(strVal) > 0 && strVal[0] == '=' {
+			if strVal[0] == '=' {
+				strVal = strVal[1:]
+			}
+			rollWinExpr, err := ef.NewExpr(strVal)
+			if err != nil {
+				return nil, fmt.Errorf("compile circuitBreaker rolling window duration condition error: %s", err.Error())
+			}
+			cbCfg.rollingWindowDuration = rollWinExpr
+		} else {
+			rollWinInt, err := coerce.ToInt(rollingWindow)
+			if err != nil {
+				return nil, fmt.Errorf("circuitBreaker rolling window duration must be int")
+			}
+			cbCfg.rollingWindowDuration = rollWinInt
+		}
+	}
+
 	return cbCfg, nil
 }
 

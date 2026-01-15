@@ -92,7 +92,7 @@ func postFlowEvent(inst *Instance) {
 		if fe.status != event.CREATED {
 			attrs := inst.attrs
 			outData, _ := inst.GetReturnData()
-			if attrs != nil && len(attrs) > 0 {
+			if len(attrs) > 0 {
 				for name, attVal := range attrs {
 					if outData != nil && outData[name] != nil {
 						if fe.status == event.COMPLETED {

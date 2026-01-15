@@ -7,7 +7,6 @@ import (
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/flow/model"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 func TestSimpleChange(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/project-flogo/core/activity"
+	"github.com/sony/gobreaker/v2"
 
 	"github.com/project-flogo/flow/state"
 
@@ -382,11 +383,12 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 	var err error
 	var evalResult model.EvalResult
 
-	if taskInst.status == model.TaskStatusWaiting {
+	switch taskInst.status {
+	case model.TaskStatusWaiting:
 		evalResult, err = behavior.PostEval(taskInst)
-	} else if taskInst.status == model.TaskStatusSkipped {
+	case model.TaskStatusSkipped:
 		return
-	} else {
+	default:
 		if taskInst.task.CircuitBreaker() != nil {
 			// Execute task in circuit breaker
 			result, cbErr := taskInst.task.CircuitBreaker().Execute(func() (any, error) {
@@ -399,11 +401,14 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 				evalResult = result.(model.EvalResult)
 			}
 			err = cbErr
+			if err != nil && errors.Is(err, gobreaker.ErrOpenState) {
+				msg := fmt.Sprintf("CircuitBreakerOpenError: circuit breaker [%s] in open state for activity [%s]", taskInst.task.CircuitBreaker().Name(), taskInst.task.ID())
+				taskInst.logger.Error(msg)
+				err = errors.New(msg)
+			}
 		} else {
 			evalResult, err = behavior.Eval(taskInst)
 		}
-
-
 	}
 
 	if err != nil {
@@ -477,7 +482,8 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	var err error
 	var evalResult model.EvalResult
 
-	if taskInst.status == model.TaskStatusWaiting {
+	switch taskInst.status {
+	case model.TaskStatusWaiting:
 		// Run PostEval in goroutine with context
 		resultChan := make(chan struct {
 			result model.EvalResult
@@ -517,9 +523,9 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 			err = res.err
 		}
 
-	} else if taskInst.status == model.TaskStatusSkipped {
+	case model.TaskStatusSkipped:
 		return
-	} else {
+	default:
 		// Run Eval in goroutine with context
 		resultChan := make(chan struct {
 			result model.EvalResult
@@ -811,7 +817,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 }
 
-func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error, ctx context.Context) {
+func (inst *IndependentInstance) handleTaskCancelled(_ model.TaskBehavior, taskInst *TaskInst, err error, ctx context.Context) {
 
 	inst.logger.Debugf("handleTaskCancelled for task '%s' ", taskInst.Task().Name())
 	message := fmt.Sprintf("Flow execution timed out during execution of activity %s", taskInst.Task().Name())
@@ -848,9 +854,6 @@ func (inst *IndependentInstance) handleTaskCancelled(taskBehavior model.TaskBeha
 	//containerInst.SetStatus(model.FlowStatusCancelled)
 	taskInst.appendErrorData(err)
 	inst.HandleCancelError(containerInst, err)
-
-	return
-
 }
 
 // HandleGlobalError handles instance errors
@@ -948,13 +951,14 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 		taskInst, _ := activeInst.FindOrCreateTaskInst(taskEntry.Task)
 		taskInst.id = taskInst.taskID
 		enterResult := behavior.Enter(taskInst)
-		if enterResult == model.EREval {
+		switch enterResult {
+		case model.EREval:
 			err := applySettingsMapper(taskInst)
 			if err != nil {
 				return err
 			}
 			inst.scheduleEval(taskInst)
-		} else if enterResult == model.ERSkip {
+		case model.ERSkip:
 			inst.handleTaskDone(behavior, taskInst)
 		}
 	}
