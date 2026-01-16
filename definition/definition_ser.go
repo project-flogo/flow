@@ -224,6 +224,7 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 			cbSetting.Interval = cbSetting.BucketPeriod
 
 			cbSetting.ReadyToTrip = func(counts gobreaker.Counts) bool {
+				log.RootLogger().Debugf("Counts for CircuitBreaker [%s] for activity [%s] in flow [%s]: Requests=%d, TotalSuccesses=%d, TotalFailures=%d", cbSetting.Name, task.Name(), def.Name(), counts.Requests, counts.TotalSuccesses, counts.TotalFailures)
 				failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
 				return counts.Requests >= minimumRequests && failureRatio*100 >= failureRate
 			}
@@ -242,7 +243,7 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 				return true
 			}
 			task.circuitBreaker = gobreaker.NewCircuitBreaker[any](cbSetting)
-			log.RootLogger().Infof("Circuit Breaker [%s] is enabled for activity [%s] in flow [%s] ", task.circuitBreaker.Name(), task.Name(), def.Name())
+			log.RootLogger().Infof("CircuitBreaker [%s] is enabled for activity [%s] in flow [%s] with configuration: {Failure rate to trip circuit: %f%%, Minimum requests: %d, Maximum allowed requests in half-open state: %d, Wait duration in open state: %d, Rolling window duration: %d}", task.circuitBreaker.Name(), task.Name(), def.Name(), failureRate, minimumRequests, cbSetting.MaxRequests, cbSetting.Timeout, cbSetting.BucketPeriod)
 		}
 	}
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
