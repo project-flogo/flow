@@ -221,6 +221,8 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 				return nil, err
 			}
 
+			cbSetting.Interval = cbSetting.BucketPeriod
+
 			cbSetting.ReadyToTrip = func(counts gobreaker.Counts) bool {
 				failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
 				return counts.Requests >= minimumRequests && failureRatio*100 >= failureRate

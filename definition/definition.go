@@ -344,7 +344,7 @@ func (cbc *circuitBreakerConfig) FailureRate(scope data.Scope) (float64, error) 
 			}
 			return float64(data.(int)), nil
 		default:
-			return t.(float64), nil
+			return float64(t.(int)), nil
 		}
 	}
 	return 0, nil
@@ -374,7 +374,7 @@ func (cbc *circuitBreakerConfig) MinimumRequests(scope data.Scope) (uint32, erro
 			}
 			return uint32(data.(int)), nil
 		default:
-			return t.(uint32), nil
+			return uint32(t.(int)), nil
 		}
 	}
 	return 0, nil
@@ -389,7 +389,7 @@ func (cbc *circuitBreakerConfig) MaxRequestsAllowed(scope data.Scope) (uint32, e
 			}
 			return uint32(data.(int)), nil
 		default:
-			return t.(uint32), nil
+			return uint32(t.(int)), nil
 		}
 	}
 	return 0, nil
