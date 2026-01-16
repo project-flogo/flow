@@ -241,8 +241,6 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 			}
 			task.circuitBreaker = gobreaker.NewCircuitBreaker[any](cbSetting)
 			log.RootLogger().Infof("Circuit Breaker [%s] is enabled for activity [%s] in flow [%s] ", task.circuitBreaker.Name(), task.Name(), def.Name())
-		} else {
-			log.RootLogger().Infof("Circuit Breaker [%s] is disabled for activity [%s] in flow [%s] ", task.circuitBreaker.Name(), task.Name(), def.Name())
 		}
 	}
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
