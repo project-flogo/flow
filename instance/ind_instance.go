@@ -406,6 +406,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 				taskInst.logger.Error(msg)
 				err = errors.New(msg)
 			}
+			taskInst.logger.Debugf("Counts for Circuit breaker [%s] => [%+v]", taskInst.task.CircuitBreaker().Name(), taskInst.task.CircuitBreaker().Counts())
 		} else {
 			evalResult, err = behavior.Eval(taskInst)
 		}

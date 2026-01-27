@@ -342,7 +342,14 @@ func (cbc *circuitBreakerConfig) FailureRate(scope data.Scope) (float64, error) 
 			if err != nil {
 				return 0, err
 			}
-			return float64(data.(int)), nil
+			switch v := data.(type) {
+			case float64:
+				return v, nil
+			case int:
+				return float64(v), nil
+			default:
+				return 0, fmt.Errorf("unable to coerce failureRate value [%v] to float", data)
+			}
 		default:
 			return float64(t.(int)), nil
 		}
@@ -357,7 +364,16 @@ func (cbc *circuitBreakerConfig) WaitDurationInOpenState(scope data.Scope) (time
 			if err != nil {
 				return 0, err
 			}
-			return time.Duration(data.(int) * int(time.Millisecond)), nil
+			switch v := data.(type) {
+			case int:
+				return time.Duration(v * int(time.Millisecond)), nil
+			case float32:
+				return time.Duration(int(v) * int(time.Millisecond)), nil
+			case float64:
+				return time.Duration(int(v) * int(time.Millisecond)), nil
+			default:
+				return 0, fmt.Errorf("unable to coerce waitDurationInOpenState value [%v] to time.Duration. It must be an integer value", data)
+			}
 		default:
 			return time.Duration(t.(int) * int(time.Millisecond)), nil
 		}
@@ -372,7 +388,16 @@ func (cbc *circuitBreakerConfig) MinimumRequests(scope data.Scope) (uint32, erro
 			if err != nil {
 				return 0, err
 			}
-			return uint32(data.(int)), nil
+			switch v := data.(type) {
+			case int:
+				return uint32(v), nil
+			case float32:
+				return uint32(v), nil
+			case float64:
+				return uint32(v), nil
+			default:
+				return 0, fmt.Errorf("unable to coerce minimumRequests value [%v] to integer. It must be an integer value", data)
+			}
 		default:
 			return uint32(t.(int)), nil
 		}
@@ -387,7 +412,16 @@ func (cbc *circuitBreakerConfig) MaxRequestsAllowed(scope data.Scope) (uint32, e
 			if err != nil {
 				return 0, err
 			}
-			return uint32(data.(int)), nil
+			switch v := data.(type) {
+			case int:
+				return uint32(v), nil
+			case float32:
+				return uint32(v), nil
+			case float64:
+				return uint32(v), nil
+			default:
+				return 0, fmt.Errorf("unable to coerce maxRequestsAllowed value [%v] to integer. It must be an integer value", data)
+			}
 		default:
 			return uint32(t.(int)), nil
 		}
@@ -402,7 +436,16 @@ func (cbc *circuitBreakerConfig) RollingWindowDuration(scope data.Scope) (time.D
 			if err != nil {
 				return 0, err
 			}
-			return time.Duration(data.(int) * int(time.Millisecond)), nil
+			switch v := data.(type) {
+			case int:
+				return time.Duration(v * int(time.Millisecond)), nil
+			case float32:
+				return time.Duration(int(v) * int(time.Millisecond)), nil
+			case float64:
+				return time.Duration(int(v) * int(time.Millisecond)), nil
+			default:
+				return 0, fmt.Errorf("unable to coerce rollingWindowDuration value [%v] to time.Duration. It must be an integer value", data)
+			}
 		default:
 			return time.Duration(t.(int) * int(time.Millisecond)), nil
 		}

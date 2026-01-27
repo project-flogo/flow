@@ -215,16 +215,14 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 				log.RootLogger().Errorf("Error getting circuit breaker wait duration in open state: %s", err.Error())
 				return nil, err
 			}
-			cbSetting.BucketPeriod, err = circuitBreakerConfig.RollingWindowDuration(nil)
+			cbSetting.Interval, err = circuitBreakerConfig.RollingWindowDuration(nil)
 			if err != nil {
 				log.RootLogger().Errorf("Error getting circuit breaker rolling window duration: %s", err.Error())
 				return nil, err
 			}
 
-			cbSetting.Interval = cbSetting.BucketPeriod
-
 			cbSetting.ReadyToTrip = func(counts gobreaker.Counts) bool {
-				log.RootLogger().Debugf("Counts for CircuitBreaker [%s] for activity [%s] in flow [%s]: Requests=%d, TotalSuccesses=%d, TotalFailures=%d", cbSetting.Name, task.Name(), def.Name(), counts.Requests, counts.TotalSuccesses, counts.TotalFailures)
+				log.RootLogger().Infof("Counts for CircuitBreaker [%s] for activity [%s] in flow [%s]: Requests=%d, TotalSuccesses=%d, TotalFailures=%d", cbSetting.Name, task.Name(), def.Name(), counts.Requests, counts.TotalSuccesses, counts.TotalFailures)
 				failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
 				return counts.Requests >= minimumRequests && failureRatio*100 >= failureRate
 			}
