@@ -222,7 +222,7 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 			}
 
 			cbSetting.ReadyToTrip = func(counts gobreaker.Counts) bool {
-				log.RootLogger().Infof("Counts for CircuitBreaker [%s] for activity [%s] in flow [%s]: Requests=%d, TotalSuccesses=%d, TotalFailures=%d", cbSetting.Name, task.Name(), def.Name(), counts.Requests, counts.TotalSuccesses, counts.TotalFailures)
+				log.RootLogger().Debugf("Counts for CircuitBreaker [%s] for activity [%s] in flow [%s]: Requests=%d, TotalSuccesses=%d, TotalFailures=%d", cbSetting.Name, task.Name(), def.Name(), counts.Requests, counts.TotalSuccesses, counts.TotalFailures)
 				failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
 				return counts.Requests >= minimumRequests && failureRatio*100 >= failureRate
 			}
