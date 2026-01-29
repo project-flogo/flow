@@ -241,7 +241,7 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 				return true
 			}
 			task.circuitBreaker = gobreaker.NewCircuitBreaker[any](cbSetting)
-			log.RootLogger().Infof("CircuitBreaker [%s] is enabled for activity [%s] in flow [%s] with configuration: {Failure rate to trip circuit: %f%%, Minimum requests: %d, Maximum allowed requests in half-open state: %d, Wait duration in open state: %d, Rolling window duration: %d}", task.circuitBreaker.Name(), task.Name(), def.Name(), failureRate, minimumRequests, cbSetting.MaxRequests, cbSetting.Timeout, cbSetting.BucketPeriod)
+			log.RootLogger().Infof("CircuitBreaker [%s] is enabled for activity [%s] in flow [%s] with configuration: {Failure rate to trip circuit: %.2f%%, Minimum requests: %d, Maximum allowed requests in half-open state: %d, Wait duration in open state: %dms, Rolling window duration: %dms}", task.circuitBreaker.Name(), task.Name(), def.Name(), failureRate, minimumRequests, cbSetting.MaxRequests, cbSetting.Timeout.Milliseconds(), cbSetting.Interval.Milliseconds())
 		}
 	}
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
