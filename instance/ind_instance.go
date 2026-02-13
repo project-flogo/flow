@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/project-flogo/core/activity"
+	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/data/schema"
 	"github.com/sony/gobreaker/v2"
 
 	"github.com/project-flogo/flow/state"
@@ -242,6 +244,13 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	for name, value := range startAttrs {
 		toStart.attrs[name] = value
 		inst.changeTracker.AttrChange(toStart.subflowId, name, value)
+	}
+
+	if md != nil && md.FEMetadata != nil && schema.ValidationEnabled() {
+		if err := inst.validateFlowInput(md, toStart.attrs); err != nil {
+			inst.logger.Errorf("Flow input validation failed for flow [%s]: %s", toStart.Name(), err.Error())
+			return false
+		}
 	}
 
 	toStart.SetStatus(model.FlowStatusActive)
@@ -1244,4 +1253,38 @@ func populateBaseSnapshot(inst *Instance, base *state.SnapshotBase) {
 			base.Links = append(base.Links, &state.Link{Id: id, Status: int(link.status)})
 		}
 	}
+}
+
+func (inst *IndependentInstance) validateFlowInput(md *metadata.IOMetadata, inputData map[string]interface{}) error {
+	if md.FEMetadata == nil {
+		return nil
+	}
+
+	inputMetadata, ok := md.FEMetadata["input"]
+	if !ok {
+		return nil
+	}
+
+	var schemaValue string
+	if str, ok := inputMetadata.(string); ok {
+		schemaValue = str
+	}
+
+	schemaDef := &schema.Def{
+		Type:  "json",
+		Value: schemaValue,
+	}
+
+	s, err := schema.New(schemaDef)
+	if err != nil {
+		return fmt.Errorf("error creating schema from fe_metadata: %w", err)
+	}
+
+	if s != nil {
+		if err := s.Validate(inputData); err != nil {
+			return fmt.Errorf("flow input validation failed: %w", err)
+		}
+	}
+
+	return nil
 }
