@@ -247,8 +247,16 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	}
 
 	if md != nil && md.FEMetadata != nil && schema.ValidationEnabled() {
-		if err := inst.validateFlowInput(md, toStart.attrs); err != nil {
+		if err := inst.validateFlowInput(md, startAttrs); err != nil {
 			inst.logger.Errorf("Flow input validation failed for flow [%s]: %s", toStart.Name(), err.Error())
+
+			// Create error object using same pattern as activity validation
+			errObj := inst.getFlowErrorObject(toStart.Name(), err)
+			_ = toStart.SetValue("_E", errObj)
+			inst.returnError = err
+			inst.status = model.FlowStatusFailed
+
+			inst.addFlowTocoverage(errObj)
 			return false
 		}
 	}
@@ -267,6 +275,22 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	}
 
 	return ok
+}
+
+// addFlowTocoverage adds flow level coverage information to the interceptor's coverage data.
+// This is typically called when the flow execution fails to capture the error details at the flow level.
+func (inst *IndependentInstance) addFlowTocoverage(errObj map[string]interface{}) {
+	if !inst.HasInterceptor() {
+		return
+	}
+
+	flowCoverage := coresupport.FlowCoverage{
+		FlowName: inst.Name(),
+		FlowId:   inst.ID(),
+		Error:    errObj,
+	}
+
+	inst.interceptor.Coverage.FlowCoverage = &flowCoverage
 }
 
 func (inst *IndependentInstance) ApplyPatch(patch *flowsupport.Patch) {
@@ -1287,4 +1311,37 @@ func (inst *IndependentInstance) validateFlowInput(md *metadata.IOMetadata, inpu
 	}
 
 	return nil
+}
+
+func (inst *IndependentInstance) getFlowErrorObject(flowName string, err error) map[string]interface{} {
+	errorObj := map[string]interface{}{
+		"flow":     flowName,
+		"message":  err.Error(),
+		"type":     "unknown",
+		"code":     "",
+		"data":     map[string]interface{}{},
+		"category": "FLOW-ERROR",
+	}
+
+	// Handle specific error types
+	switch e := err.(type) {
+	case *schema.ValidationError:
+		errorObj["type"] = "validation"
+		errorObj["code"] = "FLOW-ERROR"
+		errorObj["category"] = "VALIDATION"
+		validationErrors := e.Errors()
+		errorDetails := make([]string, len(validationErrors))
+		for i, ve := range validationErrors {
+			errorDetails[i] = ve.Error()
+		}
+		errorObj["data"] = map[string]interface{}{
+			"validationErrors": errorDetails,
+		}
+	default:
+		// Generic error
+		errorObj["type"] = "flow_input"
+		errorObj["code"] = "FLOW-ERROR"
+	}
+
+	return errorObj
 }
