@@ -1315,32 +1315,28 @@ func (inst *IndependentInstance) validateFlowInput(md *metadata.IOMetadata, inpu
 
 func (inst *IndependentInstance) getFlowErrorObject(flowName string, err error) map[string]interface{} {
 	errorObj := map[string]interface{}{
-		"flow":     flowName,
-		"message":  err.Error(),
-		"type":     "unknown",
-		"code":     "",
-		"data":     map[string]interface{}{},
-		"category": "FLOW-ERROR",
+		"flow":    flowName,
+		"message": err.Error(),
+		"type":    "",
+		"code":    "",
+		"data":    map[string]interface{}{},
 	}
 
-	// Handle specific error types
 	switch e := err.(type) {
 	case *schema.ValidationError:
-		errorObj["type"] = "validation"
-		errorObj["code"] = "FLOW-ERROR"
-		errorObj["category"] = "VALIDATION"
+		errorObj["type"] = "schema_validation"
+		errorObj["code"] = activity.FlowError
 		validationErrors := e.Errors()
-		errorDetails := make([]string, len(validationErrors))
-		for i, ve := range validationErrors {
-			errorDetails[i] = ve.Error()
+		errorDetails := make([]string, 0, len(validationErrors))
+		for _, ve := range validationErrors {
+			errorDetails = append(errorDetails, ve.Error())
 		}
 		errorObj["data"] = map[string]interface{}{
 			"validationErrors": errorDetails,
 		}
 	default:
-		// Generic error
 		errorObj["type"] = "flow_input"
-		errorObj["code"] = "FLOW-ERROR"
+		errorObj["code"] = activity.FlowError
 	}
 
 	return errorObj
