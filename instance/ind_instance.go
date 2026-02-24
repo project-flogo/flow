@@ -1301,12 +1301,12 @@ func (inst *IndependentInstance) validateFlowInput(md *metadata.IOMetadata, inpu
 
 	s, err := schema.New(schemaDef)
 	if err != nil {
-		return fmt.Errorf("error creating schema from fe_metadata: %w", err)
+		return err
 	}
 
 	if s != nil {
 		if err := s.Validate(inputData); err != nil {
-			return fmt.Errorf("flow input validation failed: %w", err)
+			return err
 		}
 	}
 
