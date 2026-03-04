@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/project-flogo/core/activity"
+	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/data/schema"
 	"github.com/sony/gobreaker/v2"
 
 	"github.com/project-flogo/flow/state"
@@ -244,6 +246,21 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 		inst.changeTracker.AttrChange(toStart.subflowId, name, value)
 	}
 
+	if md != nil && md.FEMetadata != nil && schema.ValidationEnabled() {
+		if err := inst.validateFlowInput(md, startAttrs); err != nil {
+			inst.logger.Errorf("Flow input validation failed for flow [%s]: %s", toStart.Name(), err.Error())
+
+			// Create error object using same pattern as activity validation
+			errObj := inst.getFlowErrorObject(toStart.Name(), err)
+			_ = toStart.SetValue("_E", errObj)
+			inst.returnError = err
+			inst.status = model.FlowStatusFailed
+
+			inst.addFlowTocoverage(errObj)
+			return false
+		}
+	}
+
 	toStart.SetStatus(model.FlowStatusActive)
 
 	flowBehavior := inst.flowModel.GetFlowBehavior()
@@ -258,6 +275,22 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	}
 
 	return ok
+}
+
+// addFlowTocoverage adds flow level coverage information to the interceptor's coverage data.
+// This is typically called when the flow execution fails to capture the error details at the flow level.
+func (inst *IndependentInstance) addFlowTocoverage(errObj map[string]interface{}) {
+	if !inst.HasInterceptor() {
+		return
+	}
+
+	flowCoverage := coresupport.FlowCoverage{
+		FlowName: inst.Name(),
+		FlowId:   inst.ID(),
+		Error:    errObj,
+	}
+
+	inst.interceptor.Coverage.FlowCoverage = &flowCoverage
 }
 
 func (inst *IndependentInstance) ApplyPatch(patch *flowsupport.Patch) {
@@ -1244,4 +1277,67 @@ func populateBaseSnapshot(inst *Instance, base *state.SnapshotBase) {
 			base.Links = append(base.Links, &state.Link{Id: id, Status: int(link.status)})
 		}
 	}
+}
+
+func (inst *IndependentInstance) validateFlowInput(md *metadata.IOMetadata, inputData map[string]interface{}) error {
+	if md.FEMetadata == nil {
+		return nil
+	}
+
+	inputMetadata, ok := md.FEMetadata["input"]
+	if !ok {
+		return nil
+	}
+
+	var schemaValue string
+	if str, ok := inputMetadata.(string); ok {
+		schemaValue = str
+	}
+
+	schemaDef := &schema.Def{
+		Type:  "json",
+		Value: schemaValue,
+	}
+
+	s, err := schema.New(schemaDef)
+	if err != nil {
+		return err
+	}
+
+	if s != nil {
+		if err := s.Validate(inputData); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (inst *IndependentInstance) getFlowErrorObject(flowName string, err error) map[string]interface{} {
+	errorObj := map[string]interface{}{
+		"flow":    flowName,
+		"message": err.Error(),
+		"type":    "",
+		"code":    "",
+		"data":    map[string]interface{}{},
+	}
+
+	switch e := err.(type) {
+	case *schema.ValidationError:
+		errorObj["type"] = "schema_validation"
+		errorObj["code"] = activity.FlowError
+		validationErrors := e.Errors()
+		errorDetails := make([]string, 0, len(validationErrors))
+		for _, ve := range validationErrors {
+			errorDetails = append(errorDetails, ve.Error())
+		}
+		errorObj["data"] = map[string]interface{}{
+			"validationErrors": errorDetails,
+		}
+	default:
+		errorObj["type"] = "flow_input"
+		errorObj["code"] = activity.FlowError
+	}
+
+	return errorObj
 }

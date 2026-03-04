@@ -616,6 +616,18 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 		errorObj["type"] = e.Type()
 		errorObj["activity"] = e.TaskName()
 		errorObj["activityType"] = ti.Task().ActivityConfig().Type
+	case *schema.ValidationError:
+		errorObj["type"] = "schema_validation"
+		errorObj["activityType"] = ti.Task().ActivityConfig().Type
+		errorObj["code"] = activity.ActivityError
+		validationErrors := e.Errors()
+		errorDetails := make([]string, 0, len(validationErrors))
+		for _, ve := range validationErrors {
+			errorDetails = append(errorDetails, ve.Error())
+		}
+		errorObj["data"] = map[string]interface{}{
+			"validationErrors": errorDetails,
+		}
 	}
 	return errorObj
 }
