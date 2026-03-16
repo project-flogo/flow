@@ -1301,7 +1301,7 @@ func (inst *IndependentInstance) validateFlowInput(md *metadata.IOMetadata, inpu
 
 	s, err := schema.New(schemaDef)
 	if err != nil {
-		return err
+		return nil
 	}
 
 	if s != nil {
