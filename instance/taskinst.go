@@ -345,6 +345,8 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 		if log.CtxLoggingEnabled() {
 			ti.logger = log.ChildLoggerWithFields(ti.logger, log.FieldString("trace.id", ti.traceContext.TraceID()), log.FieldString("span.id", ti.traceContext.SpanID()))
 		}
+		// FLOGO-17735: add traceID and spanID attributes to log message
+		ti.logger.SetTracingContext(trace.GetContextForLogger(ti.traceContext))
 	}
 
 	if actCfg.InputMapper() != nil {
