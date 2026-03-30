@@ -104,9 +104,6 @@ func postTaskEvent(taskInstance *TaskInst) {
 		te.flowName = taskInstance.flowInst.Name()
 		te.flowId = taskInstance.flowInst.ID()
 		te.typeId = taskInstance.Task().TypeID()
-		if te.typeId == "" {
-			te.typeId = taskInstance.Task().ActivityConfig().Type
-		}
 		te.id = taskInstance.id
 
 		if taskInstance.HasActivity() {
