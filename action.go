@@ -351,6 +351,8 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			tc.SetTag("flogo_event_id", eventID)
 		}
 		inst.SetTracingContext(tc)
+		// FLOGO-17735: add traceID and spanID attributes to log message
+		instLogger.SetTracingContext(trace.GetContextForLogger(tc))
 	}
 
 	//todo how do we check if debug is enabled?
@@ -386,8 +388,14 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if detachExecution {
 			// In detached mode, no reply expected. So, notifying handler.
 			handler.Done()
+			// clean the tracing context after exiting the flow
+			instLogger.SetTracingContext(nil)
 		} else {
-			defer handler.Done()
+			defer func() {
+				handler.Done()
+				// clean the tracing context after exiting the flow
+				instLogger.SetTracingContext(nil)
+			}()
 		}
 
 		if retID {
