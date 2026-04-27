@@ -854,7 +854,7 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 func (inst *IndependentInstance) handleTaskCancelled(_ model.TaskBehavior, taskInst *TaskInst, err error, ctx context.Context) {
 
 	inst.logger.Debugf("handleTaskCancelled for task '%s' ", taskInst.Task().Name())
-	message := fmt.Sprintf("Flow execution timed out during execution of activity %s", taskInst.Task().Name())
+	message := fmt.Sprintf("Flow execution timed out during execution of activity %s in flow %s", taskInst.Task().Name(), taskInst.flowInst.flowDef.Name())
 
 	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
 	index := ""
@@ -862,7 +862,7 @@ func (inst *IndependentInstance) handleTaskCancelled(_ model.TaskBehavior, taskI
 
 		index = attr.(string)
 		inst.logger.Debugf("task %s was running in loop at index '%s' ", taskInst.Task().Name(), index)
-		message = fmt.Sprintf("Flow execution timed out during execution of activity %s running in loop at index %s", taskInst.Task().Name(), index)
+		message = fmt.Sprintf("Flow execution timed out during execution of activity %s in flow %s running in loop at index %s", taskInst.Task().Name(), taskInst.flowInst.flowDef.Name(), index)
 	}
 	var timeoutValue string
 	if val := ctx.Value("timeoutSeconds"); val != nil {
