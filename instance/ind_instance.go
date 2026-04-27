@@ -875,6 +875,7 @@ func (inst *IndependentInstance) handleTaskCancelled(_ model.TaskBehavior, taskI
 		"timeoutInFlow":         taskInst.flowInst.flowDef.Name(),
 		"timeoutInActivity":     taskInst.task.Name(),
 		"timeoutInMilliSeconds": timeoutValue,
+		"flowInstanceId":        inst.id,
 	}
 	err = activity.NewActivityError(message, "SUBFLOW-001", activity.TimeoutError, data)
 	if taskInst.traceContext != nil {
