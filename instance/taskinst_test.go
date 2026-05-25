@@ -3,6 +3,7 @@ package instance
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/project-flogo/core/activity"
@@ -171,6 +172,50 @@ func TestGetErrorObject_WithRealSchemaValidationError(t *testing.T) {
 	}
 }
 
+// TestGetErrorObject_WithNumError tests error object creation with strconv.NumError
+func TestGetErrorObject_WithNumError(t *testing.T) {
+	def := getDef()
+	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
+	flowInst := &Instance{master: ind}
+	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+
+	numErr := &strconv.NumError{
+		Func: "Atoi",
+		Num:  "abc",
+		Err:  strconv.ErrSyntax,
+	}
+
+	errorObj := taskInst.getErrorObject(numErr)
+
+	assert.NotNil(t, errorObj)
+	assert.Equal(t, taskInst.taskID, errorObj["activity"])
+	assert.Equal(t, numErr.Error(), errorObj["message"])
+	assert.Equal(t, "num_error", errorObj["type"])
+	assert.Equal(t, activity.ActivityError, errorObj["code"])
+	assert.Contains(t, errorObj, "activityType")
+}
+
+// TestGetErrorObject_WithNumErrorRange tests NumError with ErrRange
+func TestGetErrorObject_WithNumErrorRange(t *testing.T) {
+	def := getDef()
+	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
+	flowInst := &Instance{master: ind}
+	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+
+	numErr := &strconv.NumError{
+		Func: "ParseInt",
+		Num:  "99999999999999999999",
+		Err:  strconv.ErrRange,
+	}
+
+	errorObj := taskInst.getErrorObject(numErr)
+
+	assert.NotNil(t, errorObj)
+	assert.Equal(t, "num_error", errorObj["type"])
+	assert.Equal(t, activity.ActivityError, errorObj["code"])
+	assert.Contains(t, numErr.Error(), "value out of range")
+}
+
 // TestGetErrorObject_StructureValidation tests that all error objects have the required structure
 func TestGetErrorObject_StructureValidation(t *testing.T) {
 	def := getDef()
@@ -185,6 +230,7 @@ func TestGetErrorObject_StructureValidation(t *testing.T) {
 		{"Generic Error", errors.New("test error")},
 		{"LinkExprError", definition.NewLinkExprError("link error")},
 		{"ActivityEvalError", NewActivityEvalError("task", "type", "error text")},
+		{"NumError", &strconv.NumError{Func: "Atoi", Num: "abc", Err: strconv.ErrSyntax}},
 	}
 
 	for _, tc := range testCases {
