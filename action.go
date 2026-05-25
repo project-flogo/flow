@@ -355,6 +355,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		instLogger.SetTracingContext(trace.GetContextForLogger(tc))
 	}
 
+	if triggerTags, ok := inputs["_trigger_tags"]; ok {
+		if tags, ok := triggerTags.(map[string]interface{}); ok {
+			inst.SetTriggerTags(tags)
+		}
+		delete(inputs, "_trigger_tags")
+	}
+
 	//todo how do we check if debug is enabled?
 	//logInputs(inputs)
 	instLogger.Infof("Executing Flow Instance [%s] for event id [%s]", inst.ID(), trigger.GetHandlerEventIdFromContext(ctx))

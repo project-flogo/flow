@@ -16,6 +16,7 @@ import (
 	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/trace"
 	"github.com/sony/gobreaker/v2"
 )
 
@@ -538,6 +539,8 @@ type Task struct {
 	retryOnErrConfig RetryOnError
 	circuitBreaker   *gobreaker.CircuitBreaker[any]
 
+	tags []*trace.TagDef
+
 	toLinks   []*Link
 	fromLinks []*Link
 }
@@ -576,6 +579,10 @@ func (task *Task) LoopConfig() *LoopConfig {
 
 func (task *Task) CircuitBreaker() *gobreaker.CircuitBreaker[any] {
 	return task.circuitBreaker
+}
+
+func (task *Task) Tags() []*trace.TagDef {
+	return task.tags
 }
 
 // ToLinks returns the predecessor links of the task
