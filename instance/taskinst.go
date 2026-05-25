@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/project-flogo/core/activity"
@@ -630,6 +631,10 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 		errorObj["data"] = map[string]interface{}{
 			"validationErrors": errorDetails,
 		}
+	case *strconv.NumError:
+		errorObj["type"] = "num_error"
+		errorObj["activityType"] = ti.Task().ActivityConfig().Type
+		errorObj["code"] = activity.ActivityError
 	}
 	return errorObj
 }
