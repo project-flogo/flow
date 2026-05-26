@@ -4,6 +4,7 @@ import (
 	"time"
 
 	coreevent "github.com/project-flogo/core/engine/event"
+	"github.com/project-flogo/core/support/trace"
 	"github.com/project-flogo/flow/model"
 	"github.com/project-flogo/flow/support/event"
 )
@@ -13,6 +14,7 @@ type taskEvent struct {
 	id                                  string
 	err                                 error
 	taskIn, taskOut                     map[string]interface{}
+	tags                                map[string]interface{}
 	status                              event.Status
 	name, typeId, flowName, flowId, ref string
 }
@@ -72,6 +74,11 @@ func (te *taskEvent) TaskError() error {
 	return te.err
 }
 
+// Returns custom tags defined on the task
+func (te *taskEvent) Tags() map[string]interface{} {
+	return te.tags
+}
+
 func convertTaskStatus(code model.TaskStatus) event.Status {
 	switch code {
 	case model.TaskStatusNotStarted:
@@ -108,6 +115,10 @@ func postTaskEvent(taskInstance *TaskInst) {
 			te.typeId = taskInstance.Task().ActivityConfig().Type
 		}
 		te.id = taskInstance.id
+
+		if taskTags := taskInstance.Task().Tags(); len(taskTags) > 0 {
+			te.tags = trace.ResolveTagDefs(taskTags, taskInstance.flowInst)
+		}
 
 		if taskInstance.HasActivity() {
 			te.ref = taskInstance.Task().ActivityConfig().Ref()

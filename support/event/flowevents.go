@@ -74,4 +74,6 @@ type TaskEvent interface {
 	TaskOutput() map[string]interface{}
 	// Returns error for failed task
 	TaskError() error
+	// Returns custom tags defined on the task
+	Tags() map[string]interface{}
 }
