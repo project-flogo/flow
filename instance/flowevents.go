@@ -13,6 +13,7 @@ type flowEvent struct {
 	hostTask                       event.HostTask
 	err                            error
 	input, output                  map[string]interface{}
+	tags                           map[string]interface{}
 	status                         event.Status
 	name, id, parentName, parentId string
 }
@@ -61,6 +62,11 @@ func (fe *flowEvent) FlowError() error {
 	return fe.err
 }
 
+// Returns custom tags (trigger tags) defined on the flow
+func (fe *flowEvent) Tags() map[string]interface{} {
+	return fe.tags
+}
+
 // Returns name of activity calling this flow in case of subflow invocation
 func (fe *flowEvent) HostTask() event.HostTask {
 	return fe.hostTask
@@ -85,6 +91,10 @@ func postFlowEvent(inst *Instance) {
 		}
 
 		fe.status = convertFlowStatus(inst.Status())
+
+		if len(inst.triggerTags) > 0 {
+			fe.tags = inst.triggerTags
+		}
 
 		fe.input = make(map[string]interface{})
 		fe.output = make(map[string]interface{})
