@@ -339,6 +339,13 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		// Add eventId to the instance
 		_ = inst.SetValue(instance.EventIdAttr, eventID)
 	}
+	if triggerTags, ok := inputs["_trigger_tags"]; ok {
+		if tags, ok := triggerTags.(map[string]interface{}); ok {
+			inst.SetTriggerTags(tags)
+		}
+		delete(inputs, "_trigger_tags")
+	}
+
 	if trace.Enabled() {
 		tc, err := trace.GetTracer().StartTrace(inst.SpanConfig(), trace.ExtractTracingContext(ctx))
 		if err != nil {
@@ -353,13 +360,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		inst.SetTracingContext(tc)
 		// FLOGO-17735: add traceID and spanID attributes to log message
 		instLogger.SetTracingContext(trace.GetContextForLogger(tc))
-	}
-
-	if triggerTags, ok := inputs["_trigger_tags"]; ok {
-		if tags, ok := triggerTags.(map[string]interface{}); ok {
-			inst.SetTriggerTags(tags)
-		}
-		delete(inputs, "_trigger_tags")
 	}
 
 	//todo how do we check if debug is enabled?
