@@ -539,7 +539,7 @@ type Task struct {
 	retryOnErrConfig RetryOnError
 	circuitBreaker   *gobreaker.CircuitBreaker[any]
 
-	tags []*trace.TagDef
+	tags *trace.TagDefs
 
 	toLinks   []*Link
 	fromLinks []*Link
@@ -581,7 +581,7 @@ func (task *Task) CircuitBreaker() *gobreaker.CircuitBreaker[any] {
 	return task.circuitBreaker
 }
 
-func (task *Task) Tags() []*trace.TagDef {
+func (task *Task) Tags() *trace.TagDefs {
 	return task.tags
 }
 

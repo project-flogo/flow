@@ -116,7 +116,7 @@ func postTaskEvent(taskInstance *TaskInst) {
 		}
 		te.id = taskInstance.id
 
-		if taskTags := taskInstance.Task().Tags(); len(taskTags) > 0 {
+		if taskTags := taskInstance.Task().Tags(); !taskTags.IsEmpty() {
 			te.tags = trace.ResolveTagDefs(taskTags, taskInstance.flowInst)
 		}
 
