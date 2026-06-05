@@ -683,9 +683,11 @@ func (ti *TaskInst) SpanConfig() trace.Config {
 		config.Tags["circuit_breaker_state"] = ti.task.CircuitBreaker().State()
 		config.Tags["circuit_breaker_total_failures"] = ti.task.CircuitBreaker().Counts().TotalFailures
 	}
-	if taskTags := ti.task.Tags(); !taskTags.IsEmpty() {
-		for k, v := range trace.ResolveTagDefs(taskTags, ti.flowInst) {
-			config.Tags[k] = v
+	if trace.TraceCustomTagsEnabled() {
+		if taskTags := ti.task.Tags(); !taskTags.IsEmpty() {
+			for k, v := range trace.ResolveTagDefs(taskTags, ti.flowInst) {
+				config.Tags[k] = v
+			}
 		}
 	}
 	return config
