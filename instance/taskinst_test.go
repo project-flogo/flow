@@ -19,7 +19,7 @@ func TestTaskInst(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	assert.NotNil(t, taskInst)
 	assert.True(t, taskInst.HasActivity())
@@ -44,7 +44,7 @@ func TestGetErrorObject_WithLinkExprError(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	linkErr := definition.NewLinkExprError("link expression evaluation failed")
 
@@ -62,7 +62,7 @@ func TestGetErrorObject_WithActivityError(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	errorData := map[string]interface{}{
 		"field": "value",
@@ -88,7 +88,7 @@ func TestGetErrorObject_WithActivityEvalError(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	evalErr := NewActivityEvalError("LogStart", "mapper", "mapper execution failed")
 
@@ -107,7 +107,7 @@ func TestGetErrorObject_WithGenericError(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	genericErr := errors.New("unexpected error occurred")
 
@@ -131,7 +131,7 @@ func TestGetErrorObject_WithRealSchemaValidationError(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	schemaDef := &schema.Def{
 		Type:  "json",
@@ -177,7 +177,7 @@ func TestGetErrorObject_WithNumError(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	numErr := &strconv.NumError{
 		Func: "Atoi",
@@ -200,7 +200,7 @@ func TestGetErrorObject_WithNumErrorRange(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	numErr := &strconv.NumError{
 		Func: "ParseInt",
@@ -221,7 +221,7 @@ func TestGetErrorObject_StructureValidation(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	testCases := []struct {
 		name  string
@@ -256,7 +256,7 @@ func TestGetErrorObject_ActivityErrorWithoutActivityName(t *testing.T) {
 	def := getDef()
 	ind, _ := NewIndependentInstance("test", "", def, nil, log.RootLogger(), context.Background())
 	flowInst := &Instance{master: ind}
-	taskInst := NewTaskInst(flowInst, def.Tasks()[0])
+	taskInst := NewTaskInst(flowInst, def.GetTask("LogStart"))
 
 	errorData := map[string]interface{}{"reason": "timeout"}
 	actErr := activity.NewError("timeout error", "TIMEOUT-001", errorData)

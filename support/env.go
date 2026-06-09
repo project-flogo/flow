@@ -18,6 +18,9 @@ const (
 
 	PrioritizeExprLink             = "FLOGO_TASK_PRIORITIZE_EXPR_LINK"
 	PrioritizeExprLinkDefault bool = false
+
+	ConcurrentExecution             = "FLOGO_FLOW_CONCURRENT_TASK_EXECUTION"
+	ConcurrentExecutionDefault bool = false
 )
 
 var username, hostName, appName, appVersion string
@@ -89,4 +92,19 @@ func GetPrioritizeExprTask() bool {
 		return PrioritizeExprLinkDefault
 	}
 	return prioritizeExpression
+}
+
+// GetConcurrentExecution reports whether parallel (concurrent) execution of
+// ready tasks/branches is enabled. Default is false (sequential). Controlled by
+// the FLOGO_FLOW_CONCURRENT_TASK_EXECUTION environment variable.
+func GetConcurrentExecution() bool {
+	v, ok := os.LookupEnv(ConcurrentExecution)
+	if !ok {
+		return ConcurrentExecutionDefault
+	}
+	concurrentExecution, err := coerce.ToBool(v)
+	if err != nil {
+		return ConcurrentExecutionDefault
+	}
+	return concurrentExecution
 }
