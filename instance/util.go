@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -479,5 +478,5 @@ func StartDetachedSubFlow(ctx activity.Context, flowURI string, inputs map[strin
 }
 
 func IsConcurrentTaskExcutionEnabled() bool {
-	return os.Getenv("FLOGO_FLOW_CONCURRENT_TASK_EXECUTION") == "true"
+	return flowSupport.GetConcurrentExecution()
 }

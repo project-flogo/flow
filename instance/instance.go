@@ -131,15 +131,25 @@ func (inst *Instance) IOMetadata() *metadata.IOMetadata {
 
 func (inst *Instance) Reply(replyData map[string]interface{}, err error) {
 	if inst.resultHandler != nil {
+		inst.lockAttrs()
 		inst.returnData = replyData
+		inst.unlockAttrs()
 		inst.resultHandler.HandleResult(replyData, err)
 	}
 }
 
 func (inst *Instance) Return(returnData map[string]interface{}, err error) {
+	// forceCompletion is read in the worker tail under stateLock; returnData/returnError
+	// live in the attrsLock domain. Acquire them sequentially (not nested) to stay clear
+	// of any ordering concern.
+	inst.lockState()
 	inst.forceCompletion = true
+	inst.unlockState()
+
+	inst.lockAttrs()
 	inst.returnData = returnData
 	inst.returnError = err
+	inst.unlockAttrs()
 }
 
 func (inst *Instance) Scope() data.Scope {
@@ -151,6 +161,12 @@ func (inst *Instance) GetError() error {
 }
 
 func (inst *Instance) GetReturnData() (map[string]interface{}, error) {
+
+	// attrsLock (leaf lock) guards both the attrs read and the lazy returnData build.
+	// Deliberately does NOT take stateLock: GetReturnData is invoked from inside the
+	// change tracker, which already runs under stateLock in the worker tail.
+	inst.lockAttrs()
+	defer inst.unlockAttrs()
 
 	if inst.returnData == nil {
 
@@ -211,6 +227,9 @@ func (inst *Instance) Logger() log.Logger {
 // Instance - data.Scope Implementation
 
 func (inst *Instance) GetValue(name string) (value interface{}, exists bool) {
+	inst.rlockAttrs()
+	defer inst.runlockAttrs()
+
 	if inst.attrs != nil {
 		attr, found := inst.attrs[name]
 
@@ -227,7 +246,12 @@ func (inst *Instance) SetValue(name string, value interface{}) error {
 		inst.logger.Debugf("SetAttr - name: %s, value:%v\n", name, value)
 	}
 
+	// Guard only the shared map write with attrsLock, and release it BEFORE notifying
+	// the change tracker: SetValue must never hold attrsLock while calling into the
+	// tracker, otherwise it inverts with GetReturnData (called from within the tracker).
+	inst.lockAttrs()
 	inst.attrs[name] = value
+	inst.unlockAttrs()
 
 	if inst.master.trackingChanges {
 		inst.master.changeTracker.AttrChange(inst.subflowId, name, value)
