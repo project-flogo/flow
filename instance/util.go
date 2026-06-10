@@ -264,7 +264,15 @@ func applyOutputInterceptor(taskInst *TaskInst) error {
 				if data == nil {
 					data = struct{}{}
 				}
-				e := activity.NewError(message, "", data)
+				category := activity.ActivityError
+				if cat, ok := taskInterceptor.Outputs["category"].(string); ok && cat != "" {
+					category = activity.ErrorCategory(cat)
+				}
+				code := ""
+				if c, ok := taskInterceptor.Outputs["code"].(string); ok {
+					code = c
+				}
+				e := activity.NewActivityError(message, code, category, data)
 				e.SetActivityName(taskInst.id)
 				return e
 			}
