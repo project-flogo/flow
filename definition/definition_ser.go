@@ -18,6 +18,7 @@ import (
 	"github.com/project-flogo/core/data/schema"
 	"github.com/project-flogo/core/support"
 	"github.com/project-flogo/core/support/log"
+	"github.com/project-flogo/core/support/trace"
 	flowutil "github.com/project-flogo/flow/util"
 	"github.com/sony/gobreaker/v2"
 )
@@ -44,6 +45,7 @@ type TaskRep struct {
 	ID             string                 `json:"id"`
 	Type           string                 `json:"type,omitempty"`
 	Name           string                 `json:"name,omitempty"`
+	Tags           interface{}            `json:"tags,omitempty"`
 	Settings       map[string]interface{} `json:"settings,omitempty"`
 	ActivityCfgRep *activity.Config       `json:"activity"`
 }
@@ -247,6 +249,10 @@ func createTask(def *Definition, rep *TaskRep, ef expression.Factory) (*Task, er
 	task.settingsMapper, err = mf.NewMapper(rep.Settings)
 	if err != nil {
 		return nil, err
+	}
+
+	if rep.Tags != nil {
+		task.tags = trace.ParseTagDefs(rep.Tags, ef)
 	}
 
 	if rep.ActivityCfgRep != nil {
