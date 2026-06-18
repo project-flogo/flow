@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const concurrentFlagEnv = "FLOGO_FLOW_CONCURRENT_TASK_EXECUTION"
+const concurrentFlagEnv = "FLOGO_FLOW_EXECUTE_BRANCHES_CONCURRENTLY"
 
 var (
 	joinCount      atomic.Int64

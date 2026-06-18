@@ -39,7 +39,7 @@ type IndependentInstance struct {
 	changeTracker   ChangeTracker
 
 	// Concurrency guards. Non-nil only when concurrent task execution is enabled
-	// (FLOGO_FLOW_CONCURRENT_TASK_EXECUTION); when nil the sequential path stays lock-free.
+	// (FLOGO_FLOW_EXECUTE_BRANCHES_CONCURRENTLY); when nil the sequential path stays lock-free.
 	// Lock hierarchy (outer -> inner): stateLock -> attrsLock -> changeTracker lock.
 	stateLock *sync.Mutex   // guards traversal/scheduling, taskInsts/linkInsts/subflows maps, status
 	attrsLock *sync.RWMutex // guards the shared attrs and returnData maps
