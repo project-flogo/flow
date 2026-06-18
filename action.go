@@ -65,6 +65,10 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		return nil
 	}
 
+	if flowsupport.GetConcurrentExecution() {
+		logger.Infof("Concurrent branch execution is ENABLED via env %s, parallel transition branches will execute concurrently", flowsupport.ConcurrentExecution)
+	}
+
 	sm := ctx.ServiceManager()
 
 	srService := sm.FindService(func(s service.Service) bool {
