@@ -43,6 +43,8 @@ type FlowEvent interface {
 	ParentFlowID() string
 	// Returns event time
 	Time() time.Time
+	// Returns custom tags (trigger tags) defined on the flow
+	Tags() map[string]interface{}
 }
 
 type HostTask struct {
@@ -74,4 +76,6 @@ type TaskEvent interface {
 	TaskOutput() map[string]interface{}
 	// Returns error for failed task
 	TaskError() error
+	// Returns custom tags defined on the task
+	Tags() map[string]interface{}
 }

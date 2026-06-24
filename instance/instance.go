@@ -35,12 +35,18 @@ type Instance struct {
 	attrs map[string]interface{}
 	//activityAttrs map[string]map[string]data.TypedValue
 
+	triggerTags map[string]interface{}
+
 	resultHandler action.ResultHandler
 
 	logger     log.Logger
 	tracingCtx trace.TracingContext
 	goContext  context.Context
 	cancelFunc context.CancelFunc
+}
+
+func (inst *Instance) SetTriggerTags(tags map[string]interface{}) {
+	inst.triggerTags = tags
 }
 
 func (inst *Instance) GetMasterScope() data.Scope {

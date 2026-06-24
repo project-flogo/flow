@@ -1223,6 +1223,11 @@ func (inst *Instance) SpanConfig() trace.Config {
 		config.Tags["parent_flow_id"] = inst.master.ID()
 		config.Tags["parent_flow_name"] = inst.master.Name()
 	}
+	if trace.TraceCustomTagsEnabled() {
+		for k, v := range inst.triggerTags {
+			config.Tags[k] = v
+		}
+	}
 	return config
 }
 
