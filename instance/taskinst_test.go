@@ -160,7 +160,7 @@ func TestGetErrorObject_WithRealSchemaValidationError(t *testing.T) {
 
 	if _, ok := validationErr.(*schema.ValidationError); ok {
 		assert.Equal(t, "schema_validation", errorObj["type"])
-		assert.Equal(t, activity.ActivityError, errorObj["code"])
+		assert.Equal(t, SchemaValidationError, errorObj["code"])
 		assert.Contains(t, errorObj, "activityType")
 		data, ok := errorObj["data"].(map[string]interface{})
 		assert.True(t, ok)
@@ -191,7 +191,7 @@ func TestGetErrorObject_WithNumError(t *testing.T) {
 	assert.Equal(t, taskInst.taskID, errorObj["activity"])
 	assert.Equal(t, numErr.Error(), errorObj["message"])
 	assert.Equal(t, "num_error", errorObj["type"])
-	assert.Equal(t, activity.ActivityError, errorObj["code"])
+	assert.Equal(t, NumConversionError, errorObj["code"])
 	assert.Contains(t, errorObj, "activityType")
 }
 
@@ -212,7 +212,7 @@ func TestGetErrorObject_WithNumErrorRange(t *testing.T) {
 
 	assert.NotNil(t, errorObj)
 	assert.Equal(t, "num_error", errorObj["type"])
-	assert.Equal(t, activity.ActivityError, errorObj["code"])
+	assert.Equal(t, NumConversionError, errorObj["code"])
 	assert.Contains(t, numErr.Error(), "value out of range")
 }
 
