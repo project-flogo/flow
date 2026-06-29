@@ -20,8 +20,8 @@ import (
 )
 
 const EngineError string = "ENGINE-ERROR"
-const SchemaValidationError string = "SCHEMA-VALIDATION-ERROR"
-const NumConversionError string = "NUM-CONVERSION-ERROR"
+const SchemaValidationError string = "SCHEMA-VALIDATION-001"
+const NumConversionError string = "NUM-CONVERSION-001"
 
 func NewTaskInst(flowInst *Instance, task *definition.Task) *TaskInst {
 	var taskInst TaskInst
