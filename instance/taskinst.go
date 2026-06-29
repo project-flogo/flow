@@ -625,7 +625,6 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 		errorObj["type"] = "schema_validation"
 		errorObj["activityType"] = ti.Task().ActivityConfig().Type
 		errorObj["code"] = SchemaValidationError
-		errorObj["category"] = e.Category()
 		validationErrors := e.Errors()
 		errorDetails := make([]string, 0, len(validationErrors))
 		for _, ve := range validationErrors {
