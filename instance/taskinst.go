@@ -20,8 +20,8 @@ import (
 )
 
 const EngineError string = "ENGINE-ERROR"
-const SchemaValidationError string = "SCHEMA-VALIDATION-ERROR"
-const NumConversionError string = "NUM-CONVERSION-ERROR"
+const SchemaValidationError string = "SCHEMA-VALIDATION-001"
+const NumConversionError string = "NUM-CONVERSION-001"
 
 func NewTaskInst(flowInst *Instance, task *definition.Task) *TaskInst {
 	var taskInst TaskInst
@@ -625,6 +625,7 @@ func (ti *TaskInst) getErrorObject(err error) map[string]interface{} {
 		errorObj["type"] = "schema_validation"
 		errorObj["activityType"] = ti.Task().ActivityConfig().Type
 		errorObj["code"] = SchemaValidationError
+		errorObj["category"] = e.Category()
 		validationErrors := e.Errors()
 		errorDetails := make([]string, 0, len(validationErrors))
 		for _, ve := range validationErrors {
