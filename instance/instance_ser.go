@@ -108,7 +108,7 @@ func (inst *IndependentInstance) UnmarshalJSON(d []byte) error {
 			}
 		}
 
-		inst.subflowCtr = subFlowCtr
+		inst.subflowCtr.Store(int64(subFlowCtr))
 	}
 
 	inst.workItemQueue = support.NewSyncQueue()
