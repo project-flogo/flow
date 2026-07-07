@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	coresupport "github.com/project-flogo/core/engine/support"
 	"github.com/project-flogo/flow/instance"
 	"github.com/project-flogo/flow/support"
 )
@@ -210,7 +211,7 @@ var testRestartInitialState = `{
 type RestartRequest struct {
 	InitialState *instance.IndependentInstance `json:"initialState"`
 	Data         map[string]interface{}        `json:"data"`
-	Interceptor  *support.Interceptor          `json:"interceptor"`
+	Interceptor  *coresupport.Interceptor      `json:"interceptor"`
 	Patch        *support.Patch                `json:"patch"`
 }
 
