@@ -61,6 +61,25 @@ func TestTaskBehaviour(t *testing.T) {
 	result, err := taskBehaviour.Eval(testContext)
 	assert.Nil(t, err)
 	assert.Equal(t, model.EvalDone, result)
+	// KNOWN PRE-EXISTING FAILURE (unrelated to FLOGO-18450 / the core bump): the
+	// `assert.True(t, skip)` below fails. This was previously hidden because model/simple
+	// could not compile against the old pinned core (missing trace.TagDefs); once core is
+	// bumped and the package compiles, the latent bug is exposed.
+	//
+	// Why it fails:
+	//   1. TaskBehavior.Skip in taskbehavior.go declares a NAMED return `propagateSkip bool`
+	//      that SHADOWS the package-level `var propagateSkip = support.GetPropagateSkip()`.
+	//      The function never assigns the named return, so Skip always returns
+	//      propagateSkip = false regardless of FLOGO_TASK_PROPAGATE_SKIP.
+	//   2. Even without the shadowing, the package-level var is read ONCE at init, so this
+	//      os.Setenv at test time cannot change it.
+	//
+	// How to fix (separate change, needs review as it alters default skip propagation):
+	//   - In taskbehavior.go Skip(), drop the shadowing named return (or assign it), e.g.
+	//     `return true, nil, propagateSkip` should return the package/env value, not the
+	//     zero-valued named return.
+	//   - Make this test drive the value deterministically (reset/inject the cached var or
+	//     read the env inside Skip) instead of relying on a post-init os.Setenv.
 	os.Setenv("FLOGO_TASK_PROPAGATE_SKIP", "true")
 	notify, tasks, skip := taskBehaviour.Skip(testContext)
 	assert.True(t, notify)
