@@ -40,7 +40,9 @@ type IndependentInstance struct {
 
 	// Concurrency guards. Non-nil only when concurrent task execution is enabled
 	// (FLOGO_FLOW_EXECUTE_BRANCHES_CONCURRENTLY); when nil the sequential path stays lock-free.
-	// Lock hierarchy (outer -> inner): stateLock -> attrsLock -> changeTracker lock.
+	// Lock hierarchy (outer -> inner): stateLock -> changeTracker lock -> attrsLock (leaf).
+	// The change tracker takes its own lock and then calls GetReturnData, which acquires
+	// attrsLock, so attrsLock is the innermost/leaf lock (see GetReturnData and SetValue).
 	stateLock *sync.Mutex   // guards traversal/scheduling, taskInsts/linkInsts/subflows maps, status
 	attrsLock *sync.RWMutex // guards the shared attrs and returnData maps
 
@@ -636,6 +638,9 @@ func (inst *IndependentInstance) execTaskConcurrent(behavior model.TaskBehavior,
 
 	// Per-task cancellable context so context-aware activities abort on sibling failure.
 	taskInst.evalCtx = inst.concurCtx
+	// Clear it on the way out so a TaskInst never retains a canceled group context after the
+	// pool tears down concurCtx; later GoContext/GetGoContext must fall back to the flow context.
+	defer func() { taskInst.evalCtx = nil }()
 
 	// ---- slow part: state lock NOT held, so branches run in parallel ----
 	evalResult, err, skipped := inst.evalTaskBehavior(behavior, taskInst)
@@ -720,6 +725,10 @@ func (inst *IndependentInstance) RunConcurrent(stepCount, maxStepCount int, stat
 				}
 				item, ok := inst.workItemQueue.Pop()
 				if ok {
+					// Count the step while still holding coordMu, before releasing it, so the
+					// stop() max-step check (which reads stepCtr under coordMu) enforces the limit
+					// strictly like the sequential loop; otherwise workers could pop past the cap.
+					stepCtr.Add(1)
 					inFlight.Add(1)
 					coordMu.Unlock()
 
@@ -729,7 +738,6 @@ func (inst *IndependentInstance) RunConcurrent(stepCount, maxStepCount int, stat
 						behavior = inst.flowModel.GetTaskBehavior(typeID)
 					}
 					inst.changeTracker.WorkItemRemoved(workItem)
-					stepCtr.Add(1)
 					inst.execTaskConcurrent(behavior, workItem.taskInst, stateRecorder, time.Now().UTC())
 
 					inFlight.Add(-1)
