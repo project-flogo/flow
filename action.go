@@ -65,6 +65,10 @@ func (f *ActionFactory) Initialize(ctx action.InitContext) error {
 		return nil
 	}
 
+	if flowsupport.GetConcurrentExecution() {
+		logger.Infof("Concurrent branch execution is ENABLED via env %s, parallel transition branches will execute concurrently", flowsupport.ConcurrentExecution)
+	}
+
 	sm := ctx.ServiceManager()
 
 	srService := sm.FindService(func(s service.Service) bool {
@@ -414,13 +418,20 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			handler.HandleResult(results, nil)
 		}
 
-		for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
-			stepCount++
-			logger.Debugf("Step: %d", stepCount)
-			taskStartTime := time.Now().UTC()
-			hasWork = inst.DoStep()
-			if stateRecorder != nil {
-				inst.RecordState(taskStartTime)
+		if flowsupport.GetConcurrentExecution() {
+			// Concurrent path: drain ready tasks (e.g. parallel transition branches) with a
+			// bounded worker pool. When the flag is off this block is skipped and the
+			// sequential loop below runs exactly as before (no behavioral change).
+			stepCount = inst.RunConcurrent(stepCount, maxStepCount, stateRecorder)
+		} else {
+			for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
+				stepCount++
+				logger.Debugf("Step: %d", stepCount)
+				taskStartTime := time.Now().UTC()
+				hasWork = inst.DoStep()
+				if stateRecorder != nil {
+					inst.RecordState(taskStartTime)
+				}
 			}
 		}
 		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {

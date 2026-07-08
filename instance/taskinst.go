@@ -89,6 +89,11 @@ type TaskInst struct {
 	returnError  error
 	traceContext trace.TracingContext
 
+	// evalCtx, when non-nil, overrides the flow-level GoContext for this task's activity
+	// evaluation. The concurrent scheduler sets it to a per-fork cancellable context so
+	// context-aware activities abort when a sibling branch fails. nil in sequential mode.
+	evalCtx context.Context
+
 	//needed for serialization
 	taskID string
 }
@@ -166,6 +171,9 @@ func (ti *TaskInst) GetTracingContext() trace.TracingContext {
 }
 
 func (ti *TaskInst) GoContext() context.Context {
+	if ti.evalCtx != nil {
+		return ti.evalCtx
+	}
 	return ti.flowInst.goContext
 }
 
@@ -228,6 +236,9 @@ func (ti *TaskInst) FlowLogger() log.Logger {
 }
 
 func (ti *TaskInst) GetGoContext() context.Context {
+	if ti.evalCtx != nil {
+		return ti.evalCtx
+	}
 	return ti.flowInst.goContext
 
 }
