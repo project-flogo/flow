@@ -318,22 +318,22 @@ func TestHandleEvalResultPaths(t *testing.T) {
 
 	ti, _ := inst.FindOrCreateTaskInst(inst.flowDef.GetTask("LogStart"))
 
-	inst.handleEvalResult(b, ti, model.EvalWait)
+	inst.handleEvalResult(b, ti, model.EvalWait, false)
 	assert.Equal(t, model.TaskStatusWaiting, ti.Status())
 
-	inst.handleEvalResult(b, ti, model.EvalFail)
+	inst.handleEvalResult(b, ti, model.EvalFail, false)
 	assert.Equal(t, model.TaskStatusFailed, ti.Status())
 
 	before := inst.workItemQueue.Size()
-	inst.handleEvalResult(b, ti, model.EvalRepeat)
+	inst.handleEvalResult(b, ti, model.EvalRepeat, false)
 	assert.Equal(t, before+1, inst.workItemQueue.Size())
 
 	// EvalDone / EvalSkip both route through handleTaskDone.
 	assert.NotPanics(t, func() {
 		tiDone, _ := inst.FindOrCreateTaskInst(inst.flowDef.GetTask("LogResult"))
-		inst.handleEvalResult(b, tiDone, model.EvalDone)
+		inst.handleEvalResult(b, tiDone, model.EvalDone, false)
 		tiSkip, _ := inst.FindOrCreateTaskInst(inst.flowDef.GetTask("LogStart"))
-		inst.handleEvalResult(b, tiSkip, model.EvalSkip)
+		inst.handleEvalResult(b, tiSkip, model.EvalSkip, false)
 	})
 }
 

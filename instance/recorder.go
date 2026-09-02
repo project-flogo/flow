@@ -15,11 +15,26 @@ func NewStateInstanceRecorder(recorder state.Recorder, mod state.RecordingMode, 
 	return &stateInstanceRecorder{
 		mod:              mod,
 		externalRecorder: recorder,
-		rerun: rerunstate,
+		rerun:            rerunstate,
 	}
 }
 
 func (inst *IndependentInstance) RecordState(strtTime time.Time) error {
+	// Pre-existing, surfaced by FLOGO-19484: ondemand/action.go builds its instance with a nil
+	// instRecorder, while handleGlobalError and handleCancelError call RecordState
+	// unconditionally on the embedded-instance path - so an on-demand flow whose subflow errors
+	// nil-derefs below. This ticket's rollback paths run straight through those call sites, so
+	// the one-line guard is taken here rather than left as a trap.
+	if inst.instRecorder == nil {
+		return nil
+	}
+
+	// FLOGO-19484 / D10 (record side). Only stamp when something is actually being recorded, so
+	// the marker is not written into $flow for apps that have recording off entirely.
+	if state.RecordSnapshot(inst.instRecorder.mod) || state.RecordSteps(inst.instRecorder.mod) {
+		inst.stampTxInFlight()
+	}
+
 	if state.RecordSnapshot(inst.instRecorder.mod) {
 		err := inst.instRecorder.externalRecorder.RecordSnapshot(inst.Snapshot())
 		if err != nil {
