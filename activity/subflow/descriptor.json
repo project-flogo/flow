@@ -17,6 +17,23 @@
       "type": "boolean",
       "required": false,
       "value": false
+    },
+    {
+      "name": "execTimeout",
+      "type": "integer",
+      "required": false,
+      "value": 0
+    },
+    {
+      "name": "transactional",
+      "type": "boolean",
+      "required": false,
+      "value": false
+    },
+    {
+      "name": "transactionConnection",
+      "type": "any",
+      "required": false
     }
   ]
 }
