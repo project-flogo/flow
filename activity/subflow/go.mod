@@ -1,8 +1,8 @@
 module github.com/project-flogo/flow/activity/subflow
 
 require (
-	github.com/project-flogo/core v1.6.22
-	github.com/project-flogo/flow v1.6.28
+	github.com/project-flogo/core v1.6.22-0.20260902065001-9e288508778b
+	github.com/project-flogo/flow v1.6.28-0.20260902065149-820199433c22
 	github.com/stretchr/testify v1.11.1
 )
 
