@@ -278,6 +278,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if initialState != nil {
 
 			inst = initialState
+			if err := instance.RejectIfTxInFlight(inst); err != nil {
+				return err
+			}
 			var instanceID string
 
 			if len(preserveInstanceId) > 0 {
@@ -313,6 +316,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	case instance.OpResume:
 		if initialState != nil {
 			inst = initialState
+			if err := instance.RejectIfTxInFlight(inst); err != nil {
+				return err
+			}
 			logger.Debug("Resuming Flow Instance: ", inst.ID())
 
 			//instLogger := logger
@@ -396,6 +402,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	}
 
 	go func() {
+		// FLOGO-19484: registered FIRST so it runs LAST (defers are LIFO). O(1) when the feature
+		// is unused: txScopeActive is zero.
+		defer instance.RollbackOpenTransactions(inst)
+
 		if detachExecution {
 			// In detached mode, no reply expected. So, notifying handler.
 			handler.Done()

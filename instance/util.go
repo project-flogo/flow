@@ -386,8 +386,18 @@ func StartSubFlow(ctx activity.Context, flowURI string, inputs map[string]interf
 	var cancelctx context.Context = nil
 	var cancelFunc context.CancelFunc = nil
 	if taskInst.flowInst.goContext != nil {
-		cancelctx = taskInst.flowInst.goContext
-		cancelFunc = taskInst.flowInst.cancelFunc
+		// FLOGO-19484: derive a per-instance cancel rather than ALIASING the parent's.
+		//
+		// handleTaskDone calls containerInst.cancelFunc() unconditionally when an embedded
+		// instance completes. Aliasing therefore meant a nested subflow completing cancelled its
+		// PARENT's context, after which every remaining task in the parent hit the ctx.Done()
+		// guard in EvalActivity and silently returned without applying its output mapper. That
+		// was always wrong; it becomes damaging with transactional subflows, where the parent is
+		// still running and expects to reach its own terminal transition.
+		//
+		// Deriving keeps parent -> child cancellation propagation intact; it only stops the
+		// child from cancelling upwards.
+		cancelctx, cancelFunc = context.WithCancel(taskInst.flowInst.goContext)
 	}
 	//defer cancelFunc()
 	//todo make sure that there is only one subFlow per taskinst
@@ -433,6 +443,17 @@ func StartSubFlowWithContext(duration int64, ctx activity.Context, flowURI strin
 	timeoutContext = context.WithValue(timeoutContext, "timeoutSeconds", strconv.FormatInt(duration, 10))
 	taskInst.logger.Debugf("context %v ", timeoutContext)
 
+	// cancelFunc is deliberately not deferred here: ownership passes to the embedded
+	// instance below, which keeps using timeoutContext long after this function returns.
+	// The instance calls it from handleTaskDone once the subflow completes
+	// (ind_instance.go, "if containerInst.cancelFunc != nil") and from
+	// execTaskWithContext on each timeout branch.
+	//
+	// FLOGO-19484 - transactional subflow: do NOT begin a database transaction on
+	// timeoutContext. It is cancelled when the subflow completes, and that happens
+	// *before* the host TaskInst is rescheduled, so database/sql's watchdog would roll
+	// the transaction back before the subflow activity ever gets to commit it. Begin the
+	// transaction on a non-cancellable context and observe cancellation separately.
 	//defer cancelFunc()
 	//todo make sure that there is only one subFlow per taskinst
 	flowInst := taskInst.flowInst.master.newEmbeddedInstance(taskInst, flowURI, def, timeoutContext, cancelFunc)
@@ -482,6 +503,109 @@ func StartDetachedSubFlow(ctx activity.Context, flowURI string, inputs map[strin
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// StartTransactionalSubFlow starts an embedded subflow that runs inside a database transaction
+// (FLOGO-19484). It is ADDITIVE: StartSubFlow, StartSubFlowWithContext and StartDetachedSubFlow
+// are untouched, so an older build of the separately-versioned flow/activity/subflow module
+// still compiles against a newer flow.
+//
+// The ENGINE owns context construction. The activity supplies only `decorate`, which layers the
+// transaction handle onto the context, and `fin`, which commits or rolls back; flow/instance
+// never imports database/sql.
+func StartTransactionalSubFlow(ctx activity.Context, flowURI string, inputs map[string]interface{},
+	timeoutMs int64, connID string, decorate TxContextDecorator, fin TxFinalizer) error {
+
+	taskInst, ok := ctx.(*TaskInst)
+	if !ok {
+		return errors.New("unable to create subFlow using this context")
+	}
+	if fin == nil {
+		return errors.New("a transactional subflow requires a transaction finalizer")
+	}
+
+	def, _, err := flowSupport.GetDefinition(flowURI)
+	if err != nil {
+		return err
+	}
+	if def == nil {
+		return errors.New("unable to resolve subflow: " + flowURI)
+	}
+
+	// The parent is the FLOW's context, NEVER ctx.GoContext().
+	//
+	// In concurrent mode execTaskConcurrent sets taskInst.evalCtx = inst.concurCtx and
+	// TaskInst.GoContext() prefers evalCtx, while RunConcurrent cancels and nils concurCtx at the
+	// end of the round - by which time this subflow has only been ENQUEUED. The embedded instance
+	// would carry a permanently cancelled context and every task evaluation would silently drop
+	// its tail (output mappers, accumulation, _E). StartSubFlow already reads flowInst.goContext.
+	parent := taskInst.flowInst.goContext
+	if parent == nil {
+		parent = context.Background()
+	}
+	if decorate != nil {
+		parent = decorate(parent) // layers the transaction registry
+	}
+
+	var cancels []context.CancelFunc
+	if timeoutMs != 0 {
+		// The same two untyped string keys DoStep and handleTaskCancelled read, so the subflow's
+		// tasks route through execTaskWithContext and the execTimeout rollback works - without
+		// touching StartSubFlowWithContext's own parentage.
+		parent = context.WithValue(parent, "timeoutContext", "true")
+		parent = context.WithValue(parent, "timeoutSeconds", strconv.FormatInt(timeoutMs, 10))
+		tctx, tcancel := context.WithTimeout(parent, time.Duration(timeoutMs)*time.Millisecond)
+		parent, cancels = tctx, append(cancels, tcancel)
+	}
+
+	// The embedded instance gets its OWN cancel, never the parent flow's. handleTaskDone calls
+	// containerInst.cancelFunc() unconditionally, so aliasing the parent's cancelFunc - what
+	// StartSubFlow does - would cancel the PARENT flow when this subflow completes.
+	subCtx, subCancel := context.WithCancel(parent)
+	cancels = append(cancels, subCancel)
+	cancelAll := func() {
+		for i := len(cancels) - 1; i >= 0; i-- {
+			cancels[i]()
+		}
+	}
+	// cancelAll only ever touches OUR subtree. The transaction is begun by the activity on a
+	// context.Background()-rooted context, so none of this can trigger database/sql's automatic
+	// rollback before the finalizer runs.
+
+	master := taskInst.flowInst.master
+	flowInst := master.newEmbeddedInstance(taskInst, flowURI, def, subCtx, cancelAll)
+
+	// Publish txScope under the state lock. newEmbeddedInstance already put flowInst into
+	// master.subflows under that lock, and RollbackOpenTransactions iterates subflows under it,
+	// so assigning the field outside the lock would be a read/write race on a field the sweep
+	// inspects. No-op in sequential mode.
+	scope := &txScope{fin: fin, connID: connID, logger: ctx.Logger()}
+	master.lockState()
+	flowInst.txScope = scope
+	master.unlockState()
+	master.txScopeActive.Add(1)
+
+	ctx.Logger().Debugf("FLOGO-19484: starting transactional embedded subflow `%s` on connection '%s'", flowInst.Name(), connID)
+
+	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
+	index := ""
+	if isLoop {
+		index = attr.(string)
+	}
+	master.addSubFlowToCoverage(def.Name(), taskInst.Name(), taskInst.flowInst.Name(),
+		taskInst.flowInst.ID(), flowInst.ID(), inputs, isLoop, index)
+
+	if err = master.startEmbedded(flowInst, inputs); err != nil {
+		// Nothing was scheduled and nothing else will ever finalise this scope.
+		master.lockState()
+		flowInst.txScope = nil
+		master.unlockState()
+		master.txScopeActive.Add(-1)
+		cancelAll()
+		return err
+	}
+
 	return nil
 }
 

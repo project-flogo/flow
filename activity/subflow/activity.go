@@ -1,22 +1,49 @@
 package subflow
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
 	"github.com/project-flogo/core/activity"
+	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/data/metadata"
+	"github.com/project-flogo/core/support/connection"
+	"github.com/project-flogo/core/support/sqltx"
 	"github.com/project-flogo/flow/instance"
 )
 
 func init() {
 	_ = activity.Register(&SubFlowActivity{}, New)
+
+	// FLOGO-19484: flow/instance must not import database/sql, so it carries a transaction
+	// registry only through this indirection. Registering here means a binary that links the
+	// subflow activity gets real propagation, and one that does not keeps the identity default
+	// and allocates nothing.
+	instance.SetTxContextPropagator(sqltx.Propagate)
 }
 
 type Settings struct {
 	FlowURI            string `md:"flowURI,required"`
 	DetachedInvocation bool   `md:"detached"`
 	ExecTimeout        int64  `md:"execTimeout"`
+	Transactional      bool   `md:"transactional"`
+
+	// Connection is deliberately interface{} and NOT connection.Manager.
+	//
+	// activity.ToMetadata -> metadata.StructToTypedMap -> NewFieldDetails maps a
+	// connection.Manager field to data.TypeConnection, which makes BOTH metadata.MapToStruct
+	// and metadata.ResolveSettingValue - the latter at flow-DEFINITION-LOAD time - call
+	// coerce.ToConnection BEFORE New() can see Transactional. A dangling conn://<uuid>, which
+	// the designtime leaves behind when the box is unticked and which a removed app.json
+	// connection also produces, would then turn an app that starts today into one that fails
+	// to start.
+	//
+	// interface{} maps to data.TypeAny, whose coercion is a passthrough. We resolve explicitly
+	// in New(), and only when Transactional is set.
+	TransactionConnection interface{} `md:"transactionConnection"`
 }
 
 var activityMd = activity.ToMetadata(&Settings{})
@@ -37,7 +64,56 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 	//}
 
 	activityMd := activity.ToMetadata(&Settings{})
-	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd, detachedInvocation: s.DetachedInvocation, timeout: s.ExecTimeout}
+	act := &SubFlowActivity{flowURI: s.FlowURI, activityMd: activityMd, detachedInvocation: s.DetachedInvocation,
+		timeout: s.ExecTimeout, transactional: s.Transactional}
+
+	if s.Transactional {
+		if s.DetachedInvocation {
+			// Detached is genuinely fire-and-forget: FlowAction.Run signals the handler before
+			// the step loop starts, so the subflow outlives this activity and runs on a context
+			// this activity never sees. A transaction could not span it.
+			return nil, errors.New("SUBFLOW-TX-010: a detached subflow cannot be transactional")
+		}
+		if s.TransactionConnection == nil {
+			return nil, errors.New("SUBFLOW-TX-011: a connection is required when the subflow is transactional")
+		}
+
+		mgr, err := coerce.ToConnection(s.TransactionConnection)
+		if err != nil {
+			return nil, fmt.Errorf("SUBFLOW-TX-012: unable to resolve the transactional subflow's connection: %w", err)
+		}
+		if mgr == nil {
+			return nil, errors.New("SUBFLOW-TX-011: a connection is required when the subflow is transactional")
+		}
+
+		// The id must come from the registry, never from a field on the manager. None of the
+		// four SQL connectors reliably stores its registry id: mssql declares `name`/`connKey`
+		// and assigns neither, postgres never assigns `name`, mysql's `name` is the display
+		// name, and oracle has no id field at all. Reading a struct field would make the whole
+		// feature a silent no-op.
+		connID := connection.GetId(mgr)
+		if connID == "" {
+			return nil, errors.New("SUBFLOW-TX-013: a transactional subflow requires a SHARED connection (conn://...); an inline connection config cannot be shared with the activities inside the subflow")
+		}
+
+		// Best effort only. Managed connectors open their pool in Start(), which the app runs
+		// AFTER New(), so GetConnection() is legitimately nil here. Eval repeats this check,
+		// where it is mandatory.
+		if c := mgr.GetConnection(); c != nil {
+			if _, ok := c.(*sql.DB); !ok {
+				return nil, fmt.Errorf("SUBFLOW-TX-014: connection '%s' does not expose a *sql.DB", mgr.Type())
+			}
+		}
+
+		act.connMgr, act.connID = mgr, connID
+		ctx.Logger().Debugf("FLOGO-19484: subflow '%s' is transactional on connection id '%s'", s.FlowURI, connID)
+	} else if s.TransactionConnection != nil {
+		// Reachable precisely because Connection is interface{}: no coercion has happened yet.
+		// A stale value left behind by the designtime must not stop the app from starting.
+		if _, err := coerce.ToConnection(s.TransactionConnection); err != nil {
+			ctx.Logger().Warnf("FLOGO-19484: subflow activity is not transactional and its stale 'connection' setting could not be resolved (%v); ignoring it", err)
+		}
+	}
 
 	ctx.Logger().Debugf("flowURI: %+v", s.FlowURI)
 
@@ -56,6 +132,12 @@ type SubFlowActivity struct {
 	timeout            int64
 	mutex              sync.Mutex
 	mdUpdated          uint32
+
+	// FLOGO-19484. Set only when the subflow is transactional; connMgr/connID are resolved once
+	// in New() and are immutable thereafter, so Eval needs no locking to read them.
+	transactional bool
+	connMgr       connection.Manager
+	connID        string
 }
 
 // Metadata returns the activity's metadata
@@ -97,6 +179,25 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 		for name := range md.Input {
 			input[name] = ctx.GetInput(name)
 		}
+	}
+
+	if a.transactional {
+		// Defence in depth. New() already rejects detached+transactional at APP LOAD, which is
+		// where a misconfiguration should surface. This second check exists because the two
+		// fields are independent booleans: anything that builds a SubFlowActivity without going
+		// through New() -- a future dynamic-settings path, a test helper, a refactor -- would
+		// otherwise reach evalTransactional with a detached flow and BeginTx a transaction that
+		// nothing can ever commit or roll back, leaking a pinned connection for the life of the
+		// process.
+		//
+		// It returns an error rather than panicking on purpose: a panic here would unwind through
+		// the engine's task runner, and the recover() guard in evalTransactional could not roll
+		// back a transaction that was never begun. An error fails this activity, and the flow,
+		// cleanly and with a code the log can be triaged on.
+		if a.detachedInvocation {
+			return false, fmt.Errorf("SUBFLOW-TX-010: a detached subflow cannot be transactional")
+		}
+		return a.evalTransactional(ctx, input)
 	}
 
 	if a.detachedInvocation {

@@ -65,6 +65,14 @@ type IndependentInstance struct {
 	errLatched       bool
 	latchedErr       error
 	latchedErrInst   *Instance
+
+	// Transactional subflow bookkeeping (FLOGO-19484). txScopeActive counts embedded instances
+	// that currently own an open transaction; it is the O(1) gate that keeps the whole feature
+	// off the hot path for every flow that does not use it. txRecordWarned suppresses repeated
+	// D10 warnings from RecordState; it is only written from RecordState, which runs under
+	// stateLock in concurrent mode and single-threaded otherwise.
+	txScopeActive  atomic.Int32
+	txRecordWarned bool
 }
 
 const (
@@ -334,9 +342,10 @@ func (inst *IndependentInstance) startInstance(toStart *Instance, startAttrs map
 	ok, taskEntries := flowBehavior.Start(toStart)
 
 	if ok {
-		err := inst.enterTasks(toStart, taskEntries)
+		err := inst.enterTasks(toStart, taskEntries, false)
 		if err != nil {
 			//todo review how we should handle an error encountered here
+			markTxFailed(toStart, err)
 			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
 		}
 	}
@@ -463,6 +472,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 		if r := recover(); r != nil {
 
 			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
+			markTxFailed(taskInst.flowInst, err)
 			inst.logger.Error(err)
 			if taskInst.traceContext != nil {
 				_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
@@ -474,7 +484,7 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 			if !taskInst.flowInst.isHandlingError {
 
 				taskInst.appendErrorData(NewActivityEvalError(taskInst.task.Name(), "unhandled", err.Error()))
-				inst.HandleGlobalError(taskInst.flowInst, err)
+				inst.handleGlobalError(taskInst.flowInst, err, false)
 			}
 			// else what should we do?
 		}
@@ -487,11 +497,11 @@ func (inst *IndependentInstance) execTask(behavior model.TaskBehavior, taskInst 
 
 	if err != nil {
 		//taskInst.returnError = err
-		inst.handleTaskError(behavior, taskInst, err)
+		inst.handleTaskError(behavior, taskInst, err, false)
 		return
 	}
 
-	inst.handleEvalResult(behavior, taskInst, evalResult)
+	inst.handleEvalResult(behavior, taskInst, evalResult, false)
 }
 
 // evalTaskBehavior runs a task's activity evaluation (PostEval for a resumed task, or Eval,
@@ -534,18 +544,19 @@ func (inst *IndependentInstance) evalTaskBehavior(behavior model.TaskBehavior, t
 // handleEvalResult applies the outcome of a task evaluation: completing/skipping the task,
 // marking it waiting/failed, or rescheduling it to repeat. Shared by the sequential and
 // concurrent drivers; the concurrent driver calls it while holding the state lock.
-func (inst *IndependentInstance) handleEvalResult(behavior model.TaskBehavior, taskInst *TaskInst, evalResult model.EvalResult) {
+func (inst *IndependentInstance) handleEvalResult(behavior model.TaskBehavior, taskInst *TaskInst, evalResult model.EvalResult, lockHeld bool) {
 	switch evalResult {
 	case model.EvalDone:
 		//taskInst.SetStatus(model.TaskStatusDone)
-		inst.handleTaskDone(behavior, taskInst)
+		inst.handleTaskDone(behavior, taskInst, lockHeld)
 	case model.EvalSkip:
 		//taskInst.SetStatus(model.TaskStatusSkipped)
-		inst.handleTaskDone(behavior, taskInst)
+		inst.handleTaskDone(behavior, taskInst, lockHeld)
 	case model.EvalWait:
 		taskInst.SetStatus(model.TaskStatusWaiting)
 	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
+		markTxFailed(taskInst.flowInst, taskInst.returnError)
 		if taskInst.traceContext != nil {
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
 		}
@@ -619,6 +630,7 @@ func (inst *IndependentInstance) execTaskConcurrent(behavior model.TaskBehavior,
 	defer func() {
 		if r := recover(); r != nil {
 			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
+			markTxFailed(taskInst.flowInst, err)
 			inst.logger.Error(err)
 			if taskInst.traceContext != nil {
 				_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
@@ -626,7 +638,7 @@ func (inst *IndependentInstance) execTaskConcurrent(behavior model.TaskBehavior,
 			inst.lockState()
 			if !taskInst.flowInst.isHandlingError {
 				taskInst.appendErrorData(NewActivityEvalError(taskInst.task.Name(), "unhandled", err.Error()))
-				inst.HandleGlobalError(taskInst.flowInst, err)
+				inst.handleGlobalError(taskInst.flowInst, err, true)
 			}
 			if stateRecorder != nil {
 				_ = inst.RecordState(taskStartTime)
@@ -637,7 +649,26 @@ func (inst *IndependentInstance) execTaskConcurrent(behavior model.TaskBehavior,
 	}()
 
 	// Per-task cancellable context so context-aware activities abort on sibling failure.
-	taskInst.evalCtx = inst.concurCtx
+	ctxForTask := inst.concurCtx
+	// FLOGO-19484 (Z2): concurCtx is a SINGLE context per IndependentInstance, derived from the
+	// MASTER's goContext and assigned to EVERY task in the whole flow tree. It must therefore
+	// NEVER itself be decorated with a transaction registry - doing so would enlist every DB
+	// activity anywhere in the flow, including the host flow, into the subflow's transaction.
+	// Instead copy the registry PER TASK, from the task's own flow context, into a per-task
+	// derivation of concurCtx that keeps concurCtx's cancellation. Gated on txScopeActive so the
+	// non-transactional path allocates nothing.
+	// Gate on THIS TASK's own chain, not on the master's txScopeActive counter. The counter is a
+	// whole-flow aggregate: once the transaction is claimed for finalisation it drops, and a task
+	// still in flight would lose the registry and silently fall back to the pool - writing
+	// outside the transaction - instead of getting the loud ErrTxFinished. txScopeOwner walks a
+	// short host chain and returns nil immediately for a flow with no transaction, so the
+	// non-transactional path still allocates nothing.
+	if taskInst.flowInst.txScopeOwner() != nil {
+		if fc := taskInst.flowInst.goContext; fc != nil && fc != inst.goContext {
+			ctxForTask = propagateTxCtx(fc, ctxForTask)
+		}
+	}
+	taskInst.evalCtx = ctxForTask
 	// Clear it on the way out so a TaskInst never retains a canceled group context after the
 	// pool tears down concurCtx; later GoContext/GetGoContext must fall back to the flow context.
 	defer func() { taskInst.evalCtx = nil }()
@@ -653,9 +684,9 @@ func (inst *IndependentInstance) execTaskConcurrent(behavior model.TaskBehavior,
 	defer inst.unlockState()
 
 	if err != nil {
-		inst.handleTaskError(behavior, taskInst, err)
+		inst.handleTaskError(behavior, taskInst, err, true)
 	} else {
-		inst.handleEvalResult(behavior, taskInst, evalResult)
+		inst.handleEvalResult(behavior, taskInst, evalResult, true)
 	}
 
 	if stateRecorder != nil {
@@ -771,7 +802,7 @@ func (inst *IndependentInstance) RunConcurrent(stepCount, maxStepCount int, stat
 		containerInst, ferr := inst.takeLatchedError()
 		if ferr != nil {
 			inst.lockState()
-			inst.HandleGlobalError(containerInst, ferr)
+			inst.handleGlobalError(containerInst, ferr, true)
 			if stateRecorder != nil {
 				_ = inst.RecordState(time.Now().UTC())
 			}
@@ -799,6 +830,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		if r := recover(); r != nil {
 
 			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
+			markTxFailed(taskInst.flowInst, err)
 			inst.logger.Error(err)
 			if taskInst.traceContext != nil {
 				_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
@@ -810,7 +842,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 			if !taskInst.flowInst.isHandlingError {
 
 				taskInst.appendErrorData(NewActivityEvalError(taskInst.task.Name(), "unhandled", err.Error()))
-				inst.HandleGlobalError(taskInst.flowInst, err)
+				inst.handleGlobalError(taskInst.flowInst, err, false)
 			}
 			// else what should we do?
 		}
@@ -821,7 +853,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	case <-ctx.Done():
 		cancelFunc()
 		inst.logger.Debugf(" context timeout before task '%s' evaluation ", taskInst.task.ID())
-		inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
+		inst.handleTaskCancelled(behavior, taskInst, nil, ctx, false)
 		return
 	default:
 	}
@@ -863,7 +895,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		case <-ctx.Done():
 			cancelFunc()
 			inst.logger.Debugf(" context timeout during post evaluation of task '%s' ", taskInst.task.ID())
-			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
+			inst.handleTaskCancelled(behavior, taskInst, nil, ctx, false)
 			return
 		case res := <-resultChan:
 			evalResult = res.result
@@ -905,7 +937,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		case <-ctx.Done():
 			cancelFunc()
 			inst.logger.Debugf(" context timeout during eval of task '%s' ", taskInst.task.ID())
-			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
+			inst.handleTaskCancelled(behavior, taskInst, nil, ctx, false)
 			return
 		case res := <-resultChan:
 			evalResult = res.result
@@ -919,11 +951,11 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 		case <-ctx.Done():
 			cancelFunc()
 			inst.logger.Debugf(" context timeout after eval error of task '%s' ", taskInst.task.ID())
-			inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
+			inst.handleTaskCancelled(behavior, taskInst, nil, ctx, false)
 			return
 		default:
 		}
-		inst.handleTaskError(behavior, taskInst, err)
+		inst.handleTaskError(behavior, taskInst, err, false)
 		return
 	}
 
@@ -932,7 +964,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	case <-ctx.Done():
 		cancelFunc()
 		inst.logger.Debugf(" context timeout after eval of task '%s' ", taskInst.task.ID())
-		inst.handleTaskCancelled(behavior, taskInst, nil, ctx)
+		inst.handleTaskCancelled(behavior, taskInst, nil, ctx, false)
 		return
 	default:
 	}
@@ -940,14 +972,15 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 	switch evalResult {
 	case model.EvalDone:
 		//taskInst.SetStatus(model.TaskStatusDone)
-		inst.handleTaskDone(behavior, taskInst)
+		inst.handleTaskDone(behavior, taskInst, false)
 	case model.EvalSkip:
 		//taskInst.SetStatus(model.TaskStatusSkipped)
-		inst.handleTaskDone(behavior, taskInst)
+		inst.handleTaskDone(behavior, taskInst, false)
 	case model.EvalWait:
 		taskInst.SetStatus(model.TaskStatusWaiting)
 	case model.EvalFail:
 		taskInst.SetStatus(model.TaskStatusFailed)
+		markTxFailed(taskInst.flowInst, taskInst.returnError)
 		if taskInst.traceContext != nil {
 			_ = trace.GetTracer().FinishTrace(taskInst.traceContext, taskInst.returnError)
 		}
@@ -968,7 +1001,7 @@ func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancel
 }
 
 // handleTaskDone handles the completion of a task in the Flow Instance
-func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst) {
+func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior, taskInst *TaskInst, lockHeld bool) {
 	notifyFlow := false
 	propagateSkip := false
 	var taskEntries []*model.TaskEntry
@@ -993,7 +1026,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 	if err != nil {
 		err = fmt.Errorf("error handling task done transition for task [%s] in flow [%s] : %s", taskInst.Name(), inst.flowDef.Name(), err.Error())
 		taskInst.appendErrorData(err)
-		inst.HandleGlobalError(containerInst, err)
+		inst.handleGlobalError(containerInst, err, lockHeld)
 		return
 	}
 
@@ -1026,13 +1059,37 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 			host, ok := containerInst.host.(*TaskInst)
 
 			if ok {
+				// FLOGO-19484: finalise BEFORE the host gets its outputs and BEFORE
+				// scheduleEval(host). The ordering is load-bearing: the existing code NULLS
+				// host.returnError, so a latch-driven rollback must land after it or the parent
+				// believes the writes committed; and D14's retry safety depends on this
+				// transaction being fully finished before the host task can be re-evaluated.
+				// Y1: finishTx no-ops unless containerInst OWNS the scope, so a nested plain
+				// subflow completing here does not touch the outer transaction.
+				txErr := finishTx(containerInst, true, containerInst.returnErrorLocked(), lockHeld)
+
+				// D10 tripwire: resumed into the middle of a transactional subflow despite the
+				// record-side marker and the restore-side rejection.
+				// The marker is stamped on the MASTER (stampTxInFlight writes inst.Instance) and
+				// Instance.GetValue reads only that instance's own attrs, never the master's.
+				// Reading containerInst here - always an embedded instance in this branch - was
+				// therefore always false and the tripwire could never fire.
+				if txErr == nil && containerInst.txScope == nil && isTxInFlight(inst.Instance) {
+					txErr = txResumeErr(inst.ID(), containerInst.Name())
+					inst.logger.Error(txErr)
+				}
+
 				host.SetOutputs(containerInst.returnData)
-				// Reset error if any
-				host.returnError = nil
-				//Sub flow done
+				host.returnError = txErr // nil on a clean commit == today's behaviour
+
 				if inst.HasInterceptor() {
 					subFlowCoverage := inst.interceptor.GetSubFlowCoverageEntry(containerInst.ID())
-					subFlowCoverage.Outputs = containerInst.returnData
+					if txErr != nil {
+						// The subflow's effects were discarded; do not report them as output.
+						subFlowCoverage.Outputs = nil
+					} else {
+						subFlowCoverage.Outputs = containerInst.returnData
+					}
 					inst.interceptor.AddToSubFlowCoverageMap(containerInst.ID(), subFlowCoverage)
 				}
 
@@ -1063,9 +1120,10 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 
 		if !propagateSkip {
 			// not done, so enter tasks specified by the Done behavior call
-			err := inst.enterTasks(containerInst, taskEntries)
+			err := inst.enterTasks(containerInst, taskEntries, lockHeld)
 			if err != nil {
 				//todo review how we should handle an error encountered here
+				markTxFailed(containerInst, err)
 				log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
 			}
 		}
@@ -1104,7 +1162,10 @@ func (inst *IndependentInstance) propagateSkip(taskEntries []*model.TaskEntry, a
 }
 
 // handleTaskError handles the completion of a task in the Flow Instance
-func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error) {
+func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior, taskInst *TaskInst, err error, lockHeld bool) {
+
+	// FLOGO-19484 (D2): latch a surviving activity error onto the enclosing transaction.
+	markTxFailed(taskInst.flowInst, err)
 
 	if taskInst.traceContext != nil {
 		_ = trace.GetTracer().FinishTrace(taskInst.traceContext, err)
@@ -1121,9 +1182,10 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 		//Add error details to scope
 		taskInst.setTaskError(err)
 		if len(taskEntries) != 0 {
-			err := inst.enterTasks(containerInst, taskEntries)
+			err := inst.enterTasks(containerInst, taskEntries, lockHeld)
 			if err != nil {
 				//todo review how we should handle an error encountered here
+				markTxFailed(containerInst, err)
 				log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
 			}
 		}
@@ -1148,6 +1210,9 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 				host, ok := containerInst.host.(*TaskInst)
 
 				if ok {
+					if txErr := finishTx(containerInst, false, err, lockHeld); txErr != nil {
+						err = txErr
+					}
 					host.returnError = err
 					inst.scheduleEval(host)
 				}
@@ -1157,14 +1222,14 @@ func (inst *IndependentInstance) handleTaskError(taskBehavior model.TaskBehavior
 
 		} else {
 			taskInst.appendErrorData(err)
-			inst.HandleGlobalError(containerInst, err)
+			inst.handleGlobalError(containerInst, err, lockHeld)
 		}
 		return
 	}
 
 }
 
-func (inst *IndependentInstance) handleTaskCancelled(_ model.TaskBehavior, taskInst *TaskInst, err error, ctx context.Context) {
+func (inst *IndependentInstance) handleTaskCancelled(_ model.TaskBehavior, taskInst *TaskInst, err error, ctx context.Context, lockHeld bool) {
 
 	inst.logger.Debugf("handleTaskCancelled for task '%s' ", taskInst.Task().Name())
 	message := fmt.Sprintf("Flow execution timed out during execution of activity %s in flow %s", taskInst.Task().Name(), taskInst.flowInst.flowDef.Name())
@@ -1199,13 +1264,23 @@ func (inst *IndependentInstance) handleTaskCancelled(_ model.TaskBehavior, taskI
 	inst.logger.Debugf("task set to cancelled for task '%s' ", taskInst.Task().Name())
 
 	containerInst := taskInst.flowInst
+	markTxFailed(containerInst, err)
 	//containerInst.SetStatus(model.FlowStatusCancelled)
 	taskInst.appendErrorData(err)
-	inst.HandleCancelError(containerInst, err)
+	inst.handleCancelError(containerInst, err, lockHeld)
 }
 
-// HandleGlobalError handles instance errors
+// HandleGlobalError handles instance errors.
+//
+// FLOGO-19484: callers that hold the instance state lock MUST use handleGlobalError(.., true)
+// instead. This exported form assumes the lock is NOT held.
 func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err error) {
+	inst.handleGlobalError(containerInst, err, false)
+}
+
+func (inst *IndependentInstance) handleGlobalError(containerInst *Instance, err error, lockHeld bool) {
+
+	markTxFailed(containerInst, err)
 
 	// In concurrent mode, defer global error handling until all in-flight branches have
 	// drained. RunConcurrent invokes HandleGlobalError once after wg.Wait(); here we just
@@ -1218,6 +1293,19 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 	if containerInst.isHandlingError {
 		//todo: log error information
 		containerInst.SetStatus(model.FlowStatusFailed)
+		// FLOGO-19484: this branch neither sets host.returnError nor reschedules the host, so
+		// without this the transaction stays open until the leak sweep and the host TaskInst
+		// parks in TaskStatusWaiting forever.
+		// Y1: finishTx returns nil unless containerInst OWNS the scope, so non-transactional
+		// behaviour is byte-for-byte unchanged.
+		if txErr := finishTx(containerInst, false, err, lockHeld); txErr != nil {
+			if containerInst != inst.Instance {
+				if host, ok := containerInst.host.(*TaskInst); ok {
+					host.returnError = txErr
+					inst.scheduleEval(host)
+				}
+			}
+		}
 		return
 	}
 
@@ -1234,9 +1322,10 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 		inst.taskInsts = make(map[string]*TaskInst)
 
 		taskEntries := flowBehavior.StartErrorHandler(containerInst)
-		err := inst.enterTasks(containerInst, taskEntries)
+		err := inst.enterTasks(containerInst, taskEntries, lockHeld)
 		if err != nil {
 			//todo review how we should handle an error encountered here
+			markTxFailed(containerInst, err)
 			log.RootLogger().Errorf("encountered error when entering tasks: %v", err)
 		}
 
@@ -1259,6 +1348,9 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 			host, ok := containerInst.host.(*TaskInst)
 
 			if ok {
+				if txErr := finishTx(containerInst, false, err, lockHeld); txErr != nil {
+					err = txErr
+				}
 				host.returnError = err
 				inst.scheduleEval(host)
 			}
@@ -1269,6 +1361,10 @@ func (inst *IndependentInstance) HandleGlobalError(containerInst *Instance, err 
 }
 
 func (inst *IndependentInstance) HandleCancelError(containerInst *Instance, err error) {
+	inst.handleCancelError(containerInst, err, false)
+}
+
+func (inst *IndependentInstance) handleCancelError(containerInst *Instance, err error, lockHeld bool) {
 
 	// Print error message if no error handler
 	inst.logger.Error(err)
@@ -1291,6 +1387,9 @@ func (inst *IndependentInstance) HandleCancelError(containerInst *Instance, err 
 		host, ok := containerInst.host.(*TaskInst)
 
 		if ok {
+			if txErr := finishTx(containerInst, false, err, lockHeld); txErr != nil {
+				err = txErr
+			}
 			host.returnError = err
 			inst.scheduleEval(host)
 		}
@@ -1300,7 +1399,7 @@ func (inst *IndependentInstance) HandleCancelError(containerInst *Instance, err 
 
 }
 
-func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry) error {
+func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []*model.TaskEntry, lockHeld bool) error {
 	for _, taskEntry := range taskEntries {
 		//logger.Debugf("EnterTask - TaskEntry: %v", taskEntry)
 		behavior := inst.flowModel.GetTaskBehavior(taskEntry.Task.TypeID())
@@ -1315,7 +1414,7 @@ func (inst *IndependentInstance) enterTasks(activeInst *Instance, taskEntries []
 			}
 			inst.scheduleEval(taskInst)
 		case model.ERSkip:
-			inst.handleTaskDone(behavior, taskInst)
+			inst.handleTaskDone(behavior, taskInst, lockHeld)
 		}
 	}
 
