@@ -3,12 +3,14 @@ package subflow
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/sqltx"
+	"github.com/project-flogo/core/support/test"
 	"github.com/project-flogo/flow/instance"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -351,4 +353,28 @@ func TestTxFinConcurrentCommitAndRollback(t *testing.T) {
 	total := fx.drv.commitCount() + fx.drv.rollbackCount()
 	assert.EqualValues(t, 1, total, "exactly one of COMMIT/ROLLBACK may reach the driver")
 	assert.EqualValues(t, 1, fx.cancelCount())
+}
+
+// TestEvalRejectsDetachedTransactional covers the defence-in-depth guard in Eval.
+//
+// New() already rejects this combination at app load, so a correctly-constructed activity can
+// never reach it. The guard exists for anything that builds a SubFlowActivity directly, where
+// reaching evalTransactional would BeginTx a transaction that nothing can commit or roll back.
+func TestEvalRejectsDetachedTransactional(t *testing.T) {
+	a := &SubFlowActivity{
+		flowURI:            "res://flow:sub",
+		transactional:      true,
+		detachedInvocation: true, // impossible via New(), constructed directly on purpose
+	}
+
+	done, err := a.Eval(test.NewActivityContext(activityMd))
+	if err == nil {
+		t.Fatal("expected an error for detached+transactional, got nil")
+	}
+	if !strings.Contains(err.Error(), "SUBFLOW-TX-010") {
+		t.Fatalf("expected SUBFLOW-TX-010, got: %v", err)
+	}
+	if done {
+		t.Fatal("expected done=false when the guard fires")
+	}
 }

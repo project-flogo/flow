@@ -182,6 +182,21 @@ func (a *SubFlowActivity) Eval(ctx activity.Context) (done bool, err error) {
 	}
 
 	if a.transactional {
+		// Defence in depth. New() already rejects detached+transactional at APP LOAD, which is
+		// where a misconfiguration should surface. This second check exists because the two
+		// fields are independent booleans: anything that builds a SubFlowActivity without going
+		// through New() -- a future dynamic-settings path, a test helper, a refactor -- would
+		// otherwise reach evalTransactional with a detached flow and BeginTx a transaction that
+		// nothing can ever commit or roll back, leaking a pinned connection for the life of the
+		// process.
+		//
+		// It returns an error rather than panicking on purpose: a panic here would unwind through
+		// the engine's task runner, and the recover() guard in evalTransactional could not roll
+		// back a transaction that was never begun. An error fails this activity, and the flow,
+		// cleanly and with a code the log can be triaged on.
+		if a.detachedInvocation {
+			return false, fmt.Errorf("SUBFLOW-TX-010: a detached subflow cannot be transactional")
+		}
 		return a.evalTransactional(ctx, input)
 	}
 
