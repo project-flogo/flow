@@ -378,3 +378,44 @@ func TestEvalRejectsDetachedTransactional(t *testing.T) {
 		t.Fatal("expected done=false when the guard fires")
 	}
 }
+
+// TestLoopReason covers the SUBFLOW-TX-016 classifier.
+//
+// "iterator" and "doWhile" are the two loop behaviours registered in model/simple/model.go:19-20.
+// Both drivers also write the iterateIndex working-data key before calling evalActivity, which is
+// the belt-and-braces signal for any future driver following the same convention.
+func TestLoopReason(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		typeID        string
+		hasIterateIdx bool
+		wantLoop      bool
+	}{
+		{"iterator by type", "iterator", false, true},
+		{"doWhile by type", "doWhile", false, true},
+		{"iterator mid-loop", "iterator", true, true},
+		{"unknown driver, iterateIndex present", "somethingNew", true, true},
+		{"plain task", "", false, false},
+		{"plain named task", "myTask", false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, why := loopReason(tc.typeID, tc.hasIterateIdx)
+			if got != tc.wantLoop {
+				t.Fatalf("loopReason(%q,%v) = %v (%q), want %v", tc.typeID, tc.hasIterateIdx, got, why, tc.wantLoop)
+			}
+			if got && why == "" {
+				t.Fatal("a rejection must explain itself; the message is user-facing")
+			}
+		})
+	}
+}
+
+// TestIsLoopIterationOffEngine documents the deliberate non-rejection when the activity is driven
+// outside the flow engine, where no loop can exist. Rejecting there would fail every test that
+// calls Eval directly.
+func TestIsLoopIterationOffEngine(t *testing.T) {
+	looping, why := isLoopIteration(test.NewActivityContext(activityMd))
+	if looping {
+		t.Fatalf("expected no loop detected off-engine, got %q", why)
+	}
+}

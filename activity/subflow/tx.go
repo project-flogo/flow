@@ -47,6 +47,16 @@ func (a *SubFlowActivity) evalTransactional(ctx activity.Context, input map[stri
 			"SUBFLOW-TX-002", activity.ActivityError, nil)
 	}
 
+	if looping, why := isLoopIteration(ctx); looping {
+		return false, activity.NewActivityError(
+			fmt.Sprintf("a transactional subflow cannot be combined with a loop (%s). Each iteration would begin and COMMIT its own "+
+				"transaction, so a failure part-way through would leave the earlier iterations already committed. "+
+				"Put the loop INSIDE '%s' instead and pass the whole collection as its input: that gives one BEGIN "+
+				"when the subflow starts and one COMMIT when it finishes, which is almost certainly what was intended",
+				why, a.flowURI),
+			"SUBFLOW-TX-016", activity.ActivityError, nil)
+	}
+
 	db, ok := a.connMgr.GetConnection().(*sql.DB)
 	if !ok || db == nil {
 		return false, activity.NewActivityError(
@@ -233,4 +243,58 @@ func (f *txFin) finishRollback() error {
 		return nil
 	}
 	return err
+}
+
+// isLoopIteration reports whether this Eval is one iteration of a loop, and names the reason.
+//
+// Why this exists (FLOGO-19484): IteratorTaskBehavior.Eval and DoWhileTaskBehavior.Eval each call
+// evalActivity ONCE PER ITERATION. Every call would reach evalTransactional and BeginTx, and the
+// engine commits each iteration's subflow at its terminal transition (ind_instance.go finishTx)
+// strictly BEFORE the next iteration is rescheduled. So N iterations produce N independent
+// transactions, and a failure in iteration 3 leaves 1 and 2 committed -- the exact opposite of
+// what "transactional" promises. Nothing else in the runtime catches this: the nested-transaction
+// guard does not fire, because each iteration builds a fresh single-entry registry.
+//
+// Two signals, checked in this order:
+//
+//  1. The task's TYPE. This is static, set at flow-definition load, and true on the very first
+//     iteration. "iterator" and "doWhile" are the two loop behaviours registered in
+//     model/simple/model.go.
+//  2. The `iterateIndex` working-data key, which BOTH drivers write before calling evalActivity
+//     (iteratorbehavior.go via SetWorkingData, dowhilebehavior.go via initIndex). This is the
+//     belt-and-braces signal: a future loop driver that follows the same convention is caught even
+//     if its type id is unknown here.
+//
+// If ctx is not a *instance.TaskInst we proceed rather than reject. That is not a hole: it means
+// we are not running under the flow engine at all -- a unit-test harness or an embedded caller --
+// where there is no loop to detect. Rejecting there would fail every test that drives Eval
+// directly, for a condition that cannot occur.
+func isLoopIteration(ctx activity.Context) (bool, string) {
+	ti, ok := ctx.(*instance.TaskInst)
+	if !ok || ti == nil {
+		return false, ""
+	}
+
+	typeID := ""
+	if task := ti.Task(); task != nil {
+		typeID = task.TypeID()
+	}
+	_, hasIterateIndex := ti.GetWorkingData("iterateIndex")
+
+	return loopReason(typeID, hasIterateIndex)
+}
+
+// loopReason is the pure decision, split out so it can be tested without constructing a TaskInst
+// (which is internal to the instance package).
+func loopReason(typeID string, hasIterateIndex bool) (bool, string) {
+	switch typeID {
+	case "iterator":
+		return true, "the activity has an Iterate configuration"
+	case "doWhile":
+		return true, "the activity has a Repeat/doWhile configuration"
+	}
+	if hasIterateIndex {
+		return true, "the activity is being evaluated as a loop iteration"
+	}
+	return false, ""
 }
