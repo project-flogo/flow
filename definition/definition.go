@@ -36,6 +36,8 @@ type Definition struct {
 	metadata *metadata.IOMetadata
 
 	errorHandler *ErrorHandler
+
+	LibPath string
 }
 
 // Name returns the name of the definition

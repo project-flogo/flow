@@ -32,6 +32,7 @@ type DefinitionRep struct {
 	Tasks         []*TaskRep           `json:"tasks"`
 	Links         []*LinkRep           `json:"links,omitempty"`
 	ErrorHandler  *ErrorHandlerRep     `json:"errorHandler,omitempty"`
+	LibPath       string               `json:"libPath,omitempty"`
 }
 
 // ErrorHandlerRep is a serializable representation of the error flow
@@ -75,6 +76,7 @@ func NewDefinition(rep *DefinitionRep) (def *Definition, err error) {
 	def.explicitReply = rep.ExplicitReply
 	def.tasks = make(map[string]*Task)
 	def.links = make(map[int]*Link)
+	def.LibPath = rep.LibPath
 
 	if len(rep.Tasks) != 0 {
 
