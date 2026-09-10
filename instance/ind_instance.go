@@ -1033,6 +1033,7 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 				if inst.HasInterceptor() {
 					subFlowCoverage := inst.interceptor.GetSubFlowCoverageEntry(containerInst.ID())
 					subFlowCoverage.Outputs = containerInst.returnData
+					subFlowCoverage.LibPath = containerInst.flowDef.LibPath
 					inst.interceptor.AddToSubFlowCoverageMap(containerInst.ID(), subFlowCoverage)
 				}
 
