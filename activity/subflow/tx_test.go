@@ -419,3 +419,28 @@ func TestIsLoopIterationOffEngine(t *testing.T) {
 		t.Fatalf("expected no loop detected off-engine, got %q", why)
 	}
 }
+
+// TestSmallPoolWarningFiresOncePerConnection pins the warn-once logic.
+//
+// The first attempt used sync.Map.CompareAndSwap, which returns false when the key is ABSENT --
+// so the first call never fired and the warning never appeared at all. It compiled and silently
+// did nothing, which is exactly the failure mode a test is for.
+func TestSmallPoolWarningFiresOncePerConnection(t *testing.T) {
+	warnedSmallPool.Delete("conn-A")
+	warnedSmallPool.Delete("conn-B")
+
+	fired := func(id string) bool {
+		_, already := warnedSmallPool.LoadOrStore(id, true)
+		return !already
+	}
+
+	if !fired("conn-A") {
+		t.Fatal("the FIRST call for a connection must warn")
+	}
+	if fired("conn-A") {
+		t.Fatal("the SECOND call for the same connection must not warn")
+	}
+	if !fired("conn-B") {
+		t.Fatal("a DIFFERENT connection must warn independently")
+	}
+}

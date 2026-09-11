@@ -217,9 +217,15 @@ func (inst *Instance) txScopeOwned() *txScope {
 // It walks UP on purpose: an error inside a nested non-transactional subflow must roll the OUTER
 // transaction back.
 //
-// `failed` is set UNCONDITIONALLY. Every handleTaskCancelled call site passes err == nil, and an
-// execTimeout-driven cancellation must still roll back (D8). Only a non-nil err is recorded, and
-// only the FIRST one.
+// `failed` is set UNCONDITIONALLY, and separately from whether a cause is recorded, because a
+// cancellation must roll back whether or not it carries an error (D8).
+//
+// (An earlier version of this comment claimed "every handleTaskCancelled call site passes
+// err == nil". That is wrong: the execTimeout path constructs a non-nil SUBFLOW-001
+// activity.Error and passes it. The unconditional latch is correct either way, but the stated
+// reason was not.)
+//
+// Only a non-nil err is recorded as the cause, and only the FIRST one.
 //
 // Takes only scope.mu, so it is safe to call with or without the instance state lock held.
 func markTxFailed(containerInst *Instance, err error) {

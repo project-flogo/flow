@@ -1050,9 +1050,19 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 		}
 		if containerInst != inst.Instance {
 			//not top level flow so we have to schedule next step
-			// Complete subflow trace
+
+			// FLOGO-19484: the subflow's trace span used to be finished HERE, unconditionally
+			// with nil, i.e. as a success -- before finishTx below had decided commit vs
+			// rollback. A rolled-back transactional subflow therefore showed up in the trace as
+			// a successful span, which is exactly backwards for the case someone is tracing to
+			// diagnose. The span is now finished after the verdict is known, carrying it.
+			// traceOutcome stays nil on every non-transactional path, so those spans are
+			// finished with nil exactly as before.
+			var traceOutcome error
 			if containerInst.tracingCtx != nil {
-				_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, nil)
+				defer func() {
+					_ = trace.GetTracer().FinishTrace(containerInst.tracingCtx, traceOutcome)
+				}()
 			}
 
 			// spawned from task instance
@@ -1090,6 +1100,8 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 				// by RejectIfTxInFlight at the resume entry point (flow/action.go:281 and :319):
 				// a flow whose snapshot was taken mid-transaction is refused before it starts, so
 				// execution can never reach this point in that state.
+
+				traceOutcome = txErr // a rolled-back subflow must not trace as a success
 
 				host.SetOutputs(containerInst.returnData)
 				host.returnError = txErr // nil on a clean commit == today's behaviour

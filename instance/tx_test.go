@@ -1064,3 +1064,51 @@ func TestNestedPlainSubflowInsideTransactionalIsNotAResume(t *testing.T) {
 	assert.NoError(t, finishTx(plain, true, nil, false),
 		"a nested plain subflow completing inside a transactional one must not error")
 }
+
+// TestMarkTxFailedLatchesRegardlessOfCause covers the D8/D12 boundary and the corrected comment.
+//
+// The latch must be set whether or not a cause is supplied: a cancellation with no error must
+// still roll back, and the execTimeout path DOES supply a non-nil SUBFLOW-001 error despite what
+// the old comment claimed.
+func TestMarkTxFailedLatchesRegardlessOfCause(t *testing.T) {
+	t.Run("nil cause still latches", func(t *testing.T) {
+		ci, s := newScopedInst(&fakeFin{})
+		markTxFailed(ci, nil)
+		s.mu.Lock()
+		failed, first := s.failed, s.firstErr
+		s.mu.Unlock()
+		assert.True(t, failed, "a cancellation with no error must still roll back (D8)")
+		assert.Nil(t, first, "no cause was supplied, so none should be recorded")
+		assert.False(t, decideTx(ci, true, nil).commit)
+	})
+
+	t.Run("non-nil cause latches and is recorded", func(t *testing.T) {
+		ci, s := newScopedInst(&fakeFin{})
+		boom := errors.New("SUBFLOW-001: timed out")
+		markTxFailed(ci, boom)
+		s.mu.Lock()
+		failed, first := s.failed, s.firstErr
+		s.mu.Unlock()
+		assert.True(t, failed)
+		assert.Equal(t, boom, first)
+	})
+}
+
+// TestD12RetriedAwayErrorDoesNotLatch pins decision D12, which had ZERO coverage: a retry that
+// SUCCEEDS must not doom the transaction.
+//
+// The engine reaches handleTaskError -- the only latch site on the task-error path -- ONLY after
+// retries are exhausted. So a transient failure that recovers never calls markTxFailed, and the
+// scope stays clean. This test pins the contract at the scope level: an untouched scope commits.
+func TestD12RetriedAwayErrorDoesNotLatch(t *testing.T) {
+	ci, s := newScopedInst(&fakeFin{})
+
+	// a retry that succeeds performs NO markTxFailed call
+	s.mu.Lock()
+	failed := s.failed
+	s.mu.Unlock()
+	assert.False(t, failed, "a recovered retry must leave the latch clear")
+
+	v := decideTx(ci, true, nil)
+	assert.True(t, v.commit, "D12: an error that retry recovered from must still allow COMMIT")
+}

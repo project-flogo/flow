@@ -64,8 +64,23 @@ func (a *SubFlowActivity) evalTransactional(ctx activity.Context, input map[stri
 			"SUBFLOW-TX-014", activity.ActivityError, nil)
 	}
 
-	if st := db.Stats(); st.MaxOpenConnections == 1 {
-		ctx.Logger().Warnf("FLOGO-19484: connection '%s' is configured with maxOpenConnection=1; a transactional subflow pins that single connection for its whole duration, so every other flow using this connection will block until it commits or rolls back", a.connID)
+	// A transactional subflow pins ONE pooled connection for its whole duration. If the pool is
+	// small, every other flow on the same connection blocks until this one commits or rolls back,
+	// with no deadline.
+	//
+	// The bound used to be `== 1`, which missed the far more common maxOpen=2..4 case: three
+	// concurrent transactional subflows against maxOpen=2 block identically and used to warn not
+	// at all. Warn whenever the pool is small enough for that to be plausible.
+	//
+	// Warned once per connection per process, not once per invocation: inside a busy flow this
+	// used to emit on every single Eval.
+	if st := db.Stats(); st.MaxOpenConnections > 0 && st.MaxOpenConnections <= smallPoolWarnThreshold {
+		// LoadOrStore, not CompareAndSwap: CompareAndSwap returns false when the key is absent,
+		// so the first call would never fire and the warning would never appear at all.
+		if _, alreadyWarned := warnedSmallPool.LoadOrStore(a.connID, true); !alreadyWarned {
+			ctx.Logger().Warnf("connection '%s' has maxOpenConnection=%d; a transactional subflow pins one connection for its whole duration, so other flows sharing this connection will block until it commits or rolls back",
+				a.connID, st.MaxOpenConnections)
+		}
 	}
 
 	// The transaction gets its OWN root context, deliberately NOT derived from the flow's.
@@ -138,6 +153,13 @@ type txFin struct {
 	once   sync.Once
 	err    error
 }
+
+// smallPoolWarnThreshold is the pool size at or below which a transactional subflow is likely to
+// starve other flows on the same connection.
+const smallPoolWarnThreshold = 4
+
+// warnedSmallPool keeps the small-pool warning to once per connection per process.
+var warnedSmallPool sync.Map
 
 // rollbackLockBudget bounds the best-effort wait for the operation lock on the ROLLBACK path
 // only. The COMMIT path has no budget.
