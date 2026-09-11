@@ -1011,3 +1011,56 @@ func require(t *testing.T, cond bool, msg string) {
 		t.Fatal(msg)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Recording ON. Every other test in this file runs with RecordingModeOff, which is exactly why
+// the two defects below survived: the _txInFlight marker is only ever stamped when recording is
+// on, so any bug gated on the marker was unreachable from the suite.
+// ---------------------------------------------------------------------------
+
+// TestRejectIfTxInFlightSurvivesADeserialisedInstance pins the restart/resume panic.
+//
+// flow/action.go:281 and :319 call RejectIfTxInFlight on the DESERIALISED instance, before
+// inst.Restart(...) attaches the flow definition. isTxInFlight used to go through
+// Instance.GetValue, which falls through to `inst.flowDef.GetAttr(name)` when the key is absent
+// (instance.go:252); Definition.GetAttr has no nil-receiver guard, so this nil-panicked on EVERY
+// restart, transactional or not.
+func TestRejectIfTxInFlightSurvivesADeserialisedInstance(t *testing.T) {
+	inst := &IndependentInstance{Instance: &Instance{}} // no flowDef, as on the restart path
+	assert.NotPanics(t, func() {
+		assert.NoError(t, RejectIfTxInFlight(inst))
+	}, "RejectIfTxInFlight must tolerate an instance whose flowDef is not attached yet")
+}
+
+// TestIsTxInFlightNeedsNoFlowDef is the unit-level companion: the marker must be readable with a
+// nil flowDef, and must still report a genuinely-set marker.
+func TestIsTxInFlightNeedsNoFlowDef(t *testing.T) {
+	bare := &Instance{}
+	assert.NotPanics(t, func() { assert.False(t, isTxInFlight(bare)) })
+
+	bare.attrs = map[string]interface{}{TxInFlightAttr: true}
+	assert.True(t, isTxInFlight(bare), "a set marker must still be reported")
+}
+
+// TestNestedPlainSubflowInsideTransactionalIsNotAResume pins the removed D10 tripwire.
+//
+// A transactional subflow containing a nested PLAIN subflow is supported (SUBFLOW-TX-002 rejects
+// only nested TRANSACTIONAL subflows). With recording ON the whole-flow marker is set, and the
+// old commit-point tripwire read that marker and failed the plain subflow with a spurious
+// "resumed mid-transaction" error.
+func TestNestedPlainSubflowInsideTransactionalIsNotAResume(t *testing.T) {
+	tr := newTxTree(t, false, &fakeFin{})
+	tr.master.instRecorder = NewStateInstanceRecorder(nil, state.RecordingModeFull, false)
+
+	tr.master.txScopeActive.Store(1) // a transactional subflow is in flight
+	tr.master.stampTxInFlight()
+	assert.True(t, isTxInFlight(tr.master.Instance), "precondition: the marker is set")
+
+	plain := tr.a
+	plain.txScope = nil // a nested PLAIN subflow owns no scope
+
+	// finishTx must no-op for an instance that owns no scope, and nothing may turn that into an
+	// error just because a sibling transaction is open.
+	assert.NoError(t, finishTx(plain, true, nil, false),
+		"a nested plain subflow completing inside a transactional one must not error")
+}

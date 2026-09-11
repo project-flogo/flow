@@ -1068,16 +1068,28 @@ func (inst *IndependentInstance) handleTaskDone(taskBehavior model.TaskBehavior,
 				// subflow completing here does not touch the outer transaction.
 				txErr := finishTx(containerInst, true, containerInst.returnErrorLocked(), lockHeld)
 
-				// D10 tripwire: resumed into the middle of a transactional subflow despite the
-				// record-side marker and the restore-side rejection.
-				// The marker is stamped on the MASTER (stampTxInFlight writes inst.Instance) and
-				// Instance.GetValue reads only that instance's own attrs, never the master's.
-				// Reading containerInst here - always an embedded instance in this branch - was
-				// therefore always false and the tripwire could never fire.
-				if txErr == nil && containerInst.txScope == nil && isTxInFlight(inst.Instance) {
-					txErr = txResumeErr(inst.ID(), containerInst.Name())
-					inst.logger.Error(txErr)
-				}
+				// The D10 commit-point tripwire USED TO LIVE HERE. It has been removed, not
+				// disabled, because it cannot be made correct at this point in the code.
+				//
+				// It fired when `containerInst.txScope == nil && isTxInFlight(inst.Instance)`,
+				// meaning "a plain subflow completed while the whole-flow marker says a
+				// transaction is open". That is ALSO the shape of a perfectly legal flow: a
+				// transactional subflow containing a NESTED PLAIN subflow, with state recording
+				// on. SUBFLOW-TX-002 only rejects nested TRANSACTIONAL subflows, so that shape is
+				// supported - it is the Y1 scenario this design was built around - and the
+				// tripwire failed it with a spurious "resumed mid-transaction" error.
+				//
+				// Nor can it be narrowed. Adding `txScopeActive == 0` does not help: the marker is
+				// only cleared by the NEXT RecordState after txVerdict.apply() decrements, so
+				// between a legitimate commit and that next record there is a window where the
+				// marker is true, the counter is zero, and any plain subflow completing would trip
+				// it again. Distinguishing "marker restored from a snapshot" from "marker written
+				// by our own live transaction" needs state this function does not have.
+				//
+				// The guard duty is already discharged, and discharged earlier and more cheaply,
+				// by RejectIfTxInFlight at the resume entry point (flow/action.go:281 and :319):
+				// a flow whose snapshot was taken mid-transaction is refused before it starts, so
+				// execution can never reach this point in that state.
 
 				host.SetOutputs(containerInst.returnData)
 				host.returnError = txErr // nil on a clean commit == today's behaviour

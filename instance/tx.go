@@ -423,11 +423,20 @@ func isTxInFlight(inst *Instance) bool {
 	if inst == nil {
 		return false
 	}
-	v, ok := inst.GetValue(TxInFlightAttr)
-	if !ok {
+	// Read the attrs map DIRECTLY rather than through Instance.GetValue.
+	//
+	// GetValue falls through to `inst.flowDef.GetAttr(name)` (instance.go:252) when the key is
+	// absent, and Definition.GetAttr has no nil-receiver guard (definition.go:77-79). On the
+	// restart/resume path RejectIfTxInFlight runs against a DESERIALISED instance whose flowDef is
+	// not attached until inst.Restart(...) later in flow/action.go, so the fall-through
+	// nil-panicked on every restart -- transactional or not. The definition can never carry a
+	// reserved "_"-prefixed attribute anyway, so the fall-through was only ever a liability.
+	inst.rlockAttrs()
+	defer inst.runlockAttrs()
+	if inst.attrs == nil {
 		return false
 	}
-	b, _ := v.(bool)
+	b, _ := inst.attrs[TxInFlightAttr].(bool)
 	return b
 }
 
