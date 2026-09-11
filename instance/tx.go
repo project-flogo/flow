@@ -330,16 +330,16 @@ func (v *txVerdict) apply() error {
 		err := s.fin.Commit(confirm)
 		switch {
 		case err == nil:
-			s.logger.Debugf("FLOGO-19484: committed the transactional subflow on connection '%s'", s.connID)
+			s.logger.Debugf("committed the transactional subflow on connection '%s'", s.connID)
 			return nil
 		case IsTxDowngraded(err):
 			s.mu.Lock()
 			late := s.firstErr
 			s.mu.Unlock()
-			s.logger.Errorf("FLOGO-19484: COMMIT on connection '%s' was downgraded to ROLLBACK: a task failed while the transaction was being committed: %v", s.connID, late)
+			s.logger.Errorf("COMMIT on connection '%s' was downgraded to ROLLBACK: a task failed while the transaction was being committed: %v", s.connID, late)
 			return newTxRollbackError(s.connID, late, nil, true)
 		default:
-			s.logger.Errorf("FLOGO-19484: COMMIT failed for the transactional subflow on connection '%s': %v", s.connID, err)
+			s.logger.Errorf("COMMIT failed for the transactional subflow on connection '%s': %v", s.connID, err)
 			// Do NOT attempt a Rollback afterwards - its error would mask this one and the driver
 			// has already resolved the transaction one way or the other.
 			return &TxCommitError{ConnID: s.connID, Err: err}
@@ -348,7 +348,7 @@ func (v *txVerdict) apply() error {
 
 	rbErr := s.fin.Rollback()
 	if rbErr != nil {
-		s.logger.Errorf("FLOGO-19484: ROLLBACK failed for the transactional subflow on connection '%s': %v", s.connID, rbErr)
+		s.logger.Errorf("ROLLBACK failed for the transactional subflow on connection '%s': %v", s.connID, rbErr)
 	}
 	return newTxRollbackError(s.connID, v.cause, rbErr, false)
 }
@@ -415,7 +415,7 @@ func (inst *IndependentInstance) stampTxInFlight() {
 	setTxInFlight(inst.Instance, active)
 	if active && !inst.txRecordWarned {
 		inst.txRecordWarned = true
-		inst.logger.Warnf("FLOGO-19484: flow instance [%s] state is being recorded while a transactional subflow is in flight; this checkpoint is NOT resumable", inst.ID())
+		inst.logger.Warnf("flow instance [%s] state is being recorded while a transactional subflow is in flight; this checkpoint is NOT resumable", inst.ID())
 	}
 }
 
@@ -507,7 +507,7 @@ func RollbackOpenTransactions(inst *IndependentInstance) {
 		if v == nil {
 			continue
 		}
-		inst.logger.Errorf("FLOGO-19484: transaction on connection '%s' in subflow '%s' of flow instance [%s] was still open when the flow stopped; rolling back. A terminal transition was missed.",
+		inst.logger.Errorf("transaction on connection '%s' in subflow '%s' of flow instance [%s] was still open when the flow stopped; rolling back. A terminal transition was missed.",
 			v.scope.connID, ci.Name(), inst.ID())
 		_ = v.apply() // no lock held here
 	}

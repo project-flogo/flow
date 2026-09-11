@@ -586,7 +586,7 @@ func StartTransactionalSubFlow(ctx activity.Context, flowURI string, inputs map[
 	master.unlockState()
 	master.txScopeActive.Add(1)
 
-	ctx.Logger().Debugf("FLOGO-19484: starting transactional embedded subflow `%s` on connection '%s'", flowInst.Name(), connID)
+	ctx.Logger().Debugf("starting transactional embedded subflow `%s` on connection '%s'", flowInst.Name(), connID)
 
 	attr, isLoop := taskInst.GetWorkingData("iterateIndex")
 	index := ""

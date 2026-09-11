@@ -106,12 +106,12 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 		}
 
 		act.connMgr, act.connID = mgr, connID
-		ctx.Logger().Debugf("FLOGO-19484: subflow '%s' is transactional on connection id '%s'", s.FlowURI, connID)
+		ctx.Logger().Debugf("subflow '%s' is transactional on connection id '%s'", s.FlowURI, connID)
 	} else if s.TransactionConnection != nil {
 		// Reachable precisely because Connection is interface{}: no coercion has happened yet.
 		// A stale value left behind by the designtime must not stop the app from starting.
 		if _, err := coerce.ToConnection(s.TransactionConnection); err != nil {
-			ctx.Logger().Warnf("FLOGO-19484: subflow activity is not transactional and its stale 'connection' setting could not be resolved (%v); ignoring it", err)
+			ctx.Logger().Warnf("subflow activity is not transactional and its stale 'connection' setting could not be resolved (%v); ignoring it", err)
 		}
 	}
 

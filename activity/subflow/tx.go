@@ -128,7 +128,7 @@ func (a *SubFlowActivity) evalTransactional(ctx activity.Context, input map[stri
 
 	// The feature's canary. The connector logs the id it derived; if the two ever differ, the
 	// activities silently run outside the transaction with no error anywhere.
-	ctx.Logger().Debugf("FLOGO-19484: enlisting transactional subflow '%s' on connection id '%s'", a.flowURI, a.connID)
+	ctx.Logger().Debugf("enlisting transactional subflow '%s' on connection id '%s'", a.flowURI, a.connID)
 
 	if err = instance.StartTransactionalSubFlow(ctx, a.flowURI, input, a.timeout, a.connID, decorate, fin); err != nil {
 		// Nothing was scheduled, so nothing else will ever finalise this transaction.
@@ -195,7 +195,7 @@ func (f *txFin) finishCommit(confirm func() bool) error {
 	go func() {
 		select {
 		case <-time.After(commitLockWatchdog):
-			f.logger.Warnf("FLOGO-19484: COMMIT of the transactional subflow on connection '%s' has been waiting %v for the operation lock; a statement inside the transaction has not returned",
+			f.logger.Warnf("COMMIT of the transactional subflow on connection '%s' has been waiting %v for the operation lock; a statement inside the transaction has not returned",
 				f.h.ConnID(), commitLockWatchdog)
 		case <-stop:
 		}
@@ -216,7 +216,7 @@ func (f *txFin) finishCommit(confirm func() bool) error {
 	if confirm != nil && !confirm() {
 		f.h.MarkDone()
 		if rbErr := f.h.Tx().Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
-			f.logger.Errorf("FLOGO-19484: downgraded ROLLBACK failed on connection '%s': %v", f.h.ConnID(), rbErr)
+			f.logger.Errorf("downgraded ROLLBACK failed on connection '%s': %v", f.h.ConnID(), rbErr)
 			return fmt.Errorf("%w (rollback itself failed: %v)", instance.ErrTxDowngraded, rbErr)
 		}
 		return instance.ErrTxDowngraded
@@ -248,7 +248,7 @@ func (f *txFin) finishRollback() error {
 
 	got := f.h.TryLockFor(rollbackLockBudget)
 	if !got {
-		f.logger.Warnf("FLOGO-19484: proceeding with ROLLBACK on connection '%s' without the operation lock after %v",
+		f.logger.Warnf("proceeding with ROLLBACK on connection '%s' without the operation lock after %v",
 			f.h.ConnID(), rollbackLockBudget)
 	}
 
