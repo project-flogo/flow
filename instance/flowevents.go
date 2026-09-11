@@ -104,6 +104,12 @@ func postFlowEvent(inst *Instance) {
 			outData, _ := inst.GetReturnData()
 			if len(attrs) > 0 {
 				for name, attVal := range attrs {
+					// FLOGO-19484: _txInFlight is engine bookkeeping, not user data. Without this
+					// it is copied into fe.input and surfaces as a spurious flow INPUT on every
+					// flow event of any recording flow that uses a transactional subflow.
+					if name == TxInFlightAttr {
+						continue
+					}
 					if outData != nil && outData[name] != nil {
 						if fe.status == event.COMPLETED {
 							fe.output[name] = attVal
