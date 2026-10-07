@@ -550,7 +550,7 @@ func TestRollbackErrorIsRetriableActivityError(t *testing.T) {
 	cause := errors.New("inner failure")
 	rbErr := errors.New("rollback also failed")
 
-	err := newTxRollbackError("conn-42", cause, rbErr, false)
+	err := newTxRollbackError("conn-42", cause, rbErr, false, "")
 
 	var ae *activity.Error
 	assert.True(t, errors.As(error(err), &ae), "a rollback must be an *activity.Error")
@@ -865,6 +865,236 @@ func TestRollbackOpenTransactionsRacesDecideTxExactlyOnce(t *testing.T) {
 		assert.Len(t, fin.Events(), 1, "the finalizer must run exactly once, whoever wins")
 		assert.Equal(t, int32(0), tr.master.txScopeActive.Load())
 	}
+}
+
+// ---------------------------------------------------------------------------
+// FLOGO-19909 - the rollback also names the failure that doomed the transaction
+// ---------------------------------------------------------------------------
+
+// Rollback-cause test data. On PostgreSQL every statement after the first failure in a transaction
+// returns "current transaction is aborted", which says nothing about why the transaction failed.
+var (
+	dupKeyFailure     = errors.New(`query execution failed: pq: duplicate key value violates unique constraint "tx_test_name_key"`)
+	abortedAfterward  = errors.New("query execution failed: pq: current transaction is aborted, commands ignored until end of transaction block")
+	thrownBusinessErr = activity.NewError("Order rejected: name already exists", "", nil)
+)
+
+// errorLinkBehavior handles every task error, the way an error link does.
+type errorLinkBehavior struct{ stubBehavior }
+
+func (b *errorLinkBehavior) Error(model.TaskContext, error) (bool, []*model.TaskEntry) {
+	return true, nil
+}
+
+// failInA fails a task of the transactional subflow A through the real handleTaskError path -
+// handled by an error link, or unhandled.
+func (tr *txTree) failInA(t *testing.T, err error, handled bool) {
+	t.Helper()
+
+	ti, _ := tr.a.FindOrCreateTaskInst(tr.a.flowDef.GetTask("LogResult"))
+	require(t, ti != nil, "A has no LogResult task")
+
+	var behavior model.TaskBehavior = &stubBehavior{}
+	if handled {
+		behavior = &errorLinkBehavior{}
+	}
+	tr.master.handleTaskError(behavior, ti, err, false)
+}
+
+// assertRollbackError checks that A rolled back exactly once and handed its host task a
+// SUBFLOW-TX-001 whose cause is `cause` and which names `earlier` only when it is set.
+func assertRollbackError(t *testing.T, tr *txTree, cause, earlier string) {
+	t.Helper()
+
+	assert.Equal(t, []string{"rollback"}, tr.fin.Events(), "exactly one rollback")
+	assert.Equal(t, int32(0), tr.master.txScopeActive.Load())
+
+	ae, ok := tr.taskA.returnError.(*activity.Error)
+	require(t, ok, "A's host task must be handed the SUBFLOW-TX-001 *activity.Error")
+	data, _ := ae.Data().(map[string]interface{})
+	assert.Equal(t, CodeTxRolledBack, ae.Code())
+	assert.True(t, ae.Retriable(), "D14: a rollback stays retriable")
+	assert.Equal(t, "conn-y1", data["connectionId"])
+	assert.Equal(t, false, data["downgraded"])
+
+	want := CodeTxRolledBack + ": transactional subflow rolled back on connection 'conn-y1': " + cause
+	if earlier != "" {
+		want += " (the transaction had already failed: " + earlier + ")"
+		assert.Equal(t, earlier, data["firstError"])
+	} else {
+		assert.NotContains(t, data, "firstError")
+	}
+	assert.Equal(t, want, ae.Error())
+	assert.Equal(t, cause, data["cause"], "the cause itself is unchanged")
+}
+
+// TestRollbackAlsoNamesTheFailureThatDoomedTheTransaction is QA's scenario: an error link handles a
+// duplicate key, which dooms the transaction (D2), and the next insert then fails unhandled with
+// "current transaction is aborted". That later error stays the cause, exactly as before; the
+// duplicate key is appended so the parent can see why the transaction failed.
+func TestRollbackAlsoNamesTheFailureThatDoomedTheTransaction(t *testing.T) {
+	forEachMode(t, func(t *testing.T, concurrent bool) {
+		tr := newTxTree(t, concurrent, &fakeFin{})
+
+		tr.failInA(t, dupKeyFailure, true)
+		tr.failInA(t, abortedAfterward, false)
+
+		assertRollbackError(t, tr, abortedAfterward.Error(), dupKeyFailure.Error())
+	})
+}
+
+// TestRollbackAlsoNamesTheFailureThatDoomedTheTransactionAfterAConcurrentDrain: the same, through
+// RunConcurrent's path - the failure is latched while the pool drains and handled once afterwards.
+func TestRollbackAlsoNamesTheFailureThatDoomedTheTransactionAfterAConcurrentDrain(t *testing.T) {
+	tr := newTxTree(t, true, &fakeFin{})
+	tr.failInA(t, dupKeyFailure, true)
+
+	tr.master.deferErrors.Store(true)
+	tr.failInA(t, abortedAfterward, false)
+	assert.Empty(t, tr.fin.Events(), "nothing is decided while the pool is still draining")
+	tr.master.deferErrors.Store(false)
+
+	ci, ferr := tr.master.takeLatchedError()
+	tr.master.lockState()
+	tr.master.handleGlobalError(ci, ferr, true)
+	tr.master.unlockState()
+
+	assertRollbackError(t, tr, abortedAfterward.Error(), dupKeyFailure.Error())
+}
+
+// TestRollbackOfASingleFailureIsUnchanged: with nothing earlier to name, the message and data are
+// exactly what they were before FLOGO-19909.
+func TestRollbackOfASingleFailureIsUnchanged(t *testing.T) {
+	forEachMode(t, func(t *testing.T, concurrent bool) {
+		tr := newTxTree(t, concurrent, &fakeFin{})
+
+		tr.failInA(t, dupKeyFailure, false)
+
+		assertRollbackError(t, tr, dupKeyFailure.Error(), "")
+	})
+}
+
+// TestRollbackKeepsADeliberateErrorAsItsCause pins what FLOGO-19909 must not change: an error
+// raised on purpose after the transaction was doomed stays the cause the parent receives - from a
+// Throw Error on the error branch, or from the subflow's own error handler (B8).
+func TestRollbackKeepsADeliberateErrorAsItsCause(t *testing.T) {
+	forEachMode(t, func(t *testing.T, concurrent bool) {
+		t.Run("thrown on the error branch", func(t *testing.T) {
+			tr := newTxTree(t, concurrent, &fakeFin{})
+
+			tr.failInA(t, dupKeyFailure, true)
+			tr.failInA(t, thrownBusinessErr, false)
+
+			assertRollbackError(t, tr, thrownBusinessErr.Error(), dupKeyFailure.Error())
+		})
+		t.Run("thrown by the error handler", func(t *testing.T) {
+			tr := newTxTree(t, concurrent, &fakeFin{})
+
+			markTxFailed(tr.a, dupKeyFailure) // the failure that started the error handler
+			tr.a.isHandlingError = true
+			tr.failInA(t, thrownBusinessErr, false) // handleTaskError's isHandlingError branch
+
+			assertRollbackError(t, tr, thrownBusinessErr.Error(), dupKeyFailure.Error())
+		})
+	})
+}
+
+// TestRollbackKeepsATimeoutAsItsCause pins D8: when the subflow times out after an earlier handled
+// failure, the SUBFLOW-001 timeout stays the cause.
+func TestRollbackKeepsATimeoutAsItsCause(t *testing.T) {
+	forEachMode(t, func(t *testing.T, concurrent bool) {
+		tr := newTxTree(t, concurrent, &fakeFin{})
+		tr.failInA(t, dupKeyFailure, true)
+
+		ti, _ := tr.a.FindOrCreateTaskInst(tr.a.flowDef.GetTask("LogResult"))
+		tr.master.handleTaskCancelled(&stubBehavior{}, ti, nil, context.Background(), false)
+
+		timeout := fmt.Sprintf("Flow execution timed out during execution of activity %s in flow %s",
+			ti.Task().Name(), tr.a.flowDef.Name())
+		assertRollbackError(t, tr, timeout, dupKeyFailure.Error())
+	})
+}
+
+// incomparableErr holds a slice, so it is not comparable - the shape of e.g. go-mssqldb's
+// mssql.Error. Comparing two such values through the error interface with == panics.
+type incomparableErr struct{ parts []string }
+
+func (e incomparableErr) Error() string { return strings.Join(e.parts, "; ") }
+
+// TestRollbackCauseComparisonIsSafe: the cause and the earlier failure are compared by text, so an
+// incomparable error type cannot panic the finaliser, and text the cause already contains - the
+// same error, or one that wraps it - is not repeated.
+func TestRollbackCauseComparisonIsSafe(t *testing.T) {
+	first := incomparableErr{parts: []string{"constraint violated"}}
+
+	for _, tc := range []struct {
+		name    string
+		later   error
+		earlier string
+	}{
+		{"the same incomparable value", first, ""},
+		{"a different incomparable value", incomparableErr{parts: []string{"connection reset"}}, first.Error()},
+		{"a later error that wraps the first", fmt.Errorf("insert failed: %w", first), ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tr := newTxTree(t, false, &fakeFin{})
+			tr.failInA(t, first, true)
+
+			assert.NotPanics(t, func() { tr.failInA(t, tc.later, false) })
+
+			assertRollbackError(t, tr, tc.later.Error(), tc.earlier)
+		})
+	}
+}
+
+// panickyErr dereferences its receiver, so a typed-nil *panickyErr panics when asked for its
+// message: user code the finaliser has to survive.
+type panickyErr struct{ msg string }
+
+func (e *panickyErr) Error() string { return e.msg }
+
+// TestRollbackSurvivesAnErrorWhoseMessagePanics: a panic in Error() - here a typed-nil error
+// latched as the first failure - may cost the extra context, but never the rollback, whether the
+// subflow ends normally or the leak sweep finds it.
+func TestRollbackSurvivesAnErrorWhoseMessagePanics(t *testing.T) {
+	var typedNil *panickyErr
+
+	t.Run("terminal transition", func(t *testing.T) {
+		tr := newTxTree(t, false, &fakeFin{})
+		markTxFailed(tr.a, typedNil)
+
+		assert.NotPanics(t, func() { tr.failInA(t, abortedAfterward, false) })
+
+		assertRollbackError(t, tr, abortedAfterward.Error(), "")
+	})
+	t.Run("leak sweep", func(t *testing.T) {
+		tr := newTxTree(t, false, &fakeFin{})
+		markTxFailed(tr.a, typedNil)
+
+		assert.NotPanics(t, func() { RollbackOpenTransactions(tr.master) })
+
+		assert.Equal(t, []string{"rollback"}, tr.fin.Events(), "the sweep must still roll back")
+		assert.Equal(t, int32(0), tr.master.txScopeActive.Load())
+	})
+}
+
+// TestRollbackErrorNamesTheEarlierFailureBeforeTheFailedRollback pins the layout when everything is
+// present: the cause, then the failure that had already doomed the transaction, then the
+// rollback's own failure.
+func TestRollbackErrorNamesTheEarlierFailureBeforeTheFailedRollback(t *testing.T) {
+	rbErr := errors.New("rollback also failed")
+
+	ae := newTxRollbackError("conn-42", abortedAfterward, rbErr, false, dupKeyFailure.Error())
+
+	assert.Equal(t, CodeTxRolledBack+": transactional subflow rolled back on connection 'conn-42': "+
+		abortedAfterward.Error()+" (the transaction had already failed: "+dupKeyFailure.Error()+")"+
+		" (rollback itself failed: "+rbErr.Error()+")", ae.Error())
+	assert.True(t, ae.Retriable())
+
+	data, _ := ae.Data().(map[string]interface{})
+	assert.Equal(t, abortedAfterward.Error(), data["cause"])
+	assert.Equal(t, dupKeyFailure.Error(), data["firstError"])
+	assert.Equal(t, rbErr.Error(), data["rollbackError"])
 }
 
 // ---------------------------------------------------------------------------

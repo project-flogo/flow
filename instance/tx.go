@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/project-flogo/core/activity"
@@ -100,10 +101,17 @@ var errTxSweep = errors.New(CodeTxSweep + ": flow stopped with the transaction s
 //
 // Being an *activity.Error also means appendErrorData builds a full error object (code,
 // category, data) for the user's error branch, instead of the bare string a plain error yields.
-func newTxRollbackError(connID string, cause, rbErr error, downgraded bool) *activity.Error {
+//
+// alreadyFailed is the text of the failure that had already doomed the transaction before cause
+// ended the subflow, or "" when there is none (see alreadyFailedText). It is appended to the
+// message and reported as data["firstError"]; cause itself is unchanged.
+func newTxRollbackError(connID string, cause, rbErr error, downgraded bool, alreadyFailed string) *activity.Error {
 	msg := fmt.Sprintf("%s: transactional subflow rolled back on connection '%s'", CodeTxRolledBack, connID)
 	if cause != nil {
 		msg += ": " + cause.Error()
+	}
+	if alreadyFailed != "" {
+		msg += " (the transaction had already failed: " + alreadyFailed + ")"
 	}
 	if rbErr != nil {
 		msg += fmt.Sprintf(" (rollback itself failed: %v)", rbErr)
@@ -116,11 +124,38 @@ func newTxRollbackError(connID string, cause, rbErr error, downgraded bool) *act
 	if cause != nil {
 		data["cause"] = cause.Error()
 	}
+	if alreadyFailed != "" {
+		data["firstError"] = alreadyFailed
+	}
 	if rbErr != nil {
 		data["rollbackError"] = rbErr.Error()
 	}
 
 	return activity.NewRetriableActivityError(msg, CodeTxRolledBack, activity.ActivityError, data)
+}
+
+// alreadyFailedText returns the text of first - the failure that had already doomed the
+// transaction - or "" when there is none, or when cause already says it: the same error, or one
+// wrapping it. Compared by text, never with ==, because error values of incomparable types (a
+// struct holding a slice) panic under ==.
+//
+// apply() calls it only after the rollback, and it recovers: Error() is user code, and a panic in
+// it must cost the extra context, never the rollback or the error report.
+func alreadyFailedText(cause, first error) (text string) {
+	if cause == nil || first == nil {
+		return ""
+	}
+	defer func() {
+		if recover() != nil {
+			text = ""
+		}
+	}()
+
+	ft := first.Error()
+	if ft == "" || strings.Contains(cause.Error(), ft) {
+		return ""
+	}
+	return ft
 }
 
 // TxCommitError is returned when COMMIT itself failed. It is deliberately a PLAIN error and
@@ -254,6 +289,10 @@ type txVerdict struct {
 	commit bool
 	cause  error
 
+	// latched is the first failure latched in the transaction, kept when cause was passed in
+	// explicitly, so the rollback can also name it. See decideTx and alreadyFailedText.
+	latched error
+
 	// master is retained so apply() can drop txScopeActive only once the transaction is truly
 	// finished. See the note in decideTx.
 	master *IndependentInstance
@@ -287,8 +326,19 @@ func decideTx(containerInst *Instance, completedOK bool, cause error) *txVerdict
 	failed, first := scope.failed, scope.firstErr
 	scope.mu.Unlock()
 
+	// FLOGO-19909: the error that ended the subflow stays the cause - it may be one the user raised
+	// on purpose, from an error branch or the subflow's error handler. When it was passed in
+	// explicitly, also keep the first latched failure, so the rollback can name the failure that
+	// had already doomed the transaction (an error link handled it - D2): on PostgreSQL the later
+	// error is typically just "current transaction is aborted".
+	//
+	// Nothing here calls Error(). It is user code, and this runs after the scope is claimed but
+	// before anything is rolled back; the comparison happens in apply(), after the rollback.
+	var latched error
 	if cause == nil {
 		cause = first
+	} else {
+		latched = first
 	}
 	// NOTE: txScopeActive is NOT decremented here. The counter must stay above zero until the
 	// Commit or Rollback has actually completed, because it gates transaction-registry
@@ -301,7 +351,7 @@ func decideTx(containerInst *Instance, completedOK bool, cause error) *txVerdict
 	// or inside anything nested in it, ever errored. Everything else - including an error a user
 	// error branch consumed so the subflow returned normally - rolls back.
 	return &txVerdict{scope: scope, commit: completedOK && !failed && cause == nil, cause: cause,
-		master: containerInst.master}
+		latched: latched, master: containerInst.master}
 }
 
 // apply performs the COMMIT or the ROLLBACK. It MUST run with no instance state lock held.
@@ -337,7 +387,8 @@ func (v *txVerdict) apply() error {
 			late := s.firstErr
 			s.mu.Unlock()
 			s.logger.Errorf("COMMIT on connection '%s' was downgraded to ROLLBACK: a task failed while the transaction was being committed: %v", s.connID, late)
-			return newTxRollbackError(s.connID, late, nil, true)
+			// No earlier failure to add: late IS the first latched failure, read fresh from the scope.
+			return newTxRollbackError(s.connID, late, nil, true, "")
 		default:
 			s.logger.Errorf("COMMIT failed for the transactional subflow on connection '%s': %v", s.connID, err)
 			// Do NOT attempt a Rollback afterwards - its error would mask this one and the driver
@@ -350,7 +401,8 @@ func (v *txVerdict) apply() error {
 	if rbErr != nil {
 		s.logger.Errorf("ROLLBACK failed for the transactional subflow on connection '%s': %v", s.connID, rbErr)
 	}
-	return newTxRollbackError(s.connID, v.cause, rbErr, false)
+	// After the rollback, so a panicking Error() can no longer stop it. See alreadyFailedText.
+	return newTxRollbackError(s.connID, v.cause, rbErr, false, alreadyFailedText(v.cause, v.latched))
 }
 
 // ---------------------------------------------------------------------------
