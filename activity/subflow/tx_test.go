@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/sqltx"
 	"github.com/project-flogo/core/support/test"
@@ -408,6 +409,17 @@ func TestLoopReason(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestNewCodedActivityErrorPutsTheCodeInTheMessage pins the exact message format of the one place
+// every Eval-time guard builds its error. The guards themselves are driven in activity_tx_test.go.
+func TestNewCodedActivityErrorPutsTheCodeInTheMessage(t *testing.T) {
+	ae := newCodedActivityError("SUBFLOW-TX-016", "a transactional subflow cannot be combined with a loop (%s)", "why")
+
+	assert.Equal(t, "SUBFLOW-TX-016: a transactional subflow cannot be combined with a loop (why)", ae.Error())
+	assert.Equal(t, "SUBFLOW-TX-016", ae.Code())
+	assert.Equal(t, string(activity.ActivityError), ae.Category())
+	assert.False(t, ae.Retriable())
 }
 
 // TestIsLoopIterationOffEngine documents the deliberate non-rejection when the activity is driven

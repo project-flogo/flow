@@ -823,6 +823,10 @@ func TestRollbackOpenTransactionsRollsBackAndLogs(t *testing.T) {
 	assert.True(t, containsSubstr(t, errs, "still open when the flow stopped"),
 		"the sweep must log the missed terminal transition, got: %v", errs)
 	assert.True(t, containsSubstr(t, errs, "conn-y1"), "the log must name the connection, got: %v", errs)
+	// This log line is the ONLY place SUBFLOW-TX-006 can surface: the coded error apply() returns
+	// is discarded, because the caller already has its response by the time the sweep runs.
+	assert.True(t, containsSubstr(t, errs, CodeTxSweep+": transaction on connection"),
+		"the sweep log must start with its code, got: %v", errs)
 
 	// Idempotent: a second sweep finds nothing (txScopeActive is back to zero).
 	RollbackOpenTransactions(tr.master)

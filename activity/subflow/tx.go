@@ -20,6 +20,21 @@ import (
 // transaction through instance.TxFinalizer and instance.TxContextDecorator, so it stays free of
 // any database dependency.
 
+// newCodedActivityError builds an *activity.Error whose MESSAGE starts with the SUBFLOW-TX code,
+// as well as carrying it as Code().
+//
+// (*activity.Error).Error() returns only the message, so a code passed solely as the code argument
+// is dropped from every string rendering - the API response body, the engine log - and survives
+// only in structured fields such as $error.code. The guards in activity.go and the finalisation
+// errors in flow/instance already prefix their code by hand; every Eval-time guard here goes
+// through this instead, so the two can never drift apart again.
+//
+// Code(), Retriable(), the category and the (nil) data are unchanged - this is a rendering fix,
+// not a behaviour change.
+func newCodedActivityError(code, format string, args ...interface{}) *activity.Error {
+	return activity.NewActivityError(code+": "+fmt.Sprintf(format, args...), code, activity.ActivityError, nil)
+}
+
 // evalTransactional begins the transaction and hands the subflow to the engine.
 //
 // It returns done=false, exactly like the existing non-detached paths: the subflow runs as a
@@ -41,27 +56,24 @@ func (a *SubFlowActivity) evalTransactional(ctx activity.Context, input map[stri
 	// This one may be an *activity.Error - it is returned from Eval, where the retry check does
 	// consult Retriable(), and a nested-transaction misconfiguration is not retriable.
 	if sqltx.HasAny(goCtx) {
-		return false, activity.NewActivityError(
-			fmt.Sprintf("nested transactional subflows are not supported; '%s' is already running inside a transaction on connection(s) %v",
-				a.flowURI, sqltx.ConnIDs(goCtx)),
-			"SUBFLOW-TX-002", activity.ActivityError, nil)
+		return false, newCodedActivityError("SUBFLOW-TX-002",
+			"nested transactional subflows are not supported; '%s' is already running inside a transaction on connection(s) %v",
+			a.flowURI, sqltx.ConnIDs(goCtx))
 	}
 
 	if looping, why := isLoopIteration(ctx); looping {
-		return false, activity.NewActivityError(
-			fmt.Sprintf("a transactional subflow cannot be combined with a loop (%s). Each iteration would begin and COMMIT its own "+
+		return false, newCodedActivityError("SUBFLOW-TX-016",
+			"a transactional subflow cannot be combined with a loop (%s). Each iteration would begin and COMMIT its own "+
 				"transaction, so a failure part-way through would leave the earlier iterations already committed. "+
 				"Put the loop INSIDE '%s' instead and pass the whole collection as its input: that gives one BEGIN "+
 				"when the subflow starts and one COMMIT when it finishes, which is almost certainly what was intended",
-				why, a.flowURI),
-			"SUBFLOW-TX-016", activity.ActivityError, nil)
+			why, a.flowURI)
 	}
 
 	db, ok := a.connMgr.GetConnection().(*sql.DB)
 	if !ok || db == nil {
-		return false, activity.NewActivityError(
-			fmt.Sprintf("connection '%s' does not expose a *sql.DB", a.connID),
-			"SUBFLOW-TX-014", activity.ActivityError, nil)
+		return false, newCodedActivityError("SUBFLOW-TX-014",
+			"connection '%s' does not expose a *sql.DB", a.connID)
 	}
 
 	// A transactional subflow pins ONE pooled connection for its whole duration. If the pool is
@@ -95,9 +107,8 @@ func (a *SubFlowActivity) evalTransactional(ctx activity.Context, input map[stri
 	tx, err := db.BeginTx(txCtx, nil)
 	if err != nil {
 		txCancel()
-		return false, activity.NewActivityError(
-			fmt.Sprintf("unable to begin a transaction on connection '%s': %v", a.connID, err),
-			"SUBFLOW-TX-015", activity.ActivityError, nil)
+		return false, newCodedActivityError("SUBFLOW-TX-015",
+			"unable to begin a transaction on connection '%s': %v", a.connID, err)
 	}
 
 	h := sqltx.NewHandle(a.connID, db, tx, txCtx)
@@ -306,8 +317,8 @@ func isLoopIteration(ctx activity.Context) (bool, string) {
 	return loopReason(typeID, hasIterateIndex)
 }
 
-// loopReason is the pure decision, split out so it can be tested without constructing a TaskInst
-// (which is internal to the instance package).
+// loopReason is the pure decision, split out so every classification can be tested without
+// loading a flow to build a TaskInst for each case.
 func loopReason(typeID string, hasIterateIndex bool) (bool, string) {
 	switch typeID {
 	case "iterator":

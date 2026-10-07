@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -11,10 +12,12 @@ import (
 	"github.com/project-flogo/core/activity"
 	"github.com/project-flogo/core/app/resource"
 	"github.com/project-flogo/core/support/connection"
+	"github.com/project-flogo/core/support/log"
 	"github.com/project-flogo/core/support/sqltx"
 	"github.com/project-flogo/core/support/test"
 	"github.com/project-flogo/flow"
 	"github.com/project-flogo/flow/definition"
+	"github.com/project-flogo/flow/instance"
 	flowsupport "github.com/project-flogo/flow/support"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -318,6 +321,23 @@ func TestFlowLoadWithDanglingConnectionMustNotBreakStartup(t *testing.T) {
 // evalTransactional guards
 // ---------------------------------------------------------------------------
 
+// requireCodedActivityError asserts err is an *activity.Error carrying code in Code() AND at the
+// start of its message.
+//
+// Error() is the only thing any surface renders - the API response body, the engine log - so a
+// code held solely in Code() never reaches the user (FLOGO-19910).
+func requireCodedActivityError(t *testing.T, err error, code string) *activity.Error {
+	t.Helper()
+
+	ae, ok := err.(*activity.Error)
+	require.True(t, ok, "expected an *activity.Error, got %T", err)
+	assert.Equal(t, code, ae.Code())
+	assert.True(t, strings.HasPrefix(ae.Error(), code+": "), "message must start with %q, got: %s", code+": ", ae.Error())
+	assert.Equal(t, 1, strings.Count(ae.Error(), code), "code must appear exactly once, got: %s", ae.Error())
+
+	return ae
+}
+
 func TestEvalTransactionalRejectsNesting(t *testing.T) {
 	db, _ := newFakeDB(t, 0)
 	mgr := &fakeConnMgr{typ: "fake-sql", conn: db}
@@ -342,9 +362,7 @@ func TestEvalTransactionalRejectsNesting(t *testing.T) {
 
 	// The nested guard is returned from Eval, where the retry check does consult Retriable(), so
 	// it must be an *activity.Error carrying the code - a misconfiguration is not retriable.
-	ae, ok := err.(*activity.Error)
-	require.True(t, ok, "expected an *activity.Error, got %T", err)
-	assert.Equal(t, "SUBFLOW-TX-002", ae.Code())
+	ae := requireCodedActivityError(t, err, "SUBFLOW-TX-002")
 	assert.False(t, ae.Retriable())
 	assert.Contains(t, ae.Error(), "outer-conn")
 }
@@ -367,9 +385,7 @@ func TestEvalTransactionalRejectsNonSQLConnectionAtRuntime(t *testing.T) {
 	assert.False(t, done)
 	require.Error(t, err)
 
-	ae, ok := err.(*activity.Error)
-	require.True(t, ok, "expected an *activity.Error, got %T", err)
-	assert.Equal(t, "SUBFLOW-TX-014", ae.Code())
+	requireCodedActivityError(t, err, "SUBFLOW-TX-014")
 }
 
 func TestEvalTransactionalRejectsAPoolThatWasNeverOpened(t *testing.T) {
@@ -393,7 +409,107 @@ func TestEvalTransactionalRejectsAPoolThatWasNeverOpened(t *testing.T) {
 	assert.False(t, done)
 	require.Error(t, err)
 
-	ae, ok := err.(*activity.Error)
-	require.True(t, ok, "expected an *activity.Error, got %T", err)
-	assert.Equal(t, "SUBFLOW-TX-014", ae.Code())
+	requireCodedActivityError(t, err, "SUBFLOW-TX-014")
+}
+
+func TestEvalTransactionalReportsABeginFailureWithItsCode(t *testing.T) {
+	// A closed pool still type-asserts to a non-nil *sql.DB, so Eval gets past the TX-014 guard
+	// and fails at BeginTx with "sql: database is closed".
+	db, _ := newFakeDB(t, 0)
+	require.NoError(t, db.Close())
+	mgr := &fakeConnMgr{typ: "fake-sql", conn: db}
+
+	a := &SubFlowActivity{
+		flowURI:       "res://flow:flow2",
+		activityMd:    activityMd,
+		transactional: true,
+		connMgr:       mgr,
+		connID:        "conn-a",
+	}
+
+	actCtx := &goCtxActivityContext{TestActivityContext: test.NewActivityContext(activityMd), goCtx: context.Background()}
+
+	done, err := a.evalTransactional(actCtx, nil)
+
+	assert.False(t, done)
+	require.Error(t, err)
+
+	ae := requireCodedActivityError(t, err, "SUBFLOW-TX-015")
+	assert.Contains(t, ae.Error(), "conn-a")
+}
+
+// TestEvalTransactionalRejectsALoop drives the TX-016 guard through a real *instance.TaskInst, built
+// with the exported instance constructors, for both signals isLoopIteration checks: the task's
+// loop TYPE, and the iterateIndex working data a loop driver sets. The guard returns before the
+// connection is touched, so no database is needed.
+func TestEvalTransactionalRejectsALoop(t *testing.T) {
+	f := action.GetFactory("github.com/project-flogo/flow")
+	af := f.(*flow.ActionFactory)
+	require.NoError(t, initActionFactory(af)) // registers the simple model, which owns the "iterator" task type
+
+	const jsonFlowLoop = `{
+  "name":"tx016-loop",
+  "tasks": [
+    {
+      "id": "loop",
+      "type": "iterator",
+      "settings": { "iterate": 2 },
+      "activity": {
+        "ref": "github.com/project-flogo/flow/activity/subflow",
+        "settings": { "flowURI": "res://flow:flow2" },
+        "input": { "in" : "test" }
+      }
+    },
+    {
+      "id": "plain",
+      "activity": {
+        "ref": "github.com/project-flogo/flow/activity/subflow",
+        "settings": { "flowURI": "res://flow:flow2" },
+        "input": { "in" : "test" }
+      }
+    }
+  ]
+}`
+
+	res, err := resource.GetLoader(flowsupport.ResTypeFlow).LoadResource(&resource.Config{ID: "flow:tx016loop", Data: []byte(jsonFlowLoop)})
+	require.NoError(t, err)
+	def, ok := res.Object().(*definition.Definition)
+	require.True(t, ok)
+
+	ind, err := instance.NewIndependentInstance("tx016", "", def, nil, log.RootLogger(), context.Background())
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name         string
+		taskID       string
+		iterateIndex bool
+		wantCode     string
+	}{
+		{"iterator task", "loop", false, "SUBFLOW-TX-016"},
+		{"iterateIndex set by a loop driver", "plain", true, "SUBFLOW-TX-016"},
+		// Control: a plain task passes the loop guard and stops at the next one, TX-014, because
+		// the fake manager hands back no *sql.DB.
+		{"plain task", "plain", false, "SUBFLOW-TX-014"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ti := instance.NewTaskInst(ind.Instance, def.GetTask(tc.taskID))
+			if tc.iterateIndex {
+				ti.SetWorkingData("iterateIndex", 0)
+			}
+
+			a := &SubFlowActivity{
+				flowURI:       "res://flow:flow2",
+				activityMd:    activityMd,
+				transactional: true,
+				connMgr:       &fakeConnMgr{typ: "fake-sql"},
+				connID:        "conn-a",
+			}
+
+			done, err := a.evalTransactional(ti, nil)
+
+			assert.False(t, done)
+			require.Error(t, err)
+			requireCodedActivityError(t, err, tc.wantCode)
+		})
+	}
 }

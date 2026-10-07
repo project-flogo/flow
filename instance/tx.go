@@ -507,8 +507,10 @@ func RollbackOpenTransactions(inst *IndependentInstance) {
 		if v == nil {
 			continue
 		}
-		inst.logger.Errorf("transaction on connection '%s' in subflow '%s' of flow instance [%s] was still open when the flow stopped; rolling back. A terminal transition was missed.",
-			v.scope.connID, ci.Name(), inst.ID())
+		// The code goes in this line because it is the only place SUBFLOW-TX-006 can surface: the
+		// caller already has its response, so the coded error apply() returns has nowhere to go.
+		inst.logger.Errorf("%s: transaction on connection '%s' in subflow '%s' of flow instance [%s] was still open when the flow stopped; rolling back. A terminal transition was missed.",
+			CodeTxSweep, v.scope.connID, ci.Name(), inst.ID())
 		_ = v.apply() // no lock held here
 	}
 }
