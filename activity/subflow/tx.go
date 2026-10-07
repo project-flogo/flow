@@ -41,6 +41,12 @@ func newCodedActivityError(code, format string, args ...interface{}) *activity.E
 // continuation on the parent's work queue, and this Eval is re-entered when it completes. The
 // COMMIT or ROLLBACK happens in the engine at the subflow's terminal transition, not here.
 func (a *SubFlowActivity) evalTransactional(ctx activity.Context, input map[string]interface{}) (bool, error) {
+	// Only reachable under TEST_MODE: New() deferred an unresolvable connection to here.
+	if a.connErr != nil {
+		return false, newCodedActivityError("SUBFLOW-TX-012",
+			"unable to resolve the transactional subflow's connection: %v", a.connErr)
+	}
+
 	goCtx := ctx.GoContext()
 	if goCtx == nil {
 		goCtx = context.Background()

@@ -112,6 +112,71 @@ func TestNewTransactionalWithEmptyConnectionIsRejected(t *testing.T) {
 }
 
 func TestNewTransactionalWithUnresolvableConnectionIsRejected(t *testing.T) {
+	// Outside a unit-test run an unresolvable connection fails app load. Only "true" defers it,
+	// matching core's and flow's other TEST_MODE checks.
+	for _, mode := range []string{"", "false"} {
+		t.Run("TEST_MODE="+mode, func(t *testing.T) {
+			t.Setenv("TEST_MODE", mode)
+
+			settings := map[string]interface{}{
+				"flowURI":               "res://flow:flow2",
+				"transactional":         true,
+				"transactionConnection": "conn://no-such-connection-tx-012",
+			}
+
+			act, err := New(test.NewActivityInitContext(settings, nil))
+
+			assert.Nil(t, act)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "SUBFLOW-TX-012")
+		})
+	}
+}
+
+// TestNewTransactionalConfigErrorsStayFatalInTestMode: TEST_MODE defers only TX-012, a connection
+// that could not be resolved. Every other check is a configuration error and still fails New().
+func TestNewTransactionalConfigErrorsStayFatalInTestMode(t *testing.T) {
+	t.Setenv("TEST_MODE", "true")
+
+	db, _ := newFakeDB(t, 0)
+	nonSQL := registerConn(t, &fakeConnMgr{typ: "kafka-ish", conn: "not a *sql.DB"})
+
+	for _, tc := range []struct {
+		name     string
+		settings map[string]interface{}
+		code     string
+	}{
+		{"detached", map[string]interface{}{"detached": true}, "SUBFLOW-TX-010"},
+		{"no connection", map[string]interface{}{}, "SUBFLOW-TX-011"},
+		{"empty connection", map[string]interface{}{"transactionConnection": ""}, "SUBFLOW-TX-011"},
+		{"inline connection", map[string]interface{}{"transactionConnection": &fakeConnMgr{typ: "fake-sql", conn: db}}, "SUBFLOW-TX-013"},
+		{"non-SQL connection", map[string]interface{}{"transactionConnection": "conn://" + nonSQL}, "SUBFLOW-TX-014"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := map[string]interface{}{"flowURI": "res://flow:flow2", "transactional": true}
+			for k, v := range tc.settings {
+				settings[k] = v
+			}
+
+			act, err := New(test.NewActivityInitContext(settings, nil))
+
+			assert.Nil(t, act)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.code)
+		})
+	}
+}
+
+// TestNewTransactionalWithUnresolvableConnectionIsDeferredInTestMode: in TEST_MODE core keeps the
+// app running when a shared connection cannot be created, so a database that is down during a
+// unit-test run must not abort every test of the app here either. The activity loads, and fails
+// with the same code only if a test actually executes it.
+func TestNewTransactionalWithUnresolvableConnectionIsDeferredInTestMode(t *testing.T) {
+	t.Setenv("TEST_MODE", "true")
+
+	f := action.GetFactory("github.com/project-flogo/flow")
+	require.NoError(t, initActionFactory(f.(*flow.ActionFactory))) // Eval reads flow2's IO metadata
+
 	settings := map[string]interface{}{
 		"flowURI":               "res://flow:flow2",
 		"transactional":         true,
@@ -119,10 +184,16 @@ func TestNewTransactionalWithUnresolvableConnectionIsRejected(t *testing.T) {
 	}
 
 	act, err := New(test.NewActivityInitContext(settings, nil))
+	require.NoError(t, err)
+	require.NotNil(t, act)
 
-	assert.Nil(t, act)
+	done, err := act.Eval(test.NewActivityContext(activityMd))
+
+	assert.False(t, done)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "SUBFLOW-TX-012")
+	ae := requireCodedActivityError(t, err, "SUBFLOW-TX-012")
+	assert.False(t, ae.Retriable())
+	assert.Contains(t, ae.Error(), "no-such-connection-tx-012")
 }
 
 func TestNewTransactionalWithUnsharedConnectionIsRejected(t *testing.T) {

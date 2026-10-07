@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 
@@ -80,7 +81,19 @@ func New(ctx activity.InitContext) (activity.Activity, error) {
 
 		mgr, err := coerce.ToConnection(s.TransactionConnection)
 		if err != nil {
-			return nil, fmt.Errorf("SUBFLOW-TX-012: unable to resolve the transactional subflow's connection: %w", err)
+			if os.Getenv("TEST_MODE") != "true" {
+				return nil, fmt.Errorf("SUBFLOW-TX-012: unable to resolve the transactional subflow's connection: %w", err)
+			}
+			// A unit-test run sets TEST_MODE, and core then keeps the app running when a shared
+			// connection cannot be created (app.go); flow tolerates unresolvable activity inputs the
+			// same way (definition_ser.go). Failing here would abort every test of the app,
+			// including tests that never run this activity or that mock it. Defer the failure to
+			// Eval, which reports it with the same code if a test does execute the activity. This
+			// covers a reference to a connection the app does not define, too.
+			ctx.Logger().Warnf("SUBFLOW-TX-012: task '%s' in flow '%s' cannot resolve the connection of transactional subflow '%s': %v; continuing because this is a unit-test run (TEST_MODE) - executing this activity will fail, so mock it to test the flow without the database",
+				ctx.Name(), ctx.HostName(), s.FlowURI, err)
+			act.connErr = err
+			return act, nil
 		}
 		if mgr == nil {
 			return nil, errors.New("SUBFLOW-TX-011: a connection is required when the subflow is transactional")
@@ -138,6 +151,10 @@ type SubFlowActivity struct {
 	transactional bool
 	connMgr       connection.Manager
 	connID        string
+
+	// connErr is set instead of connMgr only under TEST_MODE, when the transaction's connection
+	// could not be resolved at load time; Eval reports it as SUBFLOW-TX-012. See New().
+	connErr error
 }
 
 // Metadata returns the activity's metadata
