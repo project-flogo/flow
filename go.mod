@@ -7,7 +7,7 @@ toolchain go1.24.5
 require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/project-flogo/core v1.6.25-0.20261008091906-e4ede6328a67
+	github.com/project-flogo/core v1.6.25
 	github.com/sony/gobreaker/v2 v2.4.0
 	github.com/stretchr/testify v1.11.1
 )
