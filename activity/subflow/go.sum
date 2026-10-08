@@ -21,8 +21,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/project-flogo/core v1.6.25 h1:U+o24aLMyXPQKgZ3b8wCcvxI47z/ypIbRkY+qeQGPts=
 github.com/project-flogo/core v1.6.25/go.mod h1:gKJsSjm/+uczBquIBEvdR4bXn8S2az2kW6uvKvDLxUE=
-github.com/project-flogo/flow v1.6.29-0.20261008094119-896469739599 h1:GaR9wZG1LRbqW1+hNAol/m/2evjgZaBPvxT5i31YIBE=
-github.com/project-flogo/flow v1.6.29-0.20261008094119-896469739599/go.mod h1:dUsipxlMqeqyNel+EFrvZbTCFvjprvS0ms5HmYR5NvM=
+github.com/project-flogo/flow v1.6.29 h1:OdzAvJO4nZmEAwAodVKJHFArHX0fwgRXePBSDC859v0=
+github.com/project-flogo/flow v1.6.29/go.mod h1:A31MQPN6GuKC8jfuG6lUOaoNU/hpoT1SwwEqhVqtXFY=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/sony/gobreaker/v2 v2.4.0 h1:g2KJRW1Ubty3+ZOcSEUN7K+REQJdN6yo6XvaML+jptg=
 github.com/sony/gobreaker/v2 v2.4.0/go.mod h1:pTyFJgcZ3h2tdQVLZZruK2C0eoFL1fb/G83wK1ZQl+s=
