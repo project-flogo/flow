@@ -221,6 +221,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 	inst.SetResultHandler(handler)
 
 	go func() {
+		// FLOGO-19484: registered FIRST so it runs LAST (defers are LIFO). O(1) when the feature
+		// is unused: txScopeActive is zero.
+		defer instance.RollbackOpenTransactions(inst)
 
 		defer handler.Done()
 

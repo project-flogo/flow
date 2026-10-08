@@ -43,6 +43,11 @@ type Instance struct {
 	tracingCtx trace.TracingContext
 	goContext  context.Context
 	cancelFunc context.CancelFunc
+
+	// txScope is non-nil ONLY on the embedded instance that OWNS a database transaction
+	// (FLOGO-19484). See tx.go, blocker Y1: a nested plain subflow must never claim it.
+	// Not serialised - instance_ser.go marshals through explicit representation structs.
+	txScope *txScope
 }
 
 func (inst *Instance) SetTriggerTags(tags map[string]interface{}) {
