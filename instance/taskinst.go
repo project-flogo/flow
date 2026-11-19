@@ -66,10 +66,11 @@ func initTaskInst(taskInst *TaskInst, flowInst *Instance, task *definition.Task)
 		if engine.GetEnvName() != "" {
 			fields = append(fields, log.FieldString("deployment.environment", engine.GetEnvName()))
 		}
-		taskInst.logger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, fields...)
+		taskInst.baseLogger = log.ChildLoggerWithFields(task.ActivityConfig().Logger, fields...)
 	} else {
-		taskInst.logger = task.ActivityConfig().Logger
+		taskInst.baseLogger = task.ActivityConfig().Logger
 	}
+	taskInst.logger = taskInst.baseLogger
 }
 
 type TaskInst struct {
@@ -86,6 +87,7 @@ type TaskInst struct {
 	settings map[string]interface{}
 
 	logger       log.Logger
+	baseLogger   log.Logger // never carries a span; logger is derived from it for each evaluation
 	returnError  error
 	traceContext trace.TracingContext
 
@@ -320,6 +322,18 @@ func (ti *TaskInst) EvalLink(link *definition.Link) (result bool, err error) {
 	return true, nil
 }
 
+// evalLogger derives the logger of one evaluation from the pristine base, so repeated evaluations never nest.
+func (ti *TaskInst) evalLogger(tc trace.TracingContext) log.Logger {
+	if ti.baseLogger == nil {
+		ti.baseLogger = ti.logger
+	}
+	l := ti.baseLogger
+	if log.CtxLoggingEnabled() && tc != nil {
+		l = log.ChildLoggerWithFields(l, log.FieldString("trace.id", tc.TraceID()), log.FieldString("span.id", tc.SpanID()))
+	}
+	return log.WithTracingContext(l, trace.GetContextForLogger(tc))
+}
+
 // HasActivity implements activity.ActivityContext.HasActivity method
 func (ti *TaskInst) HasActivity() bool {
 	return ti.task.ActivityConfig().Activity != nil
@@ -356,11 +370,7 @@ func (ti *TaskInst) EvalActivity() (done bool, evalErr error) {
 	// Start Trace
 	if trace.Enabled() {
 		ti.traceContext, _ = trace.GetTracer().StartTrace(ti.SpanConfig(), ti.flowInst.tracingCtx)
-		if log.CtxLoggingEnabled() {
-			ti.logger = log.ChildLoggerWithFields(ti.logger, log.FieldString("trace.id", ti.traceContext.TraceID()), log.FieldString("span.id", ti.traceContext.SpanID()))
-		}
-		// FLOGO-17735: add traceID and spanID attributes to log message
-		ti.logger.SetTracingContext(trace.GetContextForLogger(ti.traceContext))
+		ti.logger = ti.evalLogger(ti.traceContext)
 	}
 
 	if actCfg.InputMapper() != nil {

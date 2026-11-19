@@ -2,6 +2,7 @@ package support
 
 import (
 	"os"
+	"sync/atomic"
 
 	"github.com/project-flogo/core/data/coerce"
 	"github.com/project-flogo/core/engine"
@@ -23,51 +24,47 @@ const (
 	ConcurrentExecutionDefault bool = false
 )
 
-var username, hostName, appName, appVersion string
+// The first non-empty value of each variable is cached; the getters run on concurrent flow goroutines.
+var username, hostName, appName, appVersion atomic.Pointer[string]
+
+func cachedEnv(cache *atomic.Pointer[string], key string) string {
+	if v := cache.Load(); v != nil {
+		return *v
+	}
+	v := os.Getenv(key)
+	if len(v) > 0 {
+		cache.Store(&v)
+	}
+	return v
+}
 
 func GetUserName() string {
-	if len(username) > 0 {
-		return username
-	}
-	username = os.Getenv(UserName)
-	if len(username) > 0 {
-		return username
+	if v := cachedEnv(&username, UserName); len(v) > 0 {
+		return v
 	}
 	return "flogo"
 }
 
 func GetHostId() string {
-	if len(hostName) > 0 {
-		return hostName
-	}
-	hostName = os.Getenv(HostName)
-	if len(hostName) > 0 {
-		return hostName
+	if v := cachedEnv(&hostName, HostName); len(v) > 0 {
+		return v
 	}
 	h, _ := os.Hostname()
 	return h
 }
 
 func GetAppName() string {
-	if len(appName) > 0 {
-		return appName
+	if v := cachedEnv(&appName, AppName); len(v) > 0 {
+		return v
 	}
-	appName = os.Getenv(AppName)
-	if len(appName) <= 0 {
-		return engine.GetAppName()
-	}
-	return appName
+	return engine.GetAppName()
 }
 
 func GetAppVerison() string {
-	if len(appVersion) > 0 {
-		return appVersion
+	if v := cachedEnv(&appVersion, AppVersion); len(v) > 0 {
+		return v
 	}
-	appVersion = os.Getenv(AppVersion)
-	if len(appVersion) <= 0 {
-		return engine.GetAppVersion()
-	}
-	return appVersion
+	return engine.GetAppVersion()
 }
 
 func GetPropagateSkip() bool {

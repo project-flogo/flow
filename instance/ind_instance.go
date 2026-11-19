@@ -627,8 +627,13 @@ func (inst *IndependentInstance) markTerminatedIfDone() {
 // entered exactly once. The sequential execTask path is intentionally left unchanged.
 func (inst *IndependentInstance) execTaskConcurrent(behavior model.TaskBehavior, taskInst *TaskInst, stateRecorder state.Recorder, taskStartTime time.Time) {
 
+	evalDone := false
 	defer func() {
 		if r := recover(); r != nil {
+			// After evaluation the tail may hand the task to another worker, whose evalCtx must stay.
+			if !evalDone {
+				taskInst.evalCtx = nil
+			}
 			err := fmt.Errorf("unhandled Error executing task '%s' : %v", taskInst.task.ID(), r)
 			markTxFailed(taskInst.flowInst, err)
 			inst.logger.Error(err)
@@ -669,12 +674,12 @@ func (inst *IndependentInstance) execTaskConcurrent(behavior model.TaskBehavior,
 		}
 	}
 	taskInst.evalCtx = ctxForTask
-	// Clear it on the way out so a TaskInst never retains a canceled group context after the
-	// pool tears down concurCtx; later GoContext/GetGoContext must fall back to the flow context.
-	defer func() { taskInst.evalCtx = nil }()
 
 	// ---- slow part: state lock NOT held, so branches run in parallel ----
 	evalResult, err, skipped := inst.evalTaskBehavior(behavior, taskInst)
+	// Cleared before the tail below can reschedule this task, which another worker may then pick up.
+	taskInst.evalCtx = nil
+	evalDone = true
 	if skipped {
 		return
 	}
@@ -801,12 +806,7 @@ func (inst *IndependentInstance) RunConcurrent(stepCount, maxStepCount int, stat
 		// All in-flight work has drained. Handle a latched branch failure exactly once.
 		containerInst, ferr := inst.takeLatchedError()
 		if ferr != nil {
-			inst.lockState()
-			inst.handleGlobalError(containerInst, ferr, true)
-			if stateRecorder != nil {
-				_ = inst.RecordState(time.Now().UTC())
-			}
-			inst.unlockState()
+			inst.handleLatchedError(containerInst, ferr, stateRecorder)
 
 			// HandleGlobalError may have started an error handler that scheduled tasks;
 			// loop to drain those too. (Single-threaded here: all workers have exited.)
@@ -822,6 +822,16 @@ func (inst *IndependentInstance) RunConcurrent(stepCount, maxStepCount int, stat
 		final = maxStepCount
 	}
 	return final
+}
+
+// handleLatchedError runs the global error handling of a latched branch failure; a panic in it still unlocks.
+func (inst *IndependentInstance) handleLatchedError(containerInst *Instance, err error, stateRecorder state.Recorder) {
+	inst.lockState()
+	defer inst.unlockState()
+	inst.handleGlobalError(containerInst, err, true)
+	if stateRecorder != nil {
+		_ = inst.RecordState(time.Now().UTC())
+	}
 }
 
 func (inst *IndependentInstance) execTaskWithContext(ctx context.Context, cancelFunc context.CancelFunc, behavior model.TaskBehavior, taskInst *TaskInst) {
@@ -1653,6 +1663,12 @@ func (inst *IndependentInstance) init(flowInst *Instance) {
 		linkInst.flowInst = flowInst
 		linkInst.link = flowInst.flowDef.GetLink(linkInst.id)
 	}
+}
+
+// SetLogger sets the logger of the instance and of the subflows it starts. Call it before the instance runs:
+// the logger is read without synchronisation.
+func (inst *IndependentInstance) SetLogger(logger log.Logger) {
+	inst.logger = logger
 }
 
 func (inst *IndependentInstance) SetTracingContext(tracingCtx trace.TracingContext) {
