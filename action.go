@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -228,7 +229,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 	logger.Debugf("Running FlowAction for URI: '%s'", flowURI)
 
-	//todo: catch panic
 	//todo: consider switch to URI to dictate flow operation (ex. flow://blah/resume)
 	eventID := trigger.GetHandlerEventIdFromContext(ctx)
 
@@ -321,11 +321,19 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			}
 			logger.Debug("Resuming Flow Instance: ", inst.ID())
 
-			//instLogger := logger
-			//
-			//if log.CtxLoggingEnabled() {
-			//	instLogger = log.ChildLoggerWithFields(logger, log.FieldString("flowName", inst.Name()), log.FieldString("flowId", instanceID))
-			//}
+			if log.CtxLoggingEnabled() {
+				var fields []log.Field
+				fields = append(fields, log.FieldString("flow.name", inst.Name()))
+				fields = append(fields, log.FieldString("flow.id", inst.ID()))
+				fields = append(fields, log.FieldString("event.id", eventID))
+				fields = append(fields, log.FieldString("app.name", engine.GetAppName()))
+				fields = append(fields, log.FieldString("app.version", engine.GetAppVersion()))
+				if engine.GetEnvName() != "" {
+					fields = append(fields, log.FieldString("deployment.environment", engine.GetEnvName()))
+				}
+				instLogger = log.ChildLoggerWithFields(logger, fields...)
+			}
+			inst.SetLogger(instLogger)
 
 		} else {
 			return errors.New("unable to resume instance, initial state not provided")
@@ -345,10 +353,6 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		stateRecorder.RecordStart(flowState)
 	}
 
-	if eventID != "" {
-		// Add eventId to the instance
-		_ = inst.SetValue(instance.EventIdAttr, eventID)
-	}
 	if triggerTags, ok := inputs["_trigger_tags"]; ok {
 		if tags, ok := triggerTags.(map[string]interface{}); ok {
 			inst.SetTriggerTags(tags)
@@ -368,8 +372,14 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 			tc.SetTag("flogo_event_id", eventID)
 		}
 		inst.SetTracingContext(tc)
-		// FLOGO-17735: add traceID and spanID attributes to log message
-		instLogger.SetTracingContext(trace.GetContextForLogger(tc))
+		instLogger = log.WithTracingContext(instLogger, trace.GetContextForLogger(tc))
+		inst.SetLogger(instLogger)
+	}
+
+	// Set after the trace block, so that SetValue's DEBUG line carries the flow's trace context.
+	if eventID != "" {
+		// Add eventId to the instance
+		_ = inst.SetValue(instance.EventIdAttr, eventID)
 	}
 
 	//todo how do we check if debug is enabled?
@@ -409,15 +419,35 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if detachExecution {
 			// In detached mode, no reply expected. So, notifying handler.
 			handler.Done()
-			// clean the tracing context after exiting the flow
-			instLogger.SetTracingContext(nil)
 		} else {
-			defer func() {
-				handler.Done()
-				// clean the tracing context after exiting the flow
-				instLogger.SetTracingContext(nil)
-			}()
+			defer handler.Done()
 		}
+
+		resultSent, spanFinished, doneRecorded := false, false, false
+		// Registered after handler.Done so that it runs first: the error must reach the caller before Done.
+		defer func() {
+			r := recover()
+			if r == nil {
+				return
+			}
+			err := fmt.Errorf("unhandled error executing flow instance [%s]: %v", inst.ID(), r)
+			instLogger.Error(err)
+			if instLogger.DebugEnabled() {
+				instLogger.Debugf("StackTrace: %s", debug.Stack())
+			}
+			if inst.Status() < model.FlowStatusCompleted {
+				ignorePanic(func() { inst.SetStatus(model.FlowStatusFailed) })
+			}
+			if !spanFinished && inst.TracingContext() != nil {
+				ignorePanic(func() { _ = trace.GetTracer().FinishTrace(inst.TracingContext(), err) })
+			}
+			if !detachExecution && !resultSent {
+				ignorePanic(func() { handler.HandleResult(nil, err) })
+			}
+			if !doneRecorded && stateRecorder != nil {
+				ignorePanic(func() { _ = stateRecorder.RecordDone(inst.GetFlowState(inputs)) })
+			}
+		}()
 
 		if retID {
 
@@ -425,6 +455,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 				"id": inst.ID(),
 			}
 
+			resultSent = true
 			handler.HandleResult(results, nil)
 		}
 
@@ -436,7 +467,9 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		} else {
 			for hasWork && inst.Status() < model.FlowStatusCompleted && stepCount < maxStepCount {
 				stepCount++
-				logger.Debugf("Step: %d", stepCount)
+				if instLogger.DebugEnabled() {
+					instLogger.Debugf("Step: %d", stepCount)
+				}
 				taskStartTime := time.Now().UTC()
 				hasWork = inst.DoStep()
 				if stateRecorder != nil {
@@ -447,8 +480,10 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if stepCount == maxStepCount && inst.Status() != model.FlowStatusCompleted {
 			err := fmt.Errorf("flow instance [%s] failed due to max step count [%d] reached. Increase step count by setting [%s] to higher value", inst.ID(), maxStepCount, util.FlogoStepCountEnv)
 			if inst.TracingContext() != nil {
+				spanFinished = true
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), err)
 			}
+			resultSent = true
 			handler.HandleResult(nil, err)
 			return
 		}
@@ -456,6 +491,7 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		if inst.Status() == model.FlowStatusCompleted {
 			returnData, err := inst.GetReturnData()
 			if inst.TracingContext() != nil {
+				spanFinished = true
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), nil)
 			}
 			for k, v := range returnData {
@@ -464,15 +500,18 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 
 			fa.applyAssertionInterceptor(inst, coreSupport.AssertionActivity)
 
+			resultSent = true
 			handler.HandleResult(returnData, err)
 		} else if inst.Status() == model.FlowStatusFailed {
 			hasFlowExceptionAssert := fa.applyAssertionInterceptor(inst, coreSupport.AssertionException)
 
 			if inst.TracingContext() != nil {
+				spanFinished = true
 				_ = trace.GetTracer().FinishTrace(inst.TracingContext(), inst.GetError())
 			}
 			// If we are in unit testing mode and flow has assertion exception then we dont make the flow fail
 			// The testcase will be passed or failed based on the assertions executed.
+			resultSent = true
 			if hasFlowExceptionAssert {
 				handler.HandleResult(nil, nil)
 			}
@@ -488,11 +527,17 @@ func (fa *FlowAction) Run(ctx context.Context, inputs map[string]interface{}, ha
 		}
 
 		if stateRecorder != nil {
+			doneRecorded = true
 			stateRecorder.RecordDone(inst.GetFlowState(inputs))
 		}
 	}()
 
 	return nil
+}
+
+func ignorePanic(f func()) {
+	defer func() { _ = recover() }()
+	f()
 }
 
 func (fa *FlowAction) applyAssertionInterceptor(inst *instance.IndependentInstance, assertType int) bool {
