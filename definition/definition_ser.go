@@ -388,6 +388,7 @@ func createActivityConfig(task *Task, rep *activity.Config, ef expression.Factor
 
 	}
 
+	activityCfg.inputMappings = input
 	activityCfg.inputMapper, err = mf.NewMapper(input)
 	if err != nil {
 		return nil, err

@@ -1486,7 +1486,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 			ActivityName: taskInst.taskID,
 			LinkFrom:     inst.getLinks(taskInst.GetFromLinkInstances()),
 			LinkTo:       inst.getLinks(taskInst.GetToLinkInstances()),
-			Inputs:       taskInst.inputs,
+			Inputs:       withMapperCoverage(taskInst.inputs, taskInst.mapperCoverage),
 			Outputs:      outputs,
 			Error:        errorObj,
 			FlowName:     taskInst.flowInst.Name(),
@@ -1496,6 +1496,7 @@ func (inst *IndependentInstance) addActivityToCoverage(taskInst *TaskInst, err e
 	} else {
 		coverage = coresupport.ActivityCoverage{
 			ActivityName: taskInst.taskID,
+			Inputs:       withMapperCoverage(nil, taskInst.mapperCoverage),
 			FlowName:     taskInst.flowInst.Name(),
 			IsMainFlow:   !inst.isHandlingError,
 		}

@@ -82,9 +82,11 @@ type TaskInst struct {
 
 	workingData *WorkingDataScope
 
-	inputs   map[string]interface{}
-	outputs  map[string]interface{}
-	settings map[string]interface{}
+	inputs map[string]interface{}
+	// mapperCoverage holds control statement coverage of the input mapping (interceptor only)
+	mapperCoverage []MapperCoverage
+	outputs        map[string]interface{}
+	settings       map[string]interface{}
 
 	logger       log.Logger
 	baseLogger   log.Logger // never carries a span; logger is derived from it for each evaluation
