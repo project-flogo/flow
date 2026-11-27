@@ -196,8 +196,9 @@ type ActivityConfig struct {
 
 	settings map[string]interface{}
 
-	inputMapper  mapper.Mapper
-	outputMapper mapper.Mapper
+	inputMapper   mapper.Mapper
+	inputMappings map[string]interface{}
+	outputMapper  mapper.Mapper
 
 	inputSchemas  map[string]schema.Schema
 	outputSchemas map[string]schema.Schema
@@ -252,6 +253,11 @@ func (ac *ActivityConfig) GetSetting(setting string) (val interface{}, exists bo
 // InputMapper returns the InputMapper of the task
 func (ac *ActivityConfig) InputMapper() mapper.Mapper {
 	return ac.inputMapper
+}
+
+// InputMappings returns the raw input mappings of the task
+func (ac *ActivityConfig) InputMappings() map[string]interface{} {
+	return ac.inputMappings
 }
 
 // OutputMapper returns the OutputMapper of the task

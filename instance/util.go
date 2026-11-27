@@ -70,6 +70,12 @@ func applyInputMapper(taskInst *TaskInst) error {
 			inputScope = taskInst.workingData
 		}
 
+		if master.HasInterceptor() {
+			if mappings := taskInst.task.ActivityConfig().InputMappings(); len(mappings) > 0 {
+				taskInst.mapperCoverage = collectMapperCoverage(mappings, inputScope)
+			}
+		}
+
 		var err error
 
 		taskInst.inputs, err = inputMapper.Apply(inputScope)
